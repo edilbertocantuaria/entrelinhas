@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { Illustration, OverridesContext } from './illustration'
 import { Login } from './login'
 import { Onboarding } from './onboarding'
+import { useSummaryAI } from './summary-ai'
 
 interface Shell {
   /** moldura do celular: é nela que as folhas são montadas */
@@ -64,6 +65,9 @@ export function AppShell({ children, overrides }: { children: ReactNode; overrid
   useEffect(() => {
     if (hydrated && signedIn && onboarded) runSchedule(today, time)
   }, [hydrated, signedIn, onboarded, today, time, runSchedule])
+
+  // Resumos que esperam o texto da IA
+  useSummaryAI()
 
   useEffect(() => {
     const update = () => setOffline(!navigator.onLine)

@@ -14,6 +14,7 @@ import { areaColor } from '@/lib/areas'
 import { num, shortDay } from '@/lib/format'
 import { periodStats } from '@/lib/goals'
 import { useStore } from '@/lib/store'
+import { writeSummary } from '@/components/summary-ai'
 import { KIND_LABEL, periodLabel, REFLECTION_PROMPTS, regenerate } from '@/lib/summaries'
 import { useClock } from '@/lib/time'
 
@@ -48,15 +49,21 @@ export default function SummaryPage() {
 
   if (!summary || !stats) return <Missing title="Resumo não encontrado" description="Ele pode ter sido gerado de novo." href="/diario?resumos" action="Ver resumos" />
 
-  const run = () => {
+  const run = async () => {
     setConfirming(false)
-    if (useAI && !navigator.onLine) return setPhase('offline')
+    if (!useAI) {
+      updateSummary(summary.id, regenerate({ goals, logs, tasks, journal }, summary, today))
+      return toast('Texto refeito com os seus números')
+    }
+    if (!navigator.onLine) return setPhase('offline')
     setPhase('loading')
-    window.setTimeout(() => {
-      updateSummary(summary.id, regenerate({ goals, logs, tasks, journal }, summary, today, useAI))
-      setPhase('ready')
-    }, 1800)
+    const patch = await writeSummary(summary, { titulo: summary.title, texto: summary.narrative })
+    if (patch) updateSummary(summary.id, { ...patch, variant: summary.variant + 1, generatedAt: today })
+    else toast('Não deu para falar com a IA agora. O texto atual continua guardado.')
+    setPhase('ready')
   }
+
+  const writing = phase === 'loading' || summary.aiStatus === 'pending'
 
   const status = [
     `Gerado em ${shortDay(summary.generatedAt)}`,
@@ -81,10 +88,10 @@ export default function SummaryPage() {
         <h2 className="voice mt-2 text-[22px] leading-snug font-medium">{summary.title}</h2>
 
         {/* 1. Narrativa */}
-        {phase === 'loading' ? (
+        {writing ? (
           <div className="card mt-4 flex flex-col items-center p-6 text-center" role="status">
             <Illustration name="generating" height={96} level="core" decorative />
-            <p className="mt-3 text-[15px] font-medium">Escrevendo de novo</p>
+            <p className="mt-3 text-[15px] font-medium">{phase === 'loading' ? 'Escrevendo de novo' : 'Escrevendo o seu resumo'}</p>
             <p className="text-[13px] text-muted">Relendo o diário e os registros do período.</p>
           </div>
         ) : phase === 'offline' ? (

@@ -86,27 +86,31 @@ export function buildSummary(data: Data, kind: 'monthly' | 'quarterly', start: s
     start,
     end,
     title: TITLES[kind][variant % 3],
-    narrative: mockNarrative(kind, start, stats, variant, useAI),
+    // com IA ligada, este texto é só o provisório até a resposta chegar (veja components/summary-ai.tsx)
+    narrative: mockNarrative(kind, start, stats, variant, false),
     generatedAt: today,
     pinned: false,
     edited: false,
     seen: false,
-    usedAI: useAI,
+    usedAI: false,
+    aiStatus: useAI ? 'pending' : undefined,
     variant,
     reflections: {},
   }
 }
 
-export function regenerate(data: Data, summary: Summary, today: string, useAI: boolean): Partial<Summary> {
+/** Nova versão só com os números, para quando a IA está desligada ou fora do ar. */
+export function regenerate(data: Data, summary: Summary, today: string): Partial<Summary> {
   const variant = summary.variant + 1
   const stats = periodStats(data, summary.start, summary.end)
   return {
     variant,
     title: TITLES[summary.kind][variant % 3],
-    narrative: mockNarrative(summary.kind, summary.start, stats, variant, useAI),
+    narrative: mockNarrative(summary.kind, summary.start, stats, variant, false),
     generatedAt: today,
     edited: false,
-    usedAI: useAI,
+    usedAI: false,
+    aiStatus: undefined,
   }
 }
 

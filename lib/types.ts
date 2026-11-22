@@ -114,6 +114,8 @@ export interface Summary {
   /** falso enquanto o aviso "está pronto" ainda não foi visto */
   seen: boolean
   usedAI: boolean
+  /** "pending": esperando o texto da IA; ausente = texto pronto */
+  aiStatus?: 'pending'
   variant: number
   reflections: Record<string, string>
 }
