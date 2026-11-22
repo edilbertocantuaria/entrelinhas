@@ -1,16 +1,18 @@
 'use client'
 
-import { BookOpen, Dumbbell, Plus, Settings2, Target } from 'lucide-react'
+import { Eraser, Plus, Settings2, Target } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { AreaChip, AreaIcon, EmptyState, PacePill } from '@/components/common'
 import { goalArt, GoalProgress } from '@/components/goal-visuals'
 import { Illustration } from '@/components/illustration'
-import { buttonVariants } from '@/components/ui/button'
+import { ClearGoalsSheet } from '@/components/clear-goals'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Chip, ScrollRow } from '@/components/ui/controls'
 import { weekStats as fitnessWeek } from '@/lib/fitness'
 import { minutesLabel, plural } from '@/lib/format'
 import { paceOf, progressOf, streakOf } from '@/lib/goals'
+import { moduleCardText, moduleHref } from '@/lib/modules'
 import { weekStats as studyWeekStats } from '@/lib/study'
 import { useStore } from '@/lib/store'
 import { useClock } from '@/lib/time'
@@ -24,8 +26,12 @@ export default function GoalsPage() {
   const tasks = useStore(state => state.tasks)
   const hideStreaks = useStore(state => state.settings.hideStreaks)
   const [filter, setFilter] = useState('all')
+  const [clearing, setClearing] = useState(false)
   const fitWeek = fitnessWeek(useStore(state => state.workouts), today)
   const studyWeek = studyWeekStats(useStore(state => state.studySessions), today)
+  const allModules = useStore(state => state.modules)
+  const entries = useStore(state => state.moduleEntries)
+  const modules = allModules.filter(module => !module.hidden).sort((a, b) => a.order - b.order)
 
   const ordered = [...areas].sort((a, b) => Number(a.archived) - Number(b.archived) || a.order - b.order)
   const active = ordered.filter(area => !area.archived)
@@ -42,22 +48,42 @@ export default function GoalsPage() {
         <p className="text-[13px] text-muted">O que importa em {today.slice(0, 4)}, no seu ritmo.</p>
       </header>
 
-      <nav aria-label="Módulos" className="mt-4 grid grid-cols-2 gap-3 px-5">
-        {[
-          { href: '/fitness', title: 'Fitness', icon: Dumbbell, text: `${fitWeek.count} ${plural(fitWeek.count, 'treino', 'treinos')} na semana` },
-          { href: '/estudos', title: 'Estudos', icon: BookOpen, text: `${studyWeek.minutes ? minutesLabel(studyWeek.minutes) : '0 min'} na semana` },
-        ].map(module => (
-          <Link key={module.href} href={module.href} className="card flex items-center gap-3 p-3">
-            <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
-              <module.icon size={20} strokeWidth={1.75} />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[14px] font-medium">{module.title}</span>
-              <span className="block text-[12px] leading-snug text-muted">{module.text}</span>
-            </span>
+      <section aria-labelledby="modulos-titulo" className="mt-4 px-5">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 id="modulos-titulo" className="text-[13px] text-muted">
+            Módulos
+          </h2>
+          <Link href="/modulos" className="-mr-2 inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-[13px] text-primary">
+            <Settings2 size={16} strokeWidth={1.75} aria-hidden />
+            Gerenciar
           </Link>
-        ))}
-      </nav>
+        </div>
+        <nav aria-label="Módulos" className="grid grid-cols-2 gap-3">
+          {modules.map(module => {
+            const text =
+              module.kind === 'fitness'
+                ? `${fitWeek.count} ${plural(fitWeek.count, 'treino', 'treinos')} na semana`
+                : module.kind === 'study'
+                  ? `${studyWeek.minutes ? minutesLabel(studyWeek.minutes) : '0 min'} na semana`
+                  : moduleCardText(module, entries.filter(entry => entry.moduleId === module.id), today)
+            return (
+              <Link key={module.id} href={moduleHref(module)} className="card flex items-center gap-3 p-3">
+                <AreaIcon area={module} size={40} />
+                <span className="min-w-0">
+                  <span className="block truncate text-[14px] font-medium">{module.name}</span>
+                  <span className="block text-[12px] leading-snug text-muted">{text}</span>
+                </span>
+              </Link>
+            )
+          })}
+          <Link href="/modulos" className="card flex min-h-16 items-center gap-3 border-dashed p-3 text-muted">
+            <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
+              <Plus size={20} strokeWidth={1.75} />
+            </span>
+            <span className="text-[14px]">Novo módulo</span>
+          </Link>
+        </nav>
+      </section>
 
       <div className="mt-3">
       <ScrollRow className="px-5 pb-1" label="Filtrar por área">
@@ -127,6 +153,12 @@ export default function GoalsPage() {
               </section>
             ))}
           </div>
+          <div className="flex justify-center px-5 pb-2">
+            <Button variant="quiet" size="sm" onClick={() => setClearing(true)}>
+              <Eraser size={16} strokeWidth={1.75} aria-hidden />
+              Limpar todas as metas
+            </Button>
+          </div>
           <div className="pointer-events-none sticky bottom-4 mt-auto flex justify-end px-5 pb-4">
             <Link href="/metas/nova" className={cn(buttonVariants(), 'pointer-events-auto h-14 rounded-full pr-6 pl-5')}>
               <Plus size={20} strokeWidth={1.75} aria-hidden />
@@ -135,6 +167,7 @@ export default function GoalsPage() {
           </div>
         </>
       )}
+      <ClearGoalsSheet open={clearing} onClose={() => setClearing(false)} />
     </div>
   )
 }

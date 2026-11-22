@@ -8,7 +8,8 @@ import { iso, uid } from './format'
 import { todayTasks, type Suggestion } from './goals'
 import { createSeed, DEFAULT_LETTER } from './seed'
 import { buildSummary, dueSummaries } from './summaries'
-import type { AppData, Area, ColorKey, Goal, JournalEntry, LogEntry, Retro, Session, Settings, StudySession, Summary, Task, Workout } from './types'
+import type { AppData, Area, ColorKey, Goal, JournalEntry, LogEntry, Retro, Session, Settings, StudySession, Summary, Task, Workout, AppModule, ModuleEntry } from './types'
+import { MAX_FIELDS, MAX_MODULE_NAME } from './modules'
 import { kindOf, workoutMeta } from './fitness'
 
 type AreaDraft = { name: string; icon: string; color: ColorKey }
@@ -55,6 +56,11 @@ interface Actions {
   setSettings: (patch: Partial<Settings>) => void
   finishOnboarding: (areaIds: string[]) => void
   resetAll: () => void
+  /**
+   * "goals": tira só as metas (e os registros delas); tarefas avulsas, diário e módulos ficam.
+   * "all": começa do zero, mantendo só áreas, ajustes e a conta.
+   */
+  clearGoals: (mode: 'goals' | 'all', today: string) => void
   // conta
   signIn: (session: Session) => void
   signOut: () => void
@@ -68,11 +74,24 @@ interface Actions {
   removeSubject: (id: string) => void
   addStudySession: (session: Omit<StudySession, 'id' | 'logId'>) => void
   removeStudySession: (id: string) => void
+  // módulos
+  saveModule: (draft: ModuleDraft, id?: string) => SaveAreaResult
+  /** Fitness e Estudos ficam escondidos (e podem voltar); os criados são apagados com os registros. */
+  removeModule: (id: string, eraseData: boolean) => void
+  restoreModule: (id: string) => void
+  moveModule: (id: string, direction: -1 | 1) => void
+  addModuleEntry: (entry: Omit<ModuleEntry, 'id' | 'logId'>) => void
+  removeModuleEntry: (id: string) => void
 }
+
+export type ModuleDraft = Pick<AppModule, 'name' | 'icon' | 'color'> & Partial<Pick<AppModule, 'fields' | 'goal'>>
 
 export type Store = AppData & Actions
 
 const activeAreas = (areas: Area[]) => areas.filter(area => !area.archived)
+
+/** A carta de exemplo fala das metas de exemplo; sem elas, a carta começa em branco. */
+const letterFor = (state: AppData) => (state.goals.some(goal => goal.id === 'academia') ? DEFAULT_LETTER : '')
 
 type Modules = Pick<AppData, 'workouts' | 'weights' | 'studySessions'>
 
@@ -180,6 +199,7 @@ export const useStore = create<Store>()(
             .map(task => (task.goalId === id ? { ...task, goalId: undefined, milestoneId: undefined } : task)),
           journal: state.journal.map(entry => ({ ...entry, goalIds: entry.goalIds.filter(goalId => goalId !== id) })),
           subjects: state.subjects.map(subject => (subject.goalId === id ? { ...subject, goalId: undefined } : subject)),
+          modules: state.modules.map(module => (module.goal?.goalId === id ? { ...module, goal: undefined } : module)),
         })),
 
       addLog: log =>
@@ -303,7 +323,7 @@ export const useStore = create<Store>()(
         const retros = { ...state.retros }
         if (retroYear !== null) {
           const current: Retro | undefined = retros[retroYear]
-          const base: Retro = current ?? { year: retroYear, generatedAt: today, saved: false, banner: false, announced: false, pinned: false, letter: DEFAULT_LETTER }
+          const base: Retro = current ?? { year: retroYear, generatedAt: today, saved: false, banner: false, announced: false, pinned: false, letter: letterFor(state) }
           retros[retroYear] = { ...base, generatedAt: today, announced: true, banner: true }
         }
         set({ summaries: [...state.summaries, ...summaries], retros })
@@ -326,7 +346,7 @@ export const useStore = create<Store>()(
             : {
                 retros: {
                   ...state.retros,
-                  [year]: { year, generatedAt: today, saved: false, banner: false, announced: false, pinned: false, letter: DEFAULT_LETTER },
+                  [year]: { year, generatedAt: today, saved: false, banner: false, announced: false, pinned: false, letter: letterFor(state) },
                 },
               },
         ),
@@ -352,6 +372,133 @@ export const useStore = create<Store>()(
         }),
 
       resetAll: () => set(state => ({ ...createSeed(iso(new Date())), session: state.session })),
+
+      saveModule: (draft, id) => {
+        const name = draft.name.trim()
+        const { modules } = get()
+        const current = modules.find(item => item.id === id)
+        if (!name) return { ok: false, error: 'Dê um nome para o módulo.' }
+        if (name.length > MAX_MODULE_NAME) return { ok: false, error: `Use até ${MAX_MODULE_NAME} caracteres.` }
+        const lower = name.toLocaleLowerCase('pt-BR')
+        if (modules.some(item => item.id !== id && !item.hidden && item.name.toLocaleLowerCase('pt-BR') === lower)) return { ok: false, error: 'Já existe um módulo com esse nome.' }
+        const custom = !current || current.kind === 'custom'
+        const fields = (draft.fields ?? current?.fields ?? []).map(field => ({
+          ...field,
+          label: field.label.trim(),
+          unit: field.type === 'number' ? field.unit?.trim() || undefined : undefined,
+          options: field.type === 'choice' ? [...new Set((field.options ?? []).map(option => option.trim()).filter(Boolean))] : undefined,
+        }))
+        if (custom) {
+          if (fields.length === 0) return { ok: false, error: 'Adicione pelo menos um campo para registrar.' }
+          if (fields.length > MAX_FIELDS) return { ok: false, error: `Use até ${MAX_FIELDS} campos.` }
+          if (fields.some(field => !field.label)) return { ok: false, error: 'Todo campo precisa de um nome.' }
+          if (fields.some(field => field.type === 'choice' && (field.options?.length ?? 0) < 2)) return { ok: false, error: 'Listas de opções precisam de pelo menos duas opções.' }
+        }
+        const goal = draft.goal && get().goals.some(item => item.id === draft.goal?.goalId) ? draft.goal : undefined
+        if (current) {
+          set({ modules: modules.map(item => (item.id === id ? { ...item, name, icon: draft.icon, color: draft.color, fields: custom ? fields : item.fields, goal: custom ? goal : undefined } : item)) })
+          return { ok: true, id: current.id }
+        }
+        const newId = `mod-${uid()}`
+        const order = Math.max(-1, ...modules.map(item => item.order)) + 1
+        set({ modules: [...modules, { id: newId, kind: 'custom', name, icon: draft.icon, color: draft.color, order, fields, goal }] })
+        return { ok: true, id: newId }
+      },
+
+      removeModule: (id, eraseData) =>
+        set(state => {
+          const target = state.modules.find(item => item.id === id)
+          if (!target) return state
+          if (target.kind === 'custom')
+            return {
+              modules: state.modules.filter(item => item.id !== id),
+              // os registros já contados nas metas ficam; só os do módulo saem
+              moduleEntries: state.moduleEntries.filter(entry => entry.moduleId !== id),
+            }
+          const modules = state.modules.map(item => (item.id === id ? { ...item, hidden: true } : item))
+          if (!eraseData) return { modules }
+          return target.kind === 'fitness' ? { modules, workouts: [], weights: [] } : { modules, subjects: [], studySessions: [] }
+        }),
+
+      restoreModule: id =>
+        set(state => {
+          const order = Math.max(-1, ...state.modules.filter(item => !item.hidden).map(item => item.order)) + 1
+          return { modules: state.modules.map(item => (item.id === id ? { ...item, hidden: false, order } : item)) }
+        }),
+
+      moveModule: (id, direction) =>
+        set(state => {
+          const visible = state.modules.filter(item => !item.hidden).sort((a, b) => a.order - b.order)
+          const index = visible.findIndex(item => item.id === id)
+          const swap = visible[index + direction]
+          if (index < 0 || !swap) return state
+          const ids = visible.map(item => item.id)
+          ;[ids[index], ids[index + direction]] = [ids[index + direction], ids[index]]
+          return { modules: state.modules.map(item => (ids.includes(item.id) ? { ...item, order: ids.indexOf(item.id) } : item)) }
+        }),
+
+      // Se o módulo está ligado a uma meta, o registro conta para ela.
+      addModuleEntry: entry =>
+        set(state => {
+          const module = state.modules.find(item => item.id === entry.moduleId)
+          const goal = state.goals.find(item => item.id === module?.goal?.goalId)
+          let log: LogEntry | null = null
+          if (module && goal && goal.metric.type !== 'milestones') {
+            const raw = module.goal?.fieldId ? entry.values[module.goal.fieldId] : undefined
+            const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined
+            const needsValue = goal.metric.type === 'sum' || goal.metric.type === 'value'
+            if (!needsValue || value !== undefined) log = { id: `log-${uid()}`, date: entry.date, goalId: goal.id, value: goal.metric.type === 'frequency' ? undefined : value, note: module.name }
+          }
+          return {
+            moduleEntries: [...state.moduleEntries, { ...entry, id: `reg-${uid()}`, logId: log?.id }],
+            logs: log ? [...state.logs, log] : state.logs,
+          }
+        }),
+
+      removeModuleEntry: id =>
+        set(state => {
+          const logId = state.moduleEntries.find(entry => entry.id === id)?.logId
+          return { moduleEntries: state.moduleEntries.filter(entry => entry.id !== id), logs: logId ? state.logs.filter(log => log.id !== logId) : state.logs }
+        }),
+
+      clearGoals: (mode, today) =>
+        set(state => {
+          const unlink = <T extends { logId?: string }>(items: T[]) => items.map(item => ({ ...item, logId: undefined }))
+          if (mode === 'all')
+            return {
+              goals: [],
+              logs: [],
+              tasks: [],
+              journal: [],
+              summaries: [],
+              retros: {},
+              reviews: {},
+              workouts: [],
+              weights: [],
+              subjects: [],
+              studySessions: [],
+              // os módulos ficam (como as áreas), sem registros e sem vínculo com metas
+              modules: state.modules.map(module => ({ ...module, goal: undefined })),
+              moduleEntries: [],
+              day: { openedOn: null, closedOn: null },
+              startedAt: today,
+            }
+          return {
+            goals: [],
+            logs: [],
+            // tarefas pendentes das metas saem; o histórico fica, sem o vínculo
+            tasks: state.tasks
+              .filter(task => !(task.goalId && task.status === 'pending'))
+              .map(task => (task.goalId ? { ...task, goalId: undefined, milestoneId: undefined } : task)),
+            journal: state.journal.map(entry => ({ ...entry, goalIds: [] })),
+            subjects: state.subjects.map(subject => ({ ...subject, goalId: undefined })),
+            workouts: unlink(state.workouts),
+            weights: unlink(state.weights),
+            studySessions: unlink(state.studySessions),
+            modules: state.modules.map(module => ({ ...module, goal: undefined })),
+            moduleEntries: unlink(state.moduleEntries),
+          }
+        }),
 
       signIn: session => set({ session }),
       signOut: () => set({ session: null }),

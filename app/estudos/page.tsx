@@ -3,8 +3,9 @@
 import { BookOpen, Check, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { TopBar, useShell } from '@/components/app-shell'
-import { BackButton, EmptyState } from '@/components/common'
+import { useShell } from '@/components/app-shell'
+import { EmptyState } from '@/components/common'
+import { BuiltinModuleHeader } from '@/components/module-ui'
 import { chartMargin, tick, tooltipStyle } from '@/components/goal-visuals'
 import { Illustration } from '@/components/illustration'
 import { Button } from '@/components/ui/button'
@@ -67,7 +68,7 @@ export default function StudyPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <TopBar title="Estudos" back={<BackButton href="/metas" label="Voltar para Metas" />} />
+      <BuiltinModuleHeader kind="study" fallback="Estudos" />
 
       {sessions.length === 0 ? (
         <EmptyState

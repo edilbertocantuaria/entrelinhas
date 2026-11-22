@@ -1,6 +1,7 @@
 import { parseISO } from 'date-fns'
 import { shift } from './format'
-import type { AppData, Area, BodyWeight, Goal, JournalEntry, LogEntry, Settings, StudySession, Subject, Summary, Task, Workout, WorkoutSet } from './types'
+import { BUILTIN_MODULES } from './modules'
+import type { AppData, AppModule, ModuleEntry, Area, BodyWeight, Goal, JournalEntry, LogEntry, Settings, StudySession, Subject, Summary, Task, Workout, WorkoutSet } from './types'
 
 export const DEFAULT_AREAS: Area[] = [
   { id: 'saude', name: 'Saúde', icon: 'heart-pulse', color: 'verde', order: 0, archived: false },
@@ -378,6 +379,40 @@ function buildStudy(logs: LogEntry[]): StudySession[] {
   return sessions.sort((a, b) => a.date.localeCompare(b.date))
 }
 
+// ---------- Módulo criado pela pessoa: Leitura ----------
+
+const READING: AppModule = {
+  id: 'leitura',
+  kind: 'custom',
+  name: 'Leitura',
+  icon: 'book-open',
+  color: 'lavanda',
+  order: 2,
+  fields: [
+    { id: 'livro', label: 'Livro', type: 'text' },
+    { id: 'paginas', label: 'Páginas', type: 'number', unit: 'páginas' },
+    { id: 'tempo', label: 'Tempo', type: 'duration' },
+    { id: 'gostei', label: 'Gostei', type: 'scale' },
+  ],
+}
+
+function buildReading(): ModuleEntry[] {
+  const rows: [string, string, number, number, number][] = [
+    ['2026-10-04', 'Torto arado', 32, 40, 4],
+    ['2026-10-08', 'Torto arado', 25, 30, 4],
+    ['2026-10-12', 'Torto arado', 40, 50, 5],
+    ['2026-10-18', 'Torto arado', 38, 45, 5],
+    ['2026-10-25', 'Torto arado', 45, 60, 5],
+    ['2026-10-30', 'Hábitos atômicos', 20, 25, 3],
+    ['2026-11-01', 'Hábitos atômicos', 30, 35, 4],
+    ['2026-11-05', 'Hábitos atômicos', 18, 20, 3],
+    ['2026-11-08', 'Hábitos atômicos', 35, 40, 4],
+    ['2026-11-12', 'Hábitos atômicos', 28, 30, 4],
+    ['2026-11-15', 'O avesso da pele', 42, 50, 5],
+  ]
+  return rows.map(([date, livro, paginas, tempo, gostei], index) => ({ id: `ler-${index}`, moduleId: 'leitura', date, values: { livro, paginas, tempo, gostei } }))
+}
+
 export const DEFAULT_LETTER =
   'Oi, eu de 2027. Este ano foi o começo: abri a reserva, voltei para a academia e criei o hábito de estudar um pouco por dia. Espero que você continue no seu ritmo, sem se cobrar pelo que ficou para depois. Cuide do sono e comemore as coisas pequenas.'
 
@@ -398,6 +433,8 @@ export function createSeed(today: string): AppData {
     ...buildFitness(logs),
     subjects: SUBJECTS,
     studySessions: buildStudy(logs),
+    modules: [...BUILTIN_MODULES, READING],
+    moduleEntries: buildReading(),
     day: { openedOn: today, closedOn: null },
     settings: DEFAULT_SETTINGS,
     session: null,

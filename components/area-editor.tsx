@@ -1,13 +1,12 @@
 'use client'
 
-import { Check, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { areaColor, COLOR_PRESETS, ICON_GROUPS, MAX_AREA_NAME } from '@/lib/areas'
+import { useState } from 'react'
+import { COLOR_PRESETS, MAX_AREA_NAME } from '@/lib/areas'
 import { useStore } from '@/lib/store'
 import type { Area, ColorKey } from '@/lib/types'
-import { cn } from '@/lib/utils'
 import { AreaChip } from './common'
 import { Illustration } from './illustration'
+import { ColorPicker, IconPicker } from './pickers'
 import { Button } from './ui/button'
 import { Field } from './ui/controls'
 import { Sheet } from './ui/sheet'
@@ -46,19 +45,7 @@ function EditorForm({ area, onClose, onSaved }: { area?: Area; onClose: () => vo
   const [name, setName] = useState(area?.name ?? '')
   const [icon, setIcon] = useState(area?.icon ?? 'sparkles')
   const [color, setColor] = useState<ColorKey>(area?.color ?? firstFree)
-  const [query, setQuery] = useState('')
   const [error, setError] = useState('')
-
-  const groups = useMemo(() => {
-    const term = query.trim().toLocaleLowerCase('pt-BR')
-    if (!term) return ICON_GROUPS
-    return ICON_GROUPS.map(group => ({
-      ...group,
-      icons: group.name.toLocaleLowerCase('pt-BR').includes(term)
-        ? group.icons
-        : group.icons.filter(def => def.label.toLocaleLowerCase('pt-BR').includes(term) || def.name.includes(term)),
-    })).filter(group => group.icons.length)
-  }, [query])
 
   const submit = () => {
     const result = saveArea({ name, icon, color }, area?.id)
@@ -108,63 +95,12 @@ function EditorForm({ area, onClose, onSaved }: { area?: Area; onClose: () => vo
 
       <div className="flex flex-col gap-2">
         <span className="text-[13px] text-muted">Ícone</span>
-        <div className="relative">
-          <Search size={18} strokeWidth={1.75} aria-hidden className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" />
-          <input className="field" style={{ paddingLeft: 42 }} type="search" aria-label="Buscar ícone" placeholder="Buscar ícone" value={query} onChange={event => setQuery(event.target.value)} />
-        </div>
-        <div className="card max-h-56 overflow-y-auto p-3" role="radiogroup" aria-label="Ícone da área">
-          {groups.length === 0 && <p className="py-4 text-center text-[13px] text-muted">Nenhum ícone com esse nome.</p>}
-          {groups.map(group => (
-            <div key={group.name} className="mb-3 last:mb-0">
-              <p className="mb-1.5 text-[12px] text-muted">{group.name}</p>
-              <div className="grid grid-cols-5 gap-2">
-                {group.icons.map(def => {
-                  const selected = def.name === icon
-                  return (
-                    <button
-                      key={def.name}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      aria-label={def.label}
-                      onClick={() => setIcon(def.name)}
-                      className={cn(
-                        'grid h-11 place-items-center rounded-ctl border',
-                        selected ? 'border-primary bg-primary-soft text-primary' : 'border-transparent text-muted hover:bg-primary-soft',
-                      )}
-                    >
-                      <def.icon size={20} strokeWidth={1.75} />
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+        <IconPicker value={icon} onChange={setIcon} label="Ícone da área" />
       </div>
 
       <div className="flex flex-col gap-2">
         <span className="text-[13px] text-muted">Cor</span>
-        <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label="Cor da área">
-          {COLOR_PRESETS.map(preset => {
-            const selected = preset.key === color
-            return (
-              <button
-                key={preset.key}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={preset.label}
-                onClick={() => setColor(preset.key)}
-                className={cn('grid h-11 place-items-center rounded-ctl border', selected ? 'border-primary bg-primary-soft' : 'border-transparent')}
-              >
-                <span className="grid size-7 place-items-center rounded-full" style={{ background: areaColor(preset.key) }}>
-                  {selected && <Check size={16} strokeWidth={2.25} className="text-surface" aria-hidden />}
-                </span>
-              </button>
-            )
-          })}
-        </div>
+        <ColorPicker value={color} onChange={setColor} label="Cor da área" />
       </div>
 
       <div className="sticky -bottom-5 -mx-5 flex gap-2 bg-bg px-5 pt-2 pb-5">

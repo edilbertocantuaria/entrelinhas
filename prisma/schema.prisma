@@ -44,6 +44,8 @@ model User {
   bodyWeights   BodyWeight[]
   subjects      Subject[]
   studySessions StudySession[]
+  modules       AppModule[]
+  moduleEntries ModuleEntry[]
 }
 
 /// Sessão de login. Guarde só o hash do token, nunca o token.
@@ -159,6 +161,7 @@ model Goal {
   tasks    Task[]
   journal  JournalEntry[]
   subjects Subject[]
+  modules  AppModule[]
 
   @@index([userId])
   @@index([areaId])
@@ -225,6 +228,7 @@ model LogEntry {
   moduleWorkout Workout?
   moduleWeight  BodyWeight?
   moduleStudy   StudySession?
+  moduleEntry   ModuleEntry?
 
   @@index([userId, date])
   @@index([goalId, date])
@@ -350,6 +354,62 @@ model StudySession {
 
   @@index([userId, date])
   @@index([subjectId, date])
+}
+
+// ───────── Módulos (Fitness, Estudos e os criados pela pessoa) ─────────
+
+enum ModuleKind {
+  fitness
+  study
+  custom
+}
+
+model AppModule {
+  id        String     @id @default(cuid())
+  userId    String
+  kind      ModuleKind @default(custom)
+  name      String     @db.VarChar(24)
+  /** ícone lucide em kebab-case */
+  icon      String
+  /** uma das 10 cores fixas */
+  color     String
+  order     Int
+  /** Fitness e Estudos não são apagados, só escondidos */
+  hidden    Boolean    @default(false)
+  /**
+   * campos do módulo criado: [{ id, label, type, unit?, options? }]
+   * type: number | duration | scale | choice | check | text
+   */
+  fields    Json       @default("[]")
+  /** meta que recebe cada registro e o campo que dá o valor */
+  goalId    String?
+  goalField String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal    Goal?         @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  entries ModuleEntry[]
+
+  @@index([userId, hidden, order])
+}
+
+model ModuleEntry {
+  id        String   @id @default(cuid())
+  moduleId  String
+  userId    String
+  date      DateTime @db.Date
+  /** { idDoCampo: valor }, valor número, texto ou sim/não */
+  values    Json
+  logId     String?  @unique
+  createdAt DateTime @default(now())
+
+  module AppModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  log    LogEntry? @relation(fields: [logId], references: [id], onDelete: SetNull)
+
+  @@index([moduleId, date])
+  @@index([userId, date])
 }
 
 // ───────── Resumos, retrospectiva e revisão ─────────

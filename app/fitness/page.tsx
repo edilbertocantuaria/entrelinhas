@@ -3,8 +3,9 @@
 import { Dumbbell, Plus, Scale, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { TopBar, useShell } from '@/components/app-shell'
-import { BackButton, EmptyState } from '@/components/common'
+import { useShell } from '@/components/app-shell'
+import { EmptyState } from '@/components/common'
+import { BuiltinModuleHeader } from '@/components/module-ui'
 import { chartMargin, tick, tooltipStyle } from '@/components/goal-visuals'
 import { Illustration } from '@/components/illustration'
 import { Button } from '@/components/ui/button'
@@ -54,7 +55,7 @@ export default function FitnessPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <TopBar title="Fitness" back={<BackButton href="/metas" label="Voltar para Metas" />} />
+      <BuiltinModuleHeader kind="fitness" fallback="Fitness" />
 
       {empty ? (
         <EmptyState

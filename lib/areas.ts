@@ -1,5 +1,5 @@
 import {
-  Activity, Apple, Baby, BookOpen, Brain, Briefcase, Brush, Building2, CalendarDays, Camera, Clapperboard, CloudSun,
+  Activity, Apple, Baby, BedDouble, Bike, Coffee, Droplets, Footprints, Utensils, BookOpen, Brain, Briefcase, Brush, Building2, CalendarDays, Camera, Clapperboard, CloudSun,
   Coins, Dog, Dumbbell, Flower2, Gift, GraduationCap, HandCoins, Handshake, Heart, HeartPulse, Home, Landmark,
   Languages, Laptop, Leaf, Library, Mail, MessageCircle, Moon, Music, NotebookPen, Palette, PenTool, PencilRuler,
   PiggyBank, Plane, Rocket, Smile, Sparkles, Stethoscope, Sun, Target, TrendingUp, User, Users, Wallet,
@@ -90,6 +90,17 @@ export const ICON_GROUPS: { name: string; icons: IconDef[] }[] = [
       { name: 'flower-2', label: 'Flor', icon: Flower2 },
       { name: 'sun', label: 'Sol', icon: Sun },
       { name: 'cloud-sun', label: 'Sol entre nuvens', icon: CloudSun },
+    ],
+  },
+  {
+    name: 'Hábitos',
+    icons: [
+      { name: 'bike', label: 'Bicicleta', icon: Bike },
+      { name: 'footprints', label: 'Pegadas', icon: Footprints },
+      { name: 'droplets', label: 'Água', icon: Droplets },
+      { name: 'bed-double', label: 'Cama', icon: BedDouble },
+      { name: 'coffee', label: 'Café', icon: Coffee },
+      { name: 'utensils', label: 'Talheres', icon: Utensils },
     ],
   },
   {

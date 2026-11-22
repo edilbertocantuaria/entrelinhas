@@ -23,7 +23,7 @@ export const useShell = () => useContext(ShellContext)
 
 const TABS = [
   { href: '/', label: 'Hoje', icon: Sun, match: (path: string) => path === '/' },
-  { href: '/metas', label: 'Metas', icon: Target, match: (path: string) => ['/metas', '/fitness', '/estudos'].some(prefix => path.startsWith(prefix)) },
+  { href: '/metas', label: 'Metas', icon: Target, match: (path: string) => ['/metas', '/fitness', '/estudos', '/modulos'].some(prefix => path.startsWith(prefix)) },
   { href: '/diario', label: 'Diário', icon: BookOpen, match: (path: string) => path.startsWith('/diario') || path.startsWith('/revisao') },
   { href: '/ajustes', label: 'Ajustes', icon: Settings2, match: (path: string) => path.startsWith('/ajustes') },
 ]

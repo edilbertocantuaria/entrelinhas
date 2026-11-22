@@ -1,9 +1,10 @@
 'use client'
 
-import { Bell, ChevronRight, Cloud, Download, Image as ImageIcon, LayoutGrid, Leaf, LogOut, Mail, Monitor, Moon, Settings2, Sun } from 'lucide-react'
+import { Bell, ChevronRight, Cloud, Download, Eraser, Image as ImageIcon, LayoutGrid, Leaf, LogOut, Mail, Monitor, Moon, Settings2, Sun } from 'lucide-react'
 import Link from 'next/link'
 import { useState, type ReactNode } from 'react'
 import { useShell } from '@/components/app-shell'
+import { ClearGoalsSheet } from '@/components/clear-goals'
 import { AreaIcon, SectionTitle } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Segmented, Stepper, Switch } from '@/components/ui/controls'
@@ -40,6 +41,7 @@ export default function SettingsPage() {
   const session = useStore(state => state.session)
   const signOut = useStore(state => state.signOut)
   const [resetting, setResetting] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   const year = Number(today.slice(0, 4))
   const defaultRetro = penultimateThursday(year)
@@ -232,13 +234,19 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-          <div className="pt-3">
-            <Button variant="outline" size="sm" onClick={() => setResetting(true)}>
+          <div className="flex flex-wrap gap-2 pt-3">
+            <Button variant="outline" size="sm" disabled={goals.length === 0} onClick={() => setClearing(true)}>
+              <Eraser size={16} strokeWidth={1.75} aria-hidden />
+              Limpar todas as metas
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setResetting(true)}>
               Restaurar dados de exemplo
             </Button>
           </div>
         </div>
       </section>
+
+      <ClearGoalsSheet open={clearing} onClose={() => setClearing(false)} />
 
       <Sheet open={resetting} onClose={() => setResetting(false)} title="Restaurar os dados de exemplo?" description="Tudo o que você criou neste aparelho é substituído pelo exemplo inicial, e as boas-vindas aparecem de novo.">
         <div className="flex gap-2">

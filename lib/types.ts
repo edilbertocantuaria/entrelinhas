@@ -205,6 +205,51 @@ export interface StudySession {
   logId?: string
 }
 
+// ---------- Módulos (Fitness, Estudos e os criados pela pessoa) ----------
+
+/**
+ * number: quantidade com unidade (páginas, R$, copos); soma por semana
+ * duration: minutos; soma por semana
+ * scale: nota de 1 a 5; média
+ * choice: uma opção de uma lista
+ * check: sim ou não
+ * text: anotação livre
+ */
+export type FieldType = 'number' | 'duration' | 'scale' | 'choice' | 'check' | 'text'
+
+export interface ModuleField {
+  id: string
+  label: string
+  type: FieldType
+  unit?: string
+  options?: string[]
+}
+
+export interface AppModule {
+  id: string
+  /** fitness e study têm telas próprias; custom usa os campos definidos */
+  kind: 'fitness' | 'study' | 'custom'
+  name: string
+  icon: string
+  color: ColorKey
+  order: number
+  /** módulos de fábrica não são apagados, só escondidos (e podem voltar) */
+  hidden?: boolean
+  fields: ModuleField[]
+  /** cada registro do módulo conta para esta meta; `fieldId` dá o valor quando a meta pede um número */
+  goal?: { goalId: string; fieldId?: string }
+}
+
+export type FieldValue = number | string | boolean
+
+export interface ModuleEntry {
+  id: string
+  moduleId: string
+  date: string
+  values: Record<string, FieldValue>
+  logId?: string
+}
+
 /** Quem está usando o app neste aparelho. A senha nunca é guardada aqui. */
 export interface Session {
   name: string
@@ -225,6 +270,8 @@ export interface AppData {
   weights: BodyWeight[]
   subjects: Subject[]
   studySessions: StudySession[]
+  modules: AppModule[]
+  moduleEntries: ModuleEntry[]
   day: DayState
   settings: Settings
   onboarded: boolean
