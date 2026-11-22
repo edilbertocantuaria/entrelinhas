@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { complete, LLMError, llmConfigured, readJSON } from '@/lib/ai/llm'
+import { complete, LLMError, readJSON, status } from '@/lib/ai/llm'
 import { isPromptId, PROMPTS } from '@/utils/prompts'
 
 export const runtime = 'nodejs'
@@ -7,9 +7,9 @@ export const runtime = 'nodejs'
 /** Limite do corpo da requisição: o diário de um trimestre cabe com folga. */
 const MAX_BODY = 120_000
 
-/** GET /api/ia: diz se a IA está configurada (sem revelar nada da chave). */
+/** GET /api/ia: quais IAs têm chave e em que ordem são tentadas (sem revelar as chaves). */
 export function GET() {
-  return NextResponse.json({ configured: llmConfigured() })
+  return NextResponse.json(status())
 }
 
 /**
@@ -37,14 +37,14 @@ export async function POST(request: NextRequest) {
   try {
     // a mesma entrada vale para qualquer prompt: cada um sabe ler a sua
     const user = (def.user as (entrada: unknown) => string)(body.entrada)
-    const text = await complete({ system: def.system, user, maxTokens: def.maxTokens })
-    const data = (def.parse as (bruto: unknown) => unknown)(readJSON(text))
+    const result = await complete({ system: def.system, user, maxTokens: def.maxTokens }, body.prompt)
+    const data = (def.parse as (bruto: unknown) => unknown)(readJSON(result.text))
     if (!data) return NextResponse.json({ error: 'A IA respondeu fora do formato esperado.' }, { status: 502 })
-    return NextResponse.json({ data })
+    return NextResponse.json({ data, provider: result.provider, model: result.model })
   } catch (error) {
-    const status = error instanceof LLMError ? error.status : error instanceof Error && error.name === 'TimeoutError' ? 504 : 500
+    const code = error instanceof LLMError ? error.status : 500
     const message = error instanceof Error ? error.message : 'Erro ao chamar a IA.'
     console.error(`[api/ia] ${body.prompt}: ${message}`)
-    return NextResponse.json({ error: status === 503 ? message : 'Não deu para falar com a IA agora.' }, { status })
+    return NextResponse.json({ error: code === 503 ? message : 'Não deu para falar com a IA agora.' }, { status: code >= 400 && code < 600 ? code : 502 })
   }
 }

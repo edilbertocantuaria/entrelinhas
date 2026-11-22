@@ -44,7 +44,9 @@ export function mensagemPeriodo(entrada: EntradaPeriodo, limiteDiario: number) {
 
 export function parsePeriodo(bruto: unknown): SaidaPeriodo | null {
   if (!isObj(bruto)) return null
-  const titulo = texto(bruto.titulo, 60)?.replace(/[.!]+$/, '')
+  const limpo = texto(bruto.titulo, 60)?.replace(/[.!]+$/, '')
+  // caixa de frase: primeira letra maiúscula
+  const titulo = limpo && limpo.charAt(0).toLocaleUpperCase('pt-BR') + limpo.slice(1)
   const corpo = texto(bruto.texto, 1600)?.replace(/!/g, '.')
   return titulo && corpo ? { titulo, texto: corpo } : null
 }

@@ -1,109 +1,77 @@
 /**
- * Chamada ao modelo de linguagem. Roda só no servidor: a chave da API nunca vai para o navegador.
+ * Escolhe a IA de cada pedido e faz a chamada. Roda só no servidor: as chaves nunca vão para o navegador.
  *
- * Configuração no .env:
- *   LLM_PROVIDER   openai | anthropic | gemini (se a chave dele estiver vazia, usa a que estiver preenchida)
- *   LLM_MODEL      opcional; vazio = o padrão abaixo
+ * Configuração no .env (só a chave é obrigatória):
+ *   LLM_PROVIDER    IA principal: openai | anthropic | gemini
+ *   LLM_MODEL       modelo da IA principal (vazio = o padrão do adaptador)
+ *   OPENAI_MODEL, ANTHROPIC_MODEL, GEMINI_MODEL
+ *                   modelo de cada IA quando ela entra como reserva ou por rota
+ *   LLM_FALLBACK    IAs de reserva, em ordem, se a principal falhar (ex.: "anthropic,gemini")
+ *   LLM_ROUTES      IA por situação (ex.: "resumo-trimestral=anthropic,estudos-insights=gemini")
  *   OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY
+ *
+ * Uma IA sem chave preenchida é pulada. Sem nenhuma chave, a rota responde 503 e o app usa o texto só com números.
  */
+import { PROVIDERS, providerById } from './providers'
+import { LLMError, type CompletionRequest, type Provider } from './types'
 
-type Provider = 'openai' | 'anthropic' | 'gemini'
+export { LLMError }
 
-const KEYS: Record<Provider, string> = { openai: 'OPENAI_API_KEY', anthropic: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY' }
+const TIMEOUT_MS = 45_000
 
-/** Modelos rápidos e baratos, bons para textos curtos. Troque em LLM_MODEL se quiser outro. */
-const DEFAULT_MODEL: Record<Provider, string> = { openai: 'gpt-4.1-mini', anthropic: 'claude-sonnet-5-5', gemini: 'gemini-2.5-flash' }
+const env = (name: string) => process.env[name]?.trim() ?? ''
+const hasKey = (provider: Provider) => !!env(provider.keyEnv)
+const list = (value: string) => value.split(',').map(item => item.trim()).filter(Boolean)
 
-const TIMEOUT_MS = 30_000
+/** "resumo-trimestral=anthropic,estudos-insights=gemini" vira { 'resumo-trimestral': 'anthropic', ... } */
+function routes(): Record<string, string> {
+  return Object.fromEntries(list(env('LLM_ROUTES')).map(pair => pair.split('=').map(part => part.trim()) as [string, string]).filter(([key, value]) => key && value))
+}
 
-export class LLMError extends Error {
-  constructor(
-    message: string,
-    /** 503 = IA não configurada; 502 = o serviço respondeu com erro */
-    readonly status: number,
-  ) {
-    super(message)
+/** Ordem de tentativa para um prompt: rota da situação, principal, reservas e, por fim, qualquer outra com chave. */
+export function plan(promptId?: string): { provider: Provider; model: string }[] {
+  const main = providerById(env('LLM_PROVIDER'))
+  const ids = [promptId ? routes()[promptId] : undefined, main?.id, ...list(env('LLM_FALLBACK')), ...PROVIDERS.map(provider => provider.id)]
+  const seen = new Set<string>()
+  const order: { provider: Provider; model: string }[] = []
+  for (const id of ids) {
+    const provider = providerById(id)
+    if (!provider || seen.has(provider.id) || !hasKey(provider)) continue
+    seen.add(provider.id)
+    // LLM_MODEL vale só para a principal; as outras usam OPENAI_MODEL / ANTHROPIC_MODEL / GEMINI_MODEL
+    const model = (provider === main && env('LLM_MODEL')) || env(provider.modelEnv) || provider.defaultModel
+    order.push({ provider, model })
+  }
+  return order
+}
+
+/** Situação das IAs para a rota GET, sem expor chaves. */
+export function status() {
+  return {
+    configured: plan().length > 0,
+    order: plan().map(({ provider, model }) => ({ provider: provider.id, model })),
+    available: PROVIDERS.map(provider => ({ provider: provider.id, label: provider.label, hasKey: hasKey(provider) })),
   }
 }
 
-function config() {
-  const key = (provider: Provider) => process.env[KEYS[provider]]?.trim() ?? ''
-  const wanted = process.env.LLM_PROVIDER?.trim().toLowerCase() as Provider | undefined
-  const order: Provider[] = wanted && wanted in KEYS ? [wanted, 'openai', 'anthropic', 'gemini'] : ['openai', 'anthropic', 'gemini']
-  const provider = order.find(item => key(item))
-  if (!provider) throw new LLMError('Nenhuma chave de IA configurada no .env.', 503)
-  // o modelo do .env só vale para o provedor escolhido em LLM_PROVIDER
-  const model = (provider === wanted && process.env.LLM_MODEL?.trim()) || DEFAULT_MODEL[provider]
-  return { provider, model, apiKey: key(provider) }
-}
-
-export const llmConfigured = () => {
-  try {
-    config()
-    return true
-  } catch {
-    return false
+/** Manda o pedido para a primeira IA da lista; se ela falhar de um jeito que vale tentar de novo, passa para a próxima. */
+export async function complete(request: CompletionRequest, promptId?: string): Promise<{ text: string; provider: string; model: string }> {
+  const order = plan(promptId)
+  if (!order.length) throw new LLMError('Nenhuma chave de IA configurada no .env.', 503, false)
+  let lastError: unknown
+  for (const { provider, model } of order) {
+    try {
+      const text = await provider.complete(request, { apiKey: env(provider.keyEnv), model, signal: AbortSignal.timeout(TIMEOUT_MS) })
+      if (text.trim()) return { text, provider: provider.id, model }
+      lastError = new LLMError(`${provider.label} devolveu uma resposta vazia`, 502)
+    } catch (error) {
+      const timeout = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+      lastError = timeout ? new LLMError(`${provider.label} demorou demais`, 504, true) : error
+      console.warn(`[ia] ${provider.label} (${model}) falhou:`, lastError instanceof Error ? lastError.message : lastError)
+      if (lastError instanceof LLMError && !lastError.retryable && lastError.status !== 401 && lastError.status !== 403) break
+    }
   }
-}
-
-async function post(url: string, headers: Record<string, string>, body: unknown) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  })
-  const data = (await response.json().catch(() => null)) as Record<string, unknown> | null
-  if (!response.ok) {
-    const detail = (data?.error as { message?: string } | undefined)?.message ?? response.statusText
-    throw new LLMError(`O serviço de IA respondeu ${response.status}: ${detail}`, 502)
-  }
-  return data ?? {}
-}
-
-/** Manda as instruções e a mensagem e devolve o texto da resposta. */
-export async function complete({ system, user, maxTokens }: { system: string; user: string; maxTokens: number }): Promise<string> {
-  const { provider, model, apiKey } = config()
-
-  if (provider === 'openai') {
-    const data = await post(
-      'https://api.openai.com/v1/chat/completions',
-      { authorization: `Bearer ${apiKey}` },
-      {
-        model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        response_format: { type: 'json_object' },
-        max_completion_tokens: maxTokens,
-      },
-    )
-    const choices = data.choices as { message?: { content?: string } }[] | undefined
-    return choices?.[0]?.message?.content ?? ''
-  }
-
-  if (provider === 'anthropic') {
-    const data = await post(
-      'https://api.anthropic.com/v1/messages',
-      { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      { model, system, max_tokens: maxTokens, messages: [{ role: 'user', content: user }] },
-    )
-    const content = data.content as { type: string; text?: string }[] | undefined
-    return content?.filter(part => part.type === 'text').map(part => part.text ?? '').join('') ?? ''
-  }
-
-  const data = await post(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    { 'x-goog-api-key': apiKey },
-    {
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{ role: 'user', parts: [{ text: user }] }],
-      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: maxTokens },
-    },
-  )
-  const candidates = data.candidates as { content?: { parts?: { text?: string }[] } }[] | undefined
-  return candidates?.[0]?.content?.parts?.map(part => part.text ?? '').join('') ?? ''
+  throw lastError instanceof LLMError ? lastError : new LLMError(lastError instanceof Error ? lastError.message : 'Erro ao chamar a IA.', 502)
 }
 
 /** Lê o JSON da resposta, tolerando um bloco ```json em volta. */
