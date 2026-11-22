@@ -1,0 +1,510 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f1f8fb;
+  --surface: #ffffff;
+  --text: #0b2a3f;
+  --text-muted: #55788c;
+  --border: #d9e9f0;
+  --primary: #0a74bb;
+  --primary-soft: #d6eaf6;
+  --on-primary: #ffffff;
+  --stage: #e3f0f6;
+  --bezel: #0b2a3f;
+
+  --area-verde: #4f8a4c;
+  --area-mar: #0e97aa;
+  --area-tijolo: #c4693f;
+  --area-celeste: #5bbde8;
+  --area-periwinkle: #7b8cc4;
+  --area-azul-cinza: #8aa9b8;
+  --area-ambar: #d9a650;
+  --area-lavanda: #9c8cc9;
+  --area-musgo: #6b8f71;
+  --area-areia: #b59a7a;
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #07202d;
+  --surface: #0e2e3f;
+  --text: #e4f3fa;
+  --text-muted: #8db3c5;
+  --border: #1b445a;
+  --primary: #3fa9ec;
+  --primary-soft: #12425e;
+  --on-primary: #07202d;
+  --stage: #041721;
+  --bezel: #1b445a;
+
+  --area-verde: #7dbb79;
+  --area-mar: #34c0d0;
+  --area-tijolo: #e08a60;
+  --area-celeste: #7ccdf0;
+  --area-periwinkle: #9aa8dc;
+  --area-azul-cinza: #a3c0ce;
+  --area-ambar: #e6bb6a;
+  --area-lavanda: #b2a5dc;
+  --area-musgo: #8fb596;
+  --area-areia: #d1b795;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-line: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-voice: var(--font-voice-face), cursive;
+  --radius-card: 12px;
+  --radius-ctl: 10px;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    background: var(--stage);
+    color: var(--text);
+    font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+  b,
+  strong,
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 500;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  input[type='date'],
+  input[type='time'] {
+    color-scheme: inherit;
+  }
+}
+
+@layer components {
+  /* Palco e moldura de celular */
+  .stage {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    background: var(--stage);
+  }
+  .phone {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  @media (min-width: 480px) and (min-height: 560px) {
+    .stage {
+      padding: 28px;
+    }
+    .phone {
+      width: 390px;
+      height: min(844px, calc(100dvh - 56px));
+      border-radius: 40px;
+      box-shadow: 0 0 0 10px var(--bezel);
+    }
+  }
+  .scroller {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .scroller::-webkit-scrollbar {
+    display: none;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+  }
+  .voice {
+    font-family: var(--font-voice-face), cursive;
+    /* Marck Script só tem o peso 400: sem negrito simulado */
+    font-synthesis-weight: none;
+  }
+  .field {
+    width: 100%;
+    min-height: 48px;
+    padding: 0 14px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 16px;
+  }
+  textarea.field {
+    padding: 12px 14px;
+    line-height: 1.65;
+    resize: none;
+  }
+  .field::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+  .field:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -1px;
+  }
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px;
+    color: var(--text-muted);
+  }
+  .icon-btn:hover {
+    background: var(--primary-soft);
+    color: var(--text);
+  }
+
+  /* Folhas (bottom sheets) */
+  .sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    background: rgb(7 32 45 / 0.38);
+    transition: opacity 0.2s ease;
+  }
+  .sheet-popup {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 41;
+    max-height: 92%;
+    overflow-y: auto;
+    padding: 8px 20px 20px;
+    background: var(--bg);
+    border-radius: 20px 20px 0 0;
+    transition:
+      transform 0.22s ease,
+      opacity 0.22s ease;
+    scrollbar-width: none;
+  }
+  .sheet-backdrop[data-starting-style],
+  .sheet-backdrop[data-ending-style] {
+    opacity: 0;
+  }
+  .sheet-popup[data-starting-style],
+  .sheet-popup[data-ending-style] {
+    transform: translateY(28px);
+    opacity: 0;
+  }
+
+  /* Estouro de estrelas ao concluir uma tarefa */
+  .burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .burst > svg {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin: -6px 0 0 -6px;
+    opacity: 0;
+    animation: burst 0.7s ease-out forwards;
+  }
+
+  .ill-spin {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ill-spin 5s linear infinite;
+  }
+  .ill-bounce {
+    animation: ill-bounce 1.3s ease-in-out infinite;
+  }
+  .fade-in {
+    animation: fade-in 0.25s ease both;
+  }
+
+  /* Movimento discreto das ilustrações: lento, de pouca amplitude, cada peça no seu tempo */
+  /*
+   * Os valores estão em unidades do viewBox (320 x 240 ou 120 x 120). Como a arte
+   * aparece reduzida (44 a 220px), a amplitude precisa ser generosa para ser vista.
+   */
+  .ill-twinkle {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ill-twinkle 2.6s ease-in-out infinite;
+  }
+  .ill-sway,
+  .ill-wave {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: ill-sway 3.6s ease-in-out infinite;
+  }
+  .ill-wave {
+    transform-origin: 0% 50%;
+    animation: ill-wave 2.4s ease-in-out infinite;
+  }
+  .ill-drift {
+    animation: ill-drift 7s ease-in-out infinite;
+  }
+  .ill-float {
+    animation: ill-float 3.8s ease-in-out infinite;
+  }
+  .ill-float-slow {
+    animation: ill-float 5.2s ease-in-out -1.3s infinite;
+  }
+  .ill-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ill-pulse 2.2s ease-in-out infinite;
+  }
+  .ill-breathe {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ill-breathe 6s ease-in-out infinite;
+  }
+  .ill-steam {
+    animation: ill-steam 2.4s ease-in-out infinite;
+  }
+  /* gira em torno da origem local do grupo (centro do sol, do relógio, da engrenagem) */
+  .ill-rays {
+    animation: ill-spin 18s linear infinite;
+  }
+  .ill-hand {
+    animation: ill-spin 8s linear infinite;
+  }
+  .ill-gear {
+    animation: ill-spin 12s linear infinite;
+  }
+  .ill-arm {
+    transform-origin: 30px 30px;
+    animation: ill-arm 2.8s ease-in-out infinite;
+  }
+  .ill-needle {
+    animation: ill-needle 4s ease-in-out infinite;
+  }
+  .ill-bar {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: ill-bar 2.6s ease-in-out infinite;
+  }
+  /* a linha do gráfico se desenha de novo a cada ciclo */
+  .ill-draw {
+    stroke-dasharray: 1;
+    animation: ill-draw 4.5s ease-in-out infinite;
+  }
+  /* a arte entra subindo de leve ao aparecer na tela */
+  .ill-enter {
+    animation: ill-enter 0.6s ease-out both;
+  }
+}
+
+@keyframes ill-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(0.45) rotate(45deg);
+  }
+}
+@keyframes ill-sway {
+  0%,
+  100% {
+    transform: rotate(-7deg);
+  }
+  50% {
+    transform: rotate(7deg);
+  }
+}
+@keyframes ill-wave {
+  0%,
+  100% {
+    transform: skewY(0deg) scaleX(1);
+  }
+  50% {
+    transform: skewY(-12deg) scaleX(0.85);
+  }
+}
+@keyframes ill-drift {
+  0%,
+  100% {
+    transform: translateX(-12px);
+  }
+  50% {
+    transform: translateX(12px);
+  }
+}
+@keyframes ill-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+@keyframes ill-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.16);
+  }
+}
+@keyframes ill-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+@keyframes ill-steam {
+  0% {
+    transform: translateY(4px);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+}
+@keyframes ill-arm {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-14deg);
+  }
+}
+@keyframes ill-needle {
+  0%,
+  100% {
+    transform: rotate(-18deg);
+  }
+  50% {
+    transform: rotate(18deg);
+  }
+}
+@keyframes ill-bar {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.72);
+  }
+}
+@keyframes ill-draw {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  45%,
+  85% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+@keyframes ill-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes burst {
+  0% {
+    transform: translate(0, 0) scale(0.2);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(1);
+    opacity: 0;
+  }
+}
+@keyframes ill-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ill-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .burst {
+    display: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

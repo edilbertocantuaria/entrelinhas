@@ -1,0 +1,235 @@
+'use client'
+
+import { Minus, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { brl, minutesLabel, num, parseNum } from '@/lib/format'
+import { logsOf, nextMilestone, progressOf } from '@/lib/goals'
+import { useStore } from '@/lib/store'
+import { useClock } from '@/lib/time'
+import type { Goal, LogEntry, Task, WorkoutSet } from '@/lib/types'
+import { useShell } from './app-shell'
+import { Button } from './ui/button'
+import { Chip, Field } from './ui/controls'
+import { Sheet } from './ui/sheet'
+
+interface Props {
+  goalId: string | undefined
+  /** quando o registro vem de uma tarefa, ela é concluída junto */
+  task?: Task
+  open: boolean
+  onClose: () => void
+  onLogged?: () => void
+}
+
+type Row = { exercise: string; sets: string; reps: string; weight: string }
+const emptyRow = (): Row => ({ exercise: '', sets: '', reps: '', weight: '' })
+const toRow = (set: WorkoutSet): Row => ({
+  exercise: set.exercise,
+  sets: set.sets ? String(set.sets) : '',
+  reps: set.reps ? String(set.reps) : '',
+  weight: set.weight ? String(set.weight).replace('.', ',') : '',
+})
+
+const DESCRIPTION = {
+  frequency: 'Os detalhes são opcionais. Dá para registrar só a presença.',
+  sum: 'Quanto entrou desta vez?',
+  value: 'Qual é a medição de hoje?',
+  milestones: 'Marque a etapa como concluída.',
+  days: 'Quanto tempo você dedicou?',
+}
+
+/** Folha de registro que se adapta à métrica da meta. Registro comum em 2 toques. */
+export function LogSheet({ goalId, task, open, onClose, onLogged }: Props) {
+  const goal = useStore(state => state.goals.find(item => item.id === goalId))
+  return (
+    <Sheet open={open && !!goal} onClose={onClose} title={task?.title ?? goal?.title ?? ''} description={goal ? DESCRIPTION[goal.metric.type] : undefined}>
+      {goal && <LogForm key={`${goal.id}-${task?.id ?? ''}`} goal={goal} task={task} onClose={onClose} onLogged={onLogged} />}
+    </Sheet>
+  )
+}
+
+function LogForm({ goal, task, onClose, onLogged }: { goal: Goal; task?: Task; onClose: () => void; onLogged?: () => void }) {
+  const logs = useStore(state => state.logs)
+  const completeTask = useStore(state => state.completeTask)
+  const addLog = useStore(state => state.addLog)
+  const { today } = useClock()
+  const { toast } = useShell()
+  const m = goal.metric
+  const mine = logsOf(logs, goal.id)
+  const lastWorkout = [...mine].reverse().find(log => log.workout?.length)
+  const current = progressOf(goal, logs, today).current
+
+  const [rows, setRows] = useState<Row[]>([emptyRow()])
+  const [amountText, setAmountText] = useState('')
+  const [measureText, setMeasureText] = useState(m.type === 'value' ? num(current, 1) : '')
+  const measure = parseNum(measureText)
+  const nudge = (delta: number) => setMeasureText(num(Math.round(((Number.isNaN(measure) ? current : measure) + delta) * 10) / 10, 1))
+  const [minutes, setMinutes] = useState(m.type === 'days' ? m.sessionMinutes : 30)
+  const [note, setNote] = useState('')
+
+  const milestone = m.type === 'milestones' ? (m.items.find(item => item.id === task?.milestoneId) ?? nextMilestone(goal, logs)) : undefined
+  const amountValue = parseNum(amountText)
+  const invalid = (m.type === 'sum' && !(amountValue > 0)) || (m.type === 'milestones' && !milestone) || (m.type === 'days' && minutes <= 0) || (m.type === 'value' && Number.isNaN(measure))
+
+  const submit = () => {
+    if (invalid) return
+    const data: Partial<LogEntry> = { note: note.trim() || undefined }
+    if (m.type === 'frequency') {
+      const workout = rows
+        .filter(row => row.exercise.trim())
+        .map(row => ({
+          exercise: row.exercise.trim(),
+          sets: parseNum(row.sets) || undefined,
+          reps: parseNum(row.reps) || undefined,
+          weight: parseNum(row.weight) || undefined,
+        }))
+      if (workout.length) data.workout = workout
+    } else if (m.type === 'sum') data.value = amountValue
+    else if (m.type === 'value') data.value = Math.round(measure * 10) / 10
+    else if (m.type === 'days') data.value = minutes
+    else if (milestone) {
+      data.milestoneId = milestone.id
+      data.note = data.note ?? milestone.title
+    }
+
+    if (task) completeTask(task.id, data, today)
+    else addLog({ ...data, goalId: goal.id, date: today })
+    toast('Registrado')
+    onLogged?.()
+    onClose()
+  }
+
+  const updateRow = (index: number, patch: Partial<Row>) => setRows(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+
+  return (
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={event => {
+        event.preventDefault()
+        submit()
+      }}
+    >
+      {m.type === 'frequency' && (
+        <>
+          {lastWorkout?.workout && (
+            <Button variant="outline" size="sm" className="self-start" onClick={() => setRows(lastWorkout.workout!.map(toRow))}>
+              <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
+              Repetir o último treino
+            </Button>
+          )}
+          {rows.map((row, index) => (
+            <fieldset key={index} className="card flex flex-col gap-2 p-3">
+              <legend className="sr-only">Exercício {index + 1}</legend>
+              <div className="flex gap-1">
+                <input className="field" aria-label={`Exercício ${index + 1}`} placeholder="Exercício (ex.: agachamento)" value={row.exercise} onChange={event => updateRow(index, { exercise: event.target.value })} />
+                {rows.length > 1 && (
+                  <button type="button" className="icon-btn" aria-label={`Remover exercício ${index + 1}`} onClick={() => setRows(rows.filter((_, i) => i !== index))}>
+                    <Trash2 size={18} strokeWidth={1.75} />
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    ['sets', 'Séries'],
+                    ['reps', 'Repetições'],
+                    ['weight', 'Carga (kg)'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="flex flex-col gap-1 text-[12px] text-muted">
+                    {label}
+                    <input className="field text-center" inputMode="decimal" value={row[key]} onChange={event => updateRow(index, { [key]: event.target.value })} />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+          <Button variant="ghost" size="sm" className="self-start" onClick={() => setRows([...rows, emptyRow()])}>
+            <Plus size={16} strokeWidth={1.75} aria-hidden />
+            Adicionar exercício
+          </Button>
+        </>
+      )}
+
+      {m.type === 'sum' && (
+        <>
+          <Field label={m.currency ? 'Valor' : `Quantidade (${m.unit})`} htmlFor="log-amount">
+            <div className="relative">
+              {m.currency && <span className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">R$</span>}
+              <input
+                id="log-amount"
+                className="field h-14 text-[20px]"
+                style={m.currency ? { paddingLeft: 44 } : undefined}
+                inputMode="decimal"
+                autoFocus
+                placeholder="0,00"
+                value={amountText}
+                onChange={event => setAmountText(event.target.value)}
+              />
+            </div>
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            {(m.currency ? [100, 250, 500] : [1, 5, 10]).map(value => (
+              <Chip key={value} selected={amountValue === value} onClick={() => setAmountText(num(value, m.currency ? 2 : 0))}>
+                {m.currency ? brl(value) : `${value} ${m.unit}`}
+              </Chip>
+            ))}
+          </div>
+        </>
+      )}
+
+      {m.type === 'value' && (
+        <div className="card flex items-center justify-between p-3">
+          <button type="button" className="icon-btn border-[0.5px] border-line" aria-label="Diminuir 0,1" onClick={() => nudge(-0.1)}>
+            <Minus size={20} strokeWidth={1.75} />
+          </button>
+          <label className="flex items-baseline gap-1.5">
+            <span className="sr-only">Medição em {m.unit}</span>
+            <input
+              className="w-24 bg-transparent text-center text-[28px] font-medium tabular-nums"
+              inputMode="decimal"
+              value={measureText}
+              onChange={event => setMeasureText(event.target.value)}
+            />
+            <span className="text-muted">{m.unit}</span>
+          </label>
+          <button type="button" className="icon-btn border-[0.5px] border-line" aria-label="Aumentar 0,1" onClick={() => nudge(0.1)}>
+            <Plus size={20} strokeWidth={1.75} />
+          </button>
+        </div>
+      )}
+
+      {m.type === 'days' && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Minutos dedicados">
+          {[...new Set([15, 30, 45, 60, m.sessionMinutes])]
+            .sort((a, b) => a - b)
+            .map(value => (
+              <Chip key={value} selected={minutes === value} onClick={() => setMinutes(value)}>
+                {minutesLabel(value)}
+              </Chip>
+            ))}
+        </div>
+      )}
+
+      {m.type === 'milestones' &&
+        (milestone ? (
+          <p className="card p-4">
+            <span className="block text-[12px] text-muted">Etapa</span>
+            {milestone.title}
+          </p>
+        ) : (
+          <p className="text-muted">Todas as etapas desta meta já estão concluídas.</p>
+        ))}
+
+      {m.type !== 'milestones' && (
+        <Field label="Observação (opcional)" htmlFor="log-note">
+          <input id="log-note" className="field" value={note} onChange={event => setNote(event.target.value)} />
+        </Field>
+      )}
+
+      <Button type="submit" block disabled={invalid}>
+        {m.type === 'milestones' ? 'Concluir etapa' : 'Registrar'}
+      </Button>
+    </form>
+  )
+}

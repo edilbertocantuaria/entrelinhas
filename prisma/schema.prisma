@@ -1,0 +1,414 @@
+// Modelo de dados do Entrelinhas (PostgreSQL).
+// Espelha lib/types.ts: cada usuário tem suas áreas, metas, registros,
+// tarefas, diário, resumos e retrospectivas.
+// Datas de calendário (dia sem hora) usam @db.Date.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// A URL de conexão (DATABASE_URL) fica em prisma.config.ts, na raiz do projeto.
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────── Conta ─────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  /** já passou pelas boas-vindas */
+  onboarded    Boolean  @default(false)
+  /** primeiro dia de uso do app */
+  startedAt    DateTime @default(now()) @db.Date
+  /** abertura e fechamento do dia (lib/types.ts: DayState) */
+  dayOpenedOn  DateTime? @db.Date
+  dayClosedOn  DateTime? @db.Date
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions  AuthSession[]
+  settings  UserSettings?
+  areas     Area[]
+  goals     Goal[]
+  logs      LogEntry[]
+  tasks     Task[]
+  journal   JournalEntry[]
+  summaries Summary[]
+  retros    Retro[]
+  reviews   Review[]
+
+  workouts      Workout[]
+  bodyWeights   BodyWeight[]
+  subjects      Subject[]
+  studySessions StudySession[]
+}
+
+/// Sessão de login. Guarde só o hash do token, nunca o token.
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserSettings {
+  userId        String              @id
+  maxTasks      Int                 @default(5)
+  hideStreaks   Boolean             @default(false)
+  hidePercent   Boolean             @default(false)
+  /** horários no formato HH:mm */
+  quietFrom     String              @default("22:00")
+  quietTo       String              @default("07:00")
+  rollover      String              @default("04:00")
+  monthlyAuto   Boolean             @default(true)
+  quarterlyAuto Boolean             @default(true)
+  retroEnabled  Boolean             @default(true)
+  /** nulo = penúltima quinta de dezembro */
+  retroDate     DateTime?           @db.Date
+  retroTime     String              @default("20:00")
+  useAI         Boolean             @default(true)
+  theme         Theme               @default(system)
+  illustrations IllustrationDensity @default(many)
+  updatedAt     DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Theme {
+  light
+  dark
+  system
+}
+
+enum IllustrationDensity {
+  many
+  few
+  none
+}
+
+// ───────── Áreas e metas ─────────
+
+model Area {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @db.VarChar(24)
+  /** nome do ícone lucide em kebab-case */
+  icon      String
+  /** uma das 10 cores fixas: verde, mar, tijolo, celeste, periwinkle, azul-cinza, ambar, lavanda, musgo, areia */
+  color     String
+  order     Int
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals Goal[]
+
+  @@index([userId, archived, order])
+}
+
+enum MetricType {
+  frequency
+  sum
+  value
+  milestones
+  days
+}
+
+model Goal {
+  id             String     @id @default(cuid())
+  userId         String
+  areaId         String
+  title          String
+  /** SMART: específica */
+  description    String     @default("")
+  /** SMART: mensurável. metricType repete metric.type para permitir filtros */
+  metricType     MetricType
+  /** objeto Metric de lib/types.ts, com as etapas no caso de "milestones" */
+  metric         Json
+  /** SMART: alcançável */
+  startingPoint  String     @default("")
+  achievableNote String     @default("")
+  /** SMART: relevante */
+  why            String     @default("")
+  /** SMART: prazo */
+  startDate      DateTime   @db.Date
+  deadline       DateTime   @db.Date
+  /** título da tarefa gerada pela meta */
+  taskTitle      String
+  /** ilustração escolhida (ex.: goal-heart); nulo = a do tipo de medida */
+  art            String?
+  reminderOn     Boolean    @default(false)
+  reminderTime   String     @default("08:00")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** uma área com metas é arquivada, não excluída */
+  area    Area           @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  logs     LogEntry[]
+  tasks    Task[]
+  journal  JournalEntry[]
+  subjects Subject[]
+
+  @@index([userId])
+  @@index([areaId])
+}
+
+// ───────── Dia a dia ─────────
+
+enum TaskStatus {
+  pending
+  done
+  /** dispensada: nunca conta contra o ritmo */
+  dismissed
+  not_done
+}
+
+enum TaskOrigin {
+  recurring
+  standalone
+}
+
+model Task {
+  id            String     @id @default(cuid())
+  userId        String
+  goalId        String?
+  /** id da etapa dentro de Goal.metric, quando a meta é de etapas */
+  milestoneId   String?
+  title         String
+  date          DateTime   @db.Date
+  status        TaskStatus @default(pending)
+  origin        TaskOrigin @default(standalone)
+  /** guardada em "Depois" */
+  later         Boolean    @default(false)
+  dismissReason String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  logs LogEntry[]
+
+  @@index([userId, date])
+  @@index([goalId, date])
+}
+
+model LogEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  goalId      String
+  taskId      String?
+  date        DateTime @db.Date
+  /** soma: valor; valor: medição; dias: minutos */
+  value       Decimal? @db.Decimal(12, 2)
+  note        String?
+  /** lista de WorkoutSet: exercício, séries, repetições, carga */
+  workout     Json?
+  milestoneId String?
+  createdAt   DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  /** espelhos nos módulos, quando o registro veio de um treino, peso ou estudo */
+  moduleWorkout Workout?
+  moduleWeight  BodyWeight?
+  moduleStudy   StudySession?
+
+  @@index([userId, date])
+  @@index([goalId, date])
+}
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  text      String
+  /** humor de 1 a 5 */
+  mood      Int?     @db.SmallInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** metas citadas na entrada (goalIds) */
+  goals Goal[]
+
+  @@index([userId, date])
+}
+
+// ───────── Módulo Fitness ─────────
+
+enum WorkoutKind {
+  musculacao
+  calistenia
+  caminhada
+  corrida
+  bicicleta
+  danca
+  outro
+}
+
+model Workout {
+  id         String      @id @default(cuid())
+  userId     String
+  date       DateTime    @db.Date
+  kind       WorkoutKind
+  minutes    Int?
+  distanceKm Decimal?    @db.Decimal(6, 2)
+  note       String?
+  /** registro de meta criado junto com o treino, ou que deu origem a ele */
+  logId      String?     @unique
+  createdAt  DateTime    @default(now())
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  log       LogEntry?         @relation(fields: [logId], references: [id], onDelete: SetNull)
+  exercises WorkoutExercise[]
+
+  @@index([userId, date])
+  @@index([userId, kind])
+}
+
+/// Um exercício dentro de um treino. A progressão de carga sai daqui:
+/// maior `weightKg` por `exercise` ao longo das datas dos treinos.
+model WorkoutExercise {
+  id        String   @id @default(cuid())
+  workoutId String
+  exercise  String
+  order     Int      @default(0)
+  sets      Int?
+  reps      Int?
+  weightKg  Decimal? @db.Decimal(6, 2)
+
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@index([workoutId])
+  @@index([exercise])
+}
+
+model BodyWeight {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  kg        Decimal  @db.Decimal(5, 2)
+  logId     String?  @unique
+  createdAt DateTime @default(now())
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  log  LogEntry? @relation(fields: [logId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+}
+
+// ───────── Módulo Estudos ─────────
+
+model Subject {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @db.VarChar(40)
+  /** uma das 10 cores fixas, como em Area.color */
+  color     String
+  /** meta de dias ou horas que recebe o tempo estudado */
+  goalId    String?
+  createdAt DateTime @default(now())
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal     Goal?          @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  sessions StudySession[]
+
+  @@unique([userId, name])
+}
+
+model StudySession {
+  id         String   @id @default(cuid())
+  userId     String
+  subjectId  String
+  date       DateTime @db.Date
+  minutes    Int
+  /** questões feitas e acertos */
+  questions  Int?
+  correct    Int?
+  difficulty String?
+  progress   String?
+  insight    String?
+  logId      String?  @unique
+  createdAt  DateTime @default(now())
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  log     LogEntry? @relation(fields: [logId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([subjectId, date])
+}
+
+// ───────── Resumos, retrospectiva e revisão ─────────
+
+enum SummaryKind {
+  monthly
+  quarterly
+}
+
+model Summary {
+  id          String      @id @default(cuid())
+  userId      String
+  kind        SummaryKind
+  start       DateTime    @db.Date
+  end         DateTime    @db.Date
+  title       String
+  narrative   String
+  generatedAt DateTime    @db.Date
+  pinned      Boolean     @default(false)
+  edited      Boolean     @default(false)
+  /** falso enquanto o aviso "está pronto" ainda não foi visto */
+  seen        Boolean     @default(false)
+  usedAI      Boolean     @default(true)
+  variant     Int         @default(0)
+  /** respostas às perguntas de reflexão: { pergunta: resposta } */
+  reflections Json        @default("{}")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, start])
+}
+
+model Retro {
+  id          String   @id @default(cuid())
+  userId      String
+  year        Int
+  generatedAt DateTime @db.Date
+  saved       Boolean  @default(false)
+  /** aviso "sua retrospectiva está pronta" visível em Hoje */
+  banner      Boolean  @default(false)
+  /** o gatilho automático já rodou neste ano */
+  announced   Boolean  @default(false)
+  pinned      Boolean  @default(false)
+  letter      String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year])
+}
+
+/// Texto da revisão de um período (chave usada em store.reviews).
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  period    String
+  text      String
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+}
