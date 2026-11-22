@@ -51,6 +51,12 @@ export function AppShell({ children, overrides }: { children: ReactNode; overrid
     Promise.resolve(useStore.persist.rehydrate()).finally(() => setHydrated(true))
   }, [])
 
+  // App instalável e offline: registra o service worker (só na versão publicada, não no npm run dev)
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator)) return
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => console.warn('[sw] não registrou:', error))
+  }, [])
+
   // Tema: claro, escuro ou o do sistema
   useEffect(() => {
     if (!hydrated) return

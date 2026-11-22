@@ -12,14 +12,15 @@ const voice = Marck_Script({ subsets: ['latin'], weight: '400', variable: '--fon
 export const metadata: Metadata = {
   title: 'Entrelinhas: metas no seu ritmo',
   description: 'Metas anuais, tarefas do dia e um diário, sem pressão.',
+  applicationName: 'Entrelinhas',
   icons: {
     icon: [
-      { url: '/icon.png', media: '(prefers-color-scheme: light)' },
-      { url: '/icon.png', media: '(prefers-color-scheme: dark)' },
-      { url: '/icon.png', type: 'image/svg+xml' },
+      { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
     ],
-    apple: '/icon.png',
+    apple: '/icons/apple-touch-icon.png',
   },
+  appleWebApp: { capable: true, title: 'Entrelinhas', statusBarStyle: 'default' },
 }
 
 export const viewport: Viewport = {
