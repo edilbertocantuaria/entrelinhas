@@ -31,6 +31,7 @@ export const DEFAULT_AREAS: Area[] = [
 
 export const DEFAULT_SETTINGS: Settings = {
   maxTasks: 5,
+  limitTasks: true,
   onlyOnDay: false,
   hideStreaks: false,
   hidePercent: false,

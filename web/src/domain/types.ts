@@ -194,6 +194,8 @@ export type IllustrationDensity = 'many' | 'few' | 'none'
 
 export interface Settings {
   maxTasks: number
+  /** limite diário de tarefas ligado; desligado, o dia aceita quantas tarefas a pessoa quiser (padrão: ligado) */
+  limitTasks?: boolean
   /** tarefas só podem ser marcadas no próprio dia (nem antes, nem depois) */
   onlyOnDay?: boolean
   hideStreaks: boolean

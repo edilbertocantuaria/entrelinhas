@@ -66,6 +66,8 @@ model AuthSession {
 model UserSettings {
   userId        String              @id
   maxTasks      Int                 @default(5)
+  /** limite diário ligado; desligado, o dia aceita quantas tarefas a pessoa quiser */
+  limitTasks    Boolean             @default(true)
   /** tarefas só podem ser marcadas no próprio dia */
   onlyOnDay     Boolean             @default(false)
   hideStreaks   Boolean             @default(false)

@@ -121,9 +121,17 @@ export default function SettingsPage() {
       <section className="card mt-5 p-4">
         <SectionTitle title="Modo saudável" illustration="settings-healthy-mode" icon={Leaf} />
         <div className="mt-2 divide-y-[0.5px] divide-line">
-          <Row title="Máximo de tarefas por dia" hint="O que passar disso espera em Depois.">
-            <Stepper label="Máximo de tarefas por dia" min={1} max={10} value={settings.maxTasks} onChange={maxTasks => set({ maxTasks })} />
+          <Row
+            title="Limitar tarefas por dia"
+            hint={settings.limitTasks === false ? 'Desligado: cabem quantas tarefas você quiser no dia.' : 'O que passar do máximo espera em Depois.'}
+          >
+            <Switch label="Limitar tarefas por dia" checked={settings.limitTasks !== false} onChange={limitTasks => set({ limitTasks })} />
           </Row>
+          {settings.limitTasks !== false && (
+            <Row title="Máximo de tarefas por dia" hint="Um dia leve tem poucas tarefas.">
+              <Stepper label="Máximo de tarefas por dia" min={1} max={10} value={settings.maxTasks} onChange={maxTasks => set({ maxTasks })} />
+            </Row>
+          )}
           <Row title="Só marcar no dia" hint="Tarefas de outros dias ficam só para ver: nada de concluir antes nem marcar depois.">
             <Switch label="Só marcar tarefas no próprio dia" checked={!!settings.onlyOnDay} onChange={onlyOnDay => set({ onlyOnDay })} />
           </Row>

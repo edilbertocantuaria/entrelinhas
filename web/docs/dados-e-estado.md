@@ -67,6 +67,7 @@ Os valores padrão estão em [`seed.ts`](../src/domain/seed.ts), em `DEFAULT_SET
 | Ajuste | Padrão | Efeito |
 |---|---|---|
 | `maxTasks` | 5 | limite de tarefas por dia; o que passar vai para Depois |
+| `limitTasks` | `true` | liga o limite diário; desligado, cabem quantas tarefas a pessoa quiser (`dailyLimit` devolve `Infinity`) |
 | `onlyOnDay` | `false` | tarefas de outros dias só para ver |
 | `hideStreaks`, `hidePercent` | `false` | esconde sequências e porcentagens |
 | `quietFrom` / `quietTo` | 22:00 / 07:00 | horário sem lembretes |

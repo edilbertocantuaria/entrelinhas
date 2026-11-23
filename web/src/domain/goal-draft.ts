@@ -1,6 +1,6 @@
 import type { CampoMeta, MetaProposta } from '@/utils/prompts'
 import { cap, fmt, shift, uid } from '@/shared/format'
-import { amount, describeFrequency, untilText } from '@/domain/goals'
+import { amount, describeFrequency, untilText, type Pace, type Progress } from '@/domain/goals'
 import { PERIOD } from '@/domain/periods'
 import { describe, repeatEndFor } from '@/domain/recurrence'
 import type { Area, Goal, GoalUntil, Metric, RecurringTask, Repeat } from '@/domain/types'
@@ -167,11 +167,28 @@ export function goalToDraft(goal: Goal, rule?: RecurringTask): GoalDraft {
   }
 }
 
-/** A meta em texto, para a Esther saber o que existe antes de ajustar. */
-export function goalSummary(goal: Goal, areaName: string, goals: Goal[], rule?: RecurringTask) {
+/**
+ * A meta em texto, para a Esther saber o que existe antes de ajustar.
+ * Com `status`, inclui como ela está indo: progresso, ritmo e o que falta para voltar ao ritmo.
+ */
+export function goalSummary(goal: Goal, areaName: string, goals: Goal[], rule?: RecurringTask, status?: { progress: Progress; pace: Pace }) {
+  const marco =
+    goal.until?.type === 'goal'
+      ? ' (marco ligado a outra meta: a meta termina sozinha quando ela for concluída; trocar isso é em "Editar campos")'
+      : goal.until
+        ? ' (marco em texto: a pessoa toca em "Marco atingido" na página da meta quando acontecer)'
+        : ''
   const until = goal.until
-    ? `vale até ${untilText(goal, goals)}${goal.deadline ? `, data estimada ${goal.deadline}` : ', sem data'}`
+    ? `vale até ${untilText(goal, goals)}${goal.deadline ? `, data estimada ${goal.deadline}` : ', sem data'}${marco}`
     : `prazo: ${goal.deadline}`
+  const situation = status
+    ? [
+        `Progresso agora: ${status.progress.label}${status.progress.extra ? `; ${status.progress.extra.label}` : ''}`,
+        `Ritmo: ${status.pace.label}. ${status.pace.explanation}`,
+        status.pace.catchUp ? `Para ficar no ritmo: ${status.pace.catchUp}` : '',
+        status.progress.concluded ? 'A meta já está concluída (o marco aconteceu). As tarefas dela saíram da agenda.' : '',
+      ]
+    : []
   return [
     `Título: ${goal.title}`,
     `Área: ${areaName}`,
@@ -183,7 +200,10 @@ export function goalSummary(goal: Goal, areaName: string, goals: Goal[], rule?: 
     `Começou em: ${goal.startDate}; ${until}`,
     `Tarefa do dia: ${goal.taskTitle}${rule ? `, na agenda: ${describe(rule.repeat)}` : ', sem dias fixos'}`,
     `Lembrete: ${goal.reminder.on ? goal.reminder.time : 'desligado'}`,
-  ].join('\n')
+    ...situation,
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 /**

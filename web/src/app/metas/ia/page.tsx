@@ -22,7 +22,7 @@ import {
   untilLabel,
   type GoalDraft,
 } from '@/domain/goal-draft'
-import { untilText } from '@/domain/goals'
+import { paceOf, progressOf, untilText } from '@/domain/goals'
 import { describe } from '@/domain/recurrence'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
@@ -124,6 +124,9 @@ function GoalChat({ goal }: { goal?: Goal }) {
   const { toast, scroller } = useShell()
   const areas = useStore(state => state.areas)
   const goals = useStore(state => state.goals)
+  // ao ajustar, a Esther recebe como a meta está indo (progresso, ritmo, o que falta)
+  const logs = useStore(state => state.logs)
+  const tasks = useStore(state => state.tasks)
   const rule = useStore(state => (goal ? state.rules.find(item => item.goalId === goal.id) : undefined))
   const addGoal = useStore(state => state.addGoal)
   const updateGoal = useStore(state => state.updateGoal)
@@ -168,7 +171,12 @@ function GoalChat({ goal }: { goal?: Goal }) {
           areas: active.map(area => area.name),
           conversa: conversation.map(({ autor, texto }) => ({ autor, texto })),
           smart: known,
-          metaAtual: goal ? goalSummary(goal, areas.find(area => area.id === goal.areaId)?.name ?? '', goals, rule) : undefined,
+          metaAtual: goal
+            ? goalSummary(goal, areas.find(area => area.id === goal.areaId)?.name ?? '', goals, rule, {
+                progress: progressOf(goal, logs, today, goals),
+                pace: paceOf(goal, logs, tasks, today, goals),
+              })
+            : undefined,
           proporAgora,
         })
       // "pode montar", "fechado", "pode ajustar"...: a proposta precisa vir agora (o modelo às vezes ignora)

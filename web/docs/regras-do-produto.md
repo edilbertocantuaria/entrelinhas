@@ -65,7 +65,7 @@ O registro se adapta à medida da meta:
 
 ## Tarefas e o dia
 
-- **Limite diário** (`settings.maxTasks`, padrão 5). O que passar dele vai para **Depois** (sem prazo), nunca fica escondido.
+- **Limite diário** (`settings.maxTasks`, padrão 5). O que passar dele vai para **Depois** (sem prazo), nunca fica escondido. Pode ser desligado em Ajustes (`settings.limitTasks`): aí o dia aceita quantas tarefas a pessoa quiser, e o contador mostra só o total. Todo lugar que usa o limite passa por `dailyLimit`.
 - **Situações:**
 
   | Situação | Quando |

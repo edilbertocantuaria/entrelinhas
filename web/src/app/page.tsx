@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Ellipsis,
   ListChecks,
   Plus,
@@ -24,12 +25,12 @@ import { CornerBlob, Illustration, useIllustrations } from '@/components/illustr
 import { LogSheet } from '@/components/log-sheet'
 import { RepeatPicker } from '@/components/repeat-picker'
 import { RuleSheet } from '@/components/rule-sheet'
-import { MoveSheet } from '@/components/task-sheet'
+import { CopySheet, MoveSheet, type CopySource } from '@/components/task-sheet'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Chip, Field, ScrollRow } from '@/components/ui/controls'
 import { Sheet } from '@/components/ui/sheet'
 import { cap, fmt, iso, longDay, mondayOf, plural, shift } from '@/shared/format'
-import { suggestTasks, todayTasks } from '@/domain/goals'
+import { dailyLimit, suggestTasks, todayTasks } from '@/domain/goals'
 import { describe, plannedOn, scheduledGoals } from '@/domain/recurrence'
 import { useStore } from '@/shared/store'
 import { periodShort } from '@/domain/summaries'
@@ -234,7 +235,8 @@ function TodayContent({ today }: { today: string }) {
   const logs = useStore(state => state.logs)
   const areas = useStore(state => state.areas)
   const day = useStore(state => state.day)
-  const maxTasks = useStore(state => state.settings.maxTasks)
+  // sem limite (desligado em Ajustes), o dia nunca fica cheio
+  const maxTasks = useStore(state => dailyLimit(state.settings))
   const completeTask = useStore(state => state.completeTask)
   const uncompleteTask = useStore(state => state.uncompleteTask)
   const bringToToday = useStore(state => state.bringToToday)
@@ -249,6 +251,7 @@ function TodayContent({ today }: { today: string }) {
   const [laterOpen, setLaterOpen] = useState(false)
   const [burst, setBurst] = useState<string | null>(null)
   const [moving, setMoving] = useState<Task | null>(null)
+  const [copying, setCopying] = useState<CopySource | null>(null)
   const [editingRule, setEditingRule] = useState<string | null>(null)
 
   const list = useMemo(() => todayTasks(tasks, today), [tasks, today])
@@ -297,12 +300,7 @@ function TodayContent({ today }: { today: string }) {
           <h2 id="tarefas-titulo" className="text-[15px] font-medium">
             Tarefas
           </h2>
-          <span
-            className="rounded-full bg-primary-soft px-2 py-0.5 text-[12px] tabular-nums"
-            aria-label={`${list.length} de ${maxTasks} tarefas no limite de hoje`}
-          >
-            {list.length} de {maxTasks}
-          </span>
+          <TaskCount count={list.length} limit={maxTasks} label="hoje" />
           <span className="flex-1" />
           {list.length > 0 && (
             <Button variant="ghost" size="sm" className="-mr-2" onClick={() => setAdding(true)}>
@@ -501,6 +499,18 @@ function TodayContent({ today }: { today: string }) {
             <CalendarDays size={18} strokeWidth={1.75} aria-hidden />
             Mover para outro dia
           </Button>
+          <Button
+            variant="outline"
+            block
+            className="justify-start"
+            onClick={() => {
+              if (menuTask) setCopying({ title: menuTask.title, goalId: menuTask.goalId, date: menuTask.date })
+              setMenuTask(null)
+            }}
+          >
+            <Copy size={18} strokeWidth={1.75} aria-hidden />
+            Copiar para outro dia
+          </Button>
           {menuTask?.ruleId && rules.some(rule => rule.id === menuTask.ruleId) && (
             <Button
               variant="outline"
@@ -532,8 +542,26 @@ function TodayContent({ today }: { today: string }) {
       </Sheet>
 
       <MoveSheet task={moving} today={today} onClose={() => setMoving(null)} />
+      <CopySheet source={copying} today={today} onClose={() => setCopying(null)} />
       <RuleSheet open={!!editingRule} onClose={() => setEditingRule(null)} rule={rules.find(rule => rule.id === editingRule)} />
     </>
+  )
+}
+
+/** "3 de 5" com limite; só "3 tarefas" quando o limite está desligado em Ajustes. */
+function TaskCount({ count, limit, label }: { count: number; limit: number; label: string }) {
+  const limited = Number.isFinite(limit)
+  return (
+    <span
+      className="rounded-full bg-primary-soft px-2 py-0.5 text-[12px] tabular-nums"
+      aria-label={
+        limited
+          ? `${count} de ${limit} tarefas no limite ${label === 'hoje' ? 'de hoje' : 'deste dia'}`
+          : `${count} ${plural(count, 'tarefa', 'tarefas')} ${label}`
+      }
+    >
+      {limited ? `${count} de ${limit}` : count}
+    </span>
   )
 }
 
@@ -546,7 +574,7 @@ function OtherDay({ date, today }: { date: string; today: string }) {
   const rules = useStore(state => state.rules)
   const goals = useStore(state => state.goals)
   const logs = useStore(state => state.logs)
-  const maxTasks = useStore(state => state.settings.maxTasks)
+  const maxTasks = useStore(state => dailyLimit(state.settings))
   const entry = useStore(state => state.journal.find(item => item.date === date))
   const deleteTask = useStore(state => state.deleteTask)
   const skipOccurrence = useStore(state => state.skipOccurrence)
@@ -587,6 +615,7 @@ function OtherDay({ date, today }: { date: string; today: string }) {
 
   const [adding, setAdding] = useState(false)
   const [moving, setMoving] = useState<Task | null>(null)
+  const [copying, setCopying] = useState<CopySource | null>(null)
   const [editingRule, setEditingRule] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ task?: Task; rule?: RecurringTask } | null>(null)
 
@@ -669,9 +698,7 @@ function OtherDay({ date, today }: { date: string; today: string }) {
           <h2 id="planejado" className="text-[15px] font-medium">
             Planejado
           </h2>
-          <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[12px] tabular-nums">
-            {count} de {maxTasks}
-          </span>
+          <TaskCount count={count} limit={maxTasks} label="neste dia" />
           <span className="flex-1" />
           {count > 0 && (
             <Button variant="ghost" size="sm" className="-mr-2" onClick={() => setAdding(true)}>
@@ -788,6 +815,18 @@ function OtherDay({ date, today }: { date: string; today: string }) {
                 block
                 className="justify-start"
                 onClick={() => {
+                  if (menu.task) setCopying({ title: menu.task.title, goalId: menu.task.goalId, date: menu.task.date })
+                  setMenu(null)
+                }}
+              >
+                <Copy size={18} strokeWidth={1.75} aria-hidden />
+                Copiar para outro dia
+              </Button>
+              <Button
+                variant="outline"
+                block
+                className="justify-start"
+                onClick={() => {
                   if (menu.task) deleteTask(menu.task.id)
                   setMenu(null)
                 }}
@@ -817,6 +856,18 @@ function OtherDay({ date, today }: { date: string; today: string }) {
                 block
                 className="justify-start"
                 onClick={() => {
+                  if (menu.rule) setCopying({ title: menu.rule.title, goalId: menu.rule.goalId, date })
+                  setMenu(null)
+                }}
+              >
+                <Copy size={18} strokeWidth={1.75} aria-hidden />
+                Copiar para outro dia
+              </Button>
+              <Button
+                variant="outline"
+                block
+                className="justify-start"
+                onClick={() => {
                   setEditingRule(menu.rule?.id ?? null)
                   setMenu(null)
                 }}
@@ -830,6 +881,7 @@ function OtherDay({ date, today }: { date: string; today: string }) {
       </Sheet>
 
       <MoveSheet task={moving} today={today} onClose={() => setMoving(null)} />
+      <CopySheet source={copying} today={today} onClose={() => setCopying(null)} />
       <RuleSheet open={!!editingRule} onClose={() => setEditingRule(null)} rule={rules.find(rule => rule.id === editingRule)} />
     </>
   )

@@ -1,7 +1,7 @@
 import { differenceInCalendarMonths, parseISO } from 'date-fns'
 import { brl, cap, daysBetween, fmt, minutesLabel, mondayOf, num, num1, plural, shift } from '@/shared/format'
 import { PERIOD, periodEnd, periodLength, periodStart, previousPeriod } from '@/domain/periods'
-import type { FrequencyPeriod, Goal, JournalEntry, LogEntry, Metric, MetricType, Task } from '@/domain/types'
+import type { FrequencyPeriod, Goal, JournalEntry, LogEntry, Metric, MetricType, Settings, Task } from '@/domain/types'
 
 export const METRIC_LABEL: Record<MetricType, { name: string; hint: string }> = {
   frequency: { name: 'Frequência', hint: 'Vezes ou horas por semana, mês, bimestre, trimestre ou ano. Ex.: academia 3 a 4x por semana.' },
@@ -639,6 +639,9 @@ export function suggestTasks(
   }
   return out
 }
+
+/** Quantas tarefas cabem num dia: o máximo dos Ajustes, ou sem limite quando ele está desligado. */
+export const dailyLimit = (settings: Pick<Settings, 'maxTasks' | 'limitTasks'>) => (settings.limitTasks === false ? Infinity : settings.maxTasks)
 
 export const todayTasks = (tasks: Task[], today: string) =>
   tasks.filter(task => task.date === today && !task.later && (task.status === 'pending' || task.status === 'done'))

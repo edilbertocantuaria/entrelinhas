@@ -4,8 +4,8 @@ import { TOM } from './tom'
 export interface EntradaPlanoDia {
   /** "segunda-feira, 16 de novembro" */
   dia: string
-  /** limite diário de tarefas do Modo saudável */
-  limite: number
+  /** limite diário de tarefas do Modo saudável; ausente quando a pessoa desligou o limite */
+  limite?: number
   candidatas: { id: string; titulo: string; meta?: string; ritmo?: string; diasEsperando?: number; deOntem?: boolean }[]
   /** como foi ontem, se a pessoa fechou o dia */
   humorOntem?: number
@@ -27,6 +27,7 @@ Tarefa: sugerir quais tarefas entram no dia, respeitando o limite diário.
 
 Regras:
 - Escolha no máximo o número do limite. Escolher menos é bom quando o dia anterior foi difícil.
+- Sem limite diário (a pessoa desligou), escolha o que cabe num dia real, sem encher só porque pode.
 - Dê preferência a metas que estão um pouco atrás e a tarefas que esperam há mais tempo, sem encher o dia.
 - Use somente ids que estão na lista.
 - "frase": até 22 palavras explicando a escolha, sem dar ordens. Ex.: "Deixei o dia mais leve, com o estudo e o treino, que estão um pouco atrás."
@@ -36,7 +37,7 @@ Responda neste formato:
   user: entrada =>
     juntar(
       `Dia: ${entrada.dia}`,
-      `Limite diário: ${entrada.limite}`,
+      entrada.limite ? `Limite diário: ${entrada.limite}` : 'Limite diário: desligado',
       entrada.humorOntem ? `Humor de ontem: ${entrada.humorOntem} de 5` : '',
       bloco(
         'Tarefas possíveis',

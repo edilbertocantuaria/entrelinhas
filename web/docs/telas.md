@@ -21,7 +21,7 @@ Arquivo: [`src/app/page.tsx`](../src/app/page.tsx).
 - **Hoje:**
   - aviso de resumo ou retrospectiva prontos;
   - cartão "Abrir o dia";
-  - **tarefas**, com contador do limite diário e menu por tarefa (Depois, mover para outro dia, editar repetição, excluir ou pular só hoje);
+  - **tarefas**, com contador do limite diário e menu por tarefa (Depois, mover para outro dia, copiar para outro dia, editar repetição, excluir ou pular só hoje). "Copiar para outro dia" (`CopySheet`, também nas tarefas planejadas de outros dias e em "Tarefas ligadas" da meta) cria uma tarefa avulsa ligada à mesma meta no dia escolhido, respeitando o limite diário;
   - **Depois**, com as tarefas guardadas sem prazo;
   - **diário** do dia, com humor, texto e metas ligadas;
   - "Fechar o dia".

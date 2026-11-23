@@ -9,7 +9,7 @@ import { GoalChip } from '@/components/common'
 import { Illustration } from '@/components/illustration'
 import { Button } from '@/components/ui/button'
 import { longDay } from '@/shared/format'
-import { suggestTasks, todayTasks } from '@/domain/goals'
+import { dailyLimit, suggestTasks, todayTasks } from '@/domain/goals'
 import { scheduledGoals } from '@/domain/recurrence'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
@@ -32,7 +32,9 @@ export default function OpenDayPage() {
   const logs = useStore(state => state.logs)
   const areas = useStore(state => state.areas)
   const rules = useStore(state => state.rules)
-  const maxTasks = useStore(state => state.settings.maxTasks)
+  // sem limite (desligado em Ajustes), cabe tudo
+  const maxTasks = useStore(state => dailyLimit(state.settings))
+  const limited = Number.isFinite(maxTasks)
   const openDay = useStore(state => state.openDay)
 
   const groups = useMemo(() => {
@@ -99,7 +101,9 @@ export default function OpenDayPage() {
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <p className="voice text-[17px] leading-snug">{longDay(today)}</p>
-            <p className="mt-1 text-[13px] text-muted">Escolha até {capacity} para hoje. O que ficar de fora espera em Depois, sem prazo.</p>
+            <p className="mt-1 text-[13px] text-muted">
+              {limited ? `Escolha até ${capacity} para hoje.` : 'Escolha o que entra hoje.'} O que ficar de fora espera em Depois, sem prazo.
+            </p>
           </div>
           <Illustration name="step-tasks" height={84} decorative />
         </div>

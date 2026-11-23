@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { MAX_ACTIVE_AREAS, MAX_AREA_NAME } from '@/domain/areas'
 import { STORAGE_KEY } from '@/shared/constants'
 import { iso, uid } from '@/shared/format'
-import { finishedOn, isActiveOn, marcoReachedOn, todayTasks, tracksTime, type Suggestion } from '@/domain/goals'
+import { dailyLimit, finishedOn, isActiveOn, marcoReachedOn, todayTasks, tracksTime, type Suggestion } from '@/domain/goals'
 import { createSeed, DEFAULT_LETTER } from '@/domain/seed'
 import { buildSummary, dueSummaries } from '@/domain/summaries'
 import type {
@@ -283,7 +283,7 @@ export const useStore = create<Store>()(
 
       addTask: (input, today, reserved = 0) => {
         const state = get()
-        const later = todayTasks(state.tasks, today).length + reserved >= state.settings.maxTasks
+        const later = todayTasks(state.tasks, today).length + reserved >= dailyLimit(state.settings)
         const task: Task = {
           id: `tarefa-${uid()}`,
           title: input.title.trim(),
@@ -357,7 +357,7 @@ export const useStore = create<Store>()(
 
       bringToToday: (id, today) => {
         const state = get()
-        if (todayTasks(state.tasks, today).length >= state.settings.maxTasks) return false
+        if (todayTasks(state.tasks, today).length >= dailyLimit(state.settings)) return false
         set({ tasks: state.tasks.map(task => (task.id === id ? { ...task, later: false, date: today } : task)) })
         return true
       },
@@ -454,7 +454,7 @@ export const useStore = create<Store>()(
               tasks = tasks.map(task => (task === same ? { ...task, ruleId: rule.id, occurrence: today } : task))
               continue
             }
-            const later = count >= state.settings.maxTasks
+            const later = count >= dailyLimit(state.settings)
             if (!later) count++
             tasks = [
               ...tasks,

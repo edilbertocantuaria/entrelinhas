@@ -117,6 +117,14 @@ Tela: [`src/app/metas/ia/page.tsx`](../src/app/metas/ia/page.tsx). Prompt: [`met
 - opções concretas ("mais perto de 2, 3 ou 4 vezes?");
 - não pergunta título, área, nome da tarefa nem dias da semana: escolhe ela mesma, e a pessoa ajusta na revisão.
 
+**O que ela sabe propor:**
+- **Prazo:** uma data ou um marco em texto (`ate`, ex.: "passar no concurso"). Com marco, a data é opcional. Marcos ligados a outra meta do app só pelo "Editar campos".
+- **Frequência:** por semana, mês, bimestre, trimestre ou ano (`periodo`), contando vezes, horas (`contarEm: "horas"`) ou dias e horas (`contarEm: "diasEHoras"` + `horas.modo`: `porDia`, `total` ou `referencia`).
+- **Duração da sessão** (metas de dias): só quando a pessoa falou.
+- O prompt explica como o app mede o ritmo (mínimo, máximo, regra dos 3 em 4 períodos…), para ela propor números que caibam numa semana difícil.
+
+**No ajuste, ela recebe como a meta está indo** (`goalSummary` com progresso e ritmo): progresso atual, ritmo com a explicação, "para ficar no ritmo" (quando está atrás) e se a meta já foi concluída. Se a meta está atrás, ela oferece os dois caminhos (manter o combinado com o próximo passo, ou deixá-lo mais leve) sem linguagem de falha. Se a pessoa diz que o marco aconteceu, ela indica o botão "Marco atingido" em vez de propor ajuste.
+
 **O que cada resposta traz:**
 - `resposta`: a mensagem;
 - `smart`: o que já ficou firmado em cada ponto, que aparece na faixa ✓ no topo;
