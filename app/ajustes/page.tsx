@@ -1,8 +1,9 @@
 'use client'
 
-import { Bell, ChevronRight, Cloud, Download, Eraser, Image as ImageIcon, LayoutGrid, Leaf, LogOut, Mail, Monitor, Moon, Settings2, Sun } from 'lucide-react'
+import { Bell, ChevronRight, Cloud, Download, Eraser, Upload, Image as ImageIcon, LayoutGrid, Leaf, LogOut, Mail, Monitor, Moon, Settings2, Sun } from 'lucide-react'
 import Link from 'next/link'
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
+import { buildBackup, parseBackup, type ParsedBackup } from '@/lib/backup'
 import { useShell } from '@/components/app-shell'
 import { ClearGoalsSheet } from '@/components/clear-goals'
 import { AreaIcon, SectionTitle } from '@/components/common'
@@ -48,9 +49,14 @@ export default function SettingsPage() {
   const retroDate = settings.retroDate ?? defaultRetro
   const activeAreas = areas.filter(area => !area.archived).length
 
+  const importData = useStore(state => state.importData)
+  const fileInput = useRef<HTMLInputElement>(null)
+  // backup lido e conferido, esperando a confirmação
+  const [pending, setPending] = useState<Extract<ParsedBackup, { ok: true }> & { fileName: string } | null>(null)
+  const [importError, setImportError] = useState('')
+
   const exportData = () => {
-    const { areas, goals, logs, tasks, journal, summaries, retros, reviews, settings } = useStore.getState()
-    const blob = new Blob([JSON.stringify({ areas, goals, logs, tasks, journal, summaries, retros, reviews, settings }, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(buildBackup(useStore.getState()), null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -58,6 +64,22 @@ export default function SettingsPage() {
     link.click()
     URL.revokeObjectURL(url)
     toast('Arquivo exportado')
+  }
+
+  const readFile = async (file: File | undefined) => {
+    if (!file) return
+    setImportError('')
+    if (file.size > 20 * 1024 * 1024) return setImportError('O arquivo é grande demais para um backup do app.')
+    const parsed = parseBackup(await file.text())
+    if (!parsed.ok) return setImportError(parsed.error)
+    setPending({ ...parsed, fileName: file.name })
+  }
+
+  const confirmImport = () => {
+    if (!pending) return
+    importData(pending.data)
+    setPending(null)
+    toast('Dados importados')
   }
 
   return (
@@ -213,12 +235,75 @@ export default function SettingsPage() {
 
       <section className="card mt-4 p-4">
         <SectionTitle title="Backup e sincronização" illustration="settings-backup" icon={Cloud} />
-        <p className="mt-3 text-[13px] text-muted">Seus dados ficam só neste aparelho. A sincronização entre aparelhos chega em breve.</p>
-        <Button variant="outline" size="sm" className="mt-3" onClick={exportData}>
-          <Download size={16} strokeWidth={1.75} aria-hidden />
-          Exportar dados
-        </Button>
+        <p className="mt-3 text-[13px] text-muted">Seus dados ficam só neste aparelho. Exporte um arquivo para guardar uma cópia ou levar para outro aparelho, e importe para trazer de volta.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={exportData}>
+            <Download size={16} strokeWidth={1.75} aria-hidden />
+            Exportar dados
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+            <Upload size={16} strokeWidth={1.75} aria-hidden />
+            Importar dados
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            tabIndex={-1}
+            aria-label="Arquivo de backup do Entrelinhas"
+            onChange={event => {
+              void readFile(event.target.files?.[0])
+              // permite escolher o mesmo arquivo de novo depois de cancelar
+              event.target.value = ''
+            }}
+          />
+        </div>
+        {importError && (
+          <p role="alert" className="mt-2 rounded-ctl bg-primary-soft p-3 text-[12px] leading-relaxed">
+            {importError}
+          </p>
+        )}
       </section>
+
+      <Sheet
+        open={!!pending}
+        onClose={() => setPending(null)}
+        title="Importar este backup?"
+        description="Os dados deste aparelho são substituídos pelos do arquivo. Sua conta continua a mesma."
+      >
+        {pending && (
+          <div className="flex flex-col gap-4">
+            <div className="card p-3 text-[13px]">
+              <p className="truncate font-medium">{pending.fileName}</p>
+              {pending.exportedAt && <p className="text-[12px] text-muted">Exportado em {fmt(pending.exportedAt.slice(0, 10), "d 'de' MMMM 'de' yyyy")}</p>}
+              {pending.counts.length > 0 ? (
+                <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-muted">
+                  {pending.counts.map(item => (
+                    <li key={item.label}>
+                      <span className="font-medium text-ink tabular-nums">{item.count}</span> {item.label}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-[12px] text-muted">O arquivo tem só ajustes e áreas, sem registros.</p>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" className="self-start" onClick={exportData}>
+              <Download size={16} strokeWidth={1.75} aria-hidden />
+              Exportar os dados atuais antes
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" className="flex-1" onClick={() => setPending(null)}>
+                Cancelar
+              </Button>
+              <Button className="flex-1" onClick={confirmImport}>
+                Importar
+              </Button>
+            </div>
+          </div>
+        )}
+      </Sheet>
 
       <section className="card mt-4 p-4">
         <SectionTitle title="Protótipo" illustration="settings-prototype" icon={Settings2} />

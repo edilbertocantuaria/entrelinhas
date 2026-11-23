@@ -11,6 +11,7 @@ import { buildSummary, dueSummaries } from './summaries'
 import type { AppData, Area, ColorKey, Goal, JournalEntry, LogEntry, Retro, Session, Settings, StudySession, Summary, Task, Workout, AppModule, ModuleEntry, RecurringTask } from './types'
 import { MAX_FIELDS, MAX_MODULE_NAME } from './modules'
 import { rulesOn } from './recurrence'
+import type { BackupData } from './backup'
 import { kindOf, workoutMeta } from './fitness'
 
 type AreaDraft = { name: string; icon: string; color: ColorKey }
@@ -69,6 +70,8 @@ interface Actions {
   setSettings: (patch: Partial<Settings>) => void
   finishOnboarding: (areaIds: string[]) => void
   resetAll: () => void
+  /** substitui os dados pelos de um backup; o que não vier no arquivo continua como está, e a conta não muda */
+  importData: (data: BackupData) => void
   /**
    * "goals": tira só as metas (e os registros delas); tarefas avulsas, diário e módulos ficam.
    * "all": começa do zero, mantendo só áreas, ajustes e a conta.
@@ -472,6 +475,15 @@ export const useStore = create<Store>()(
         }),
 
       resetAll: () => set(state => ({ ...createSeed(iso(new Date())), session: state.session })),
+
+      importData: data =>
+        set(state => ({
+          ...data,
+          // ajustes novos que o arquivo não conhece ficam com o valor atual
+          settings: { ...state.settings, ...data.settings },
+          session: state.session,
+          onboarded: true,
+        })),
 
       saveModule: (draft, id) => {
         const name = draft.name.trim()
