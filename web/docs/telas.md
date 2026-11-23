@@ -52,7 +52,7 @@ Arquivo: [`src/app/page.tsx`](../src/app/page.tsx).
 Passo a passo SMART: Específica, Mensurável, Alcançável, Relevante, Prazo e Resumo.
 
 - **Medidas possíveis:** frequência, soma, valor, etapas, dias ou horas (veja [Regras](./regras-do-produto.md#metas)).
-- **No último passo:** prazo (**numa data** ou **num marco**: um acontecimento em texto ou outra meta, com data estimada opcional), lembrete e **tarefa na agenda**, com a repetição sugerida pelo tipo de meta.
+- **No último passo:** data de início ("Começa em": hoje por padrão; antes dela a meta não sugere tarefas, e a repetição nunca começa no passado), prazo (**numa data** ou **num marco**: um acontecimento em texto ou outra meta, com data estimada opcional), lembrete e **tarefa na agenda**, com a repetição sugerida pelo tipo de meta.
 - **Modos pela URL:**
   - sem parâmetro: meta nova;
   - `?editar=<id>`: edição. Mantém os registros e os ids das etapas, e a repetição fica na página da meta;

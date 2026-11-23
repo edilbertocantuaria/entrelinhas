@@ -345,7 +345,8 @@ export const useStore = create<Store>()(
         }),
 
       // Descartada: sai da lista e fica no histórico como "não feita".
-      discardTask: id => set(state => ({ tasks: state.tasks.map(task => (task.id === id ? { ...task, status: 'not_done' as const } : task)) })),
+      discardTask: id =>
+        set(state => ({ tasks: state.tasks.map(task => (task.id === id ? { ...task, status: 'not_done' as const, discarded: true } : task)) })),
 
       // Dispensada: não conta como falha nem contra o ritmo da meta.
       dismissTask: (id, reason) =>
@@ -421,6 +422,28 @@ export const useStore = create<Store>()(
       ensureOccurrences: today =>
         set(state => {
           let changed = false
+          // A data voltou (ex.: saiu da data de demonstração): o que uma repetição marcou como "não feita"
+          // sozinha, num dia que ainda não passou, volta a ficar pendente. Se a pessoa já tinha posto outra
+          // tarefa da mesma meta nesse dia, aquela passa a valer como a ocorrência, sem duplicar.
+          let revived = state.tasks
+          for (const task of state.tasks) {
+            if (!task.ruleId || task.status !== 'not_done' || task.discarded || task.date < today) continue
+            changed = true
+            const other = revived.find(
+              item =>
+                item.id !== task.id &&
+                !item.ruleId &&
+                !!task.goalId &&
+                item.goalId === task.goalId &&
+                item.date === task.date &&
+                (item.status === 'pending' || item.status === 'done'),
+            )
+            revived = other
+              ? revived
+                  .filter(item => item.id !== task.id)
+                  .map(item => (item.id === other.id ? { ...item, ruleId: task.ruleId, occurrence: task.occurrence } : item))
+              : revived.map(item => (item.id === task.id ? { ...item, status: 'pending' as const } : item))
+          }
           // meta concluída pelo marco: as pendentes saem da agenda (Hoje, outros dias e Depois); as feitas ficam no histórico
           const concluded = new Set(
             state.goals
@@ -430,7 +453,7 @@ export const useStore = create<Store>()(
               })
               .map(goal => goal.id),
           )
-          let tasks = state.tasks.filter(task => {
+          let tasks = revived.filter(task => {
             const drop = task.status === 'pending' && !!task.goalId && concluded.has(task.goalId)
             if (drop) changed = true
             return !drop

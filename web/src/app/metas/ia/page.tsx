@@ -18,6 +18,7 @@ import {
   goalToDraft,
   keepMilestoneIds,
   onlyChanged,
+  deadlineText,
   saveDraft,
   untilLabel,
   type GoalDraft,
@@ -27,6 +28,7 @@ import { describe } from '@/domain/recurrence'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
 import type { Goal } from '@/domain/types'
+import { cap } from '@/shared/format'
 import { cn } from '@/shared/utils'
 
 interface Message {
@@ -213,13 +215,13 @@ function GoalChat({ goal }: { goal?: Goal }) {
       startingPoint: draft.startingPoint,
       achievableNote: draft.achievableNote,
       why: draft.why,
-      startDate: today,
+      startDate: draft.startDate ?? today,
       deadline: draft.deadline,
       until: draft.until,
       taskTitle: draft.taskTitle,
       reminder: draft.reminder,
     })
-    if (draft.repeat) addRule({ title: draft.taskTitle, goalId: id, repeat: { ...draft.repeat, start: today } })
+    if (draft.repeat) addRule({ title: draft.taskTitle, goalId: id, repeat: { ...draft.repeat, start: draft.startDate ?? today } })
     storeChat(key, null)
     toast(draft.repeat ? 'Meta criada e tarefa na agenda' : 'Meta criada')
     router.replace(`/metas/${id}`)
@@ -454,6 +456,7 @@ function rowsOf(draft: GoalDraft, goals: Goal[]): [string, string, string][] {
     ['Mensurável', 'como medir', describeMetric(draft.metric)],
     ['Alcançável', 'de onde você parte', [draft.startingPoint, draft.achievableNote].filter(Boolean).join(' ')],
     ['Relevante', 'por que importa', draft.why],
+    ...(draft.startDate ? [['Início', 'quando começa', cap(deadlineText(draft.startDate))] as [string, string, string]] : []),
     ['Prazo', 'até quando', untilLabel(draft, goals)],
     ['No dia a dia', 'tarefa e agenda', `${draft.taskTitle}${draft.repeat ? `: ${describe(draft.repeat).toLocaleLowerCase('pt-BR')}` : ', sem dias fixos'}`],
     ['Lembrete', '', draft.reminder.on ? `Às ${draft.reminder.time}` : 'Sem lembrete'],

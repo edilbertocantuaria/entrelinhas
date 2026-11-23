@@ -119,6 +119,12 @@ export interface Task {
   /** guardada em "Depois" */
   later: boolean
   dismissReason?: string
+  /**
+   * "Não feita" por escolha da pessoa (descartada). Sem isso, um "não feita" de uma repetição
+   * foi marcado sozinho, ao virar o dia, e volta a ficar pendente se a data voltar
+   * (ex.: ao sair da data de demonstração).
+   */
+  discarded?: boolean
   /** tarefa criada por uma repetição: id da regra e dia original da ocorrência */
   ruleId?: string
   occurrence?: string

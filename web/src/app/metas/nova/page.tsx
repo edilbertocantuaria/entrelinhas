@@ -13,7 +13,7 @@ import { Illustration, type IllustrationName } from '@/components/illustration'
 import { ArtPicker, METRIC_ART } from '@/components/goal-visuals'
 import { Button } from '@/components/ui/button'
 import { Chip, Field, Segmented, Stepper, Switch } from '@/components/ui/controls'
-import { parseNum, uid } from '@/shared/format'
+import { cap, fmt, parseNum, uid } from '@/shared/format'
 import { amount, describeFrequency, marcoCandidates, METRIC_LABEL } from '@/domain/goals'
 import { PERIOD, PERIODS } from '@/domain/periods'
 import { useStore } from '@/shared/store'
@@ -243,7 +243,8 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
   }
 
   const built = metric()
-  const startDate = editing?.startDate ?? (today > `${year}-01-01` ? today : `${year}-01-01`)
+  // a meta começa hoje (ou em 1º de janeiro, ao criar as metas do ano seguinte); dá para escolher outro dia
+  const [startDate, setStartDate] = useState(() => editing?.startDate ?? draft?.startDate ?? (today > `${year}-01-01` ? today : `${year}-01-01`))
   const previousReached = editing?.until?.type === 'event' ? editing.until.reachedOn : undefined
   const until: GoalUntil | undefined =
     endKind === 'date'
@@ -254,8 +255,8 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
   const finalDeadline = endKind === 'date' || estimate ? deadline : undefined
   const suggested = built ? suggestRepeat({ metric: built, startDate, deadline: finalDeadline, until }) : null
   const repeat = repeatChoice === undefined ? suggested : repeatChoice
-  // ao editar, o prazo pode ficar no passado do jeito que estava, mas não antes do início
-  const deadlineOk = !finalDeadline || (editing ? finalDeadline >= editing.startDate : finalDeadline >= today)
+  // ao editar, o prazo pode ficar no passado do jeito que estava, mas nunca antes do início
+  const deadlineOk = !finalDeadline || (finalDeadline >= startDate && (editing || finalDeadline >= today))
   const marcoOk = !until || (until.type === 'event' ? until.text.length > 0 : candidates.some(goal => goal.id === until.goalId))
   const valid = [title.trim().length > 0 && !!area, !!built, true, true, deadlineOk && marcoOk, true][step]
 
@@ -282,6 +283,7 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
         startingPoint: startingPoint.trim(),
         achievableNote: achievableNote.trim(),
         why: why.trim(),
+        startDate,
         deadline: finalDeadline,
         until,
         taskTitle,
@@ -319,7 +321,7 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
       reminder,
       art: art ?? undefined,
     })
-    if (repeat) addRule({ title: draft?.taskTitle?.trim() || title.trim(), goalId: id, repeat: { ...repeat, start: startDate } })
+    if (repeat) addRule({ title: draft?.taskTitle?.trim() || title.trim(), goalId: id, repeat: { ...repeat, start: startDate > today ? startDate : today } })
     toast(repeat ? 'Meta criada e tarefa na agenda' : 'Meta criada')
     router.replace(`/metas/${id}`)
   }
@@ -809,6 +811,25 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
 
         {step === 4 && (
           <div className="flex flex-col gap-4">
+            <Field
+              label="Começa em"
+              htmlFor="meta-inicio"
+              hint={
+                startDate > today
+                  ? 'Até lá, a meta não sugere tarefas e o ritmo não corre.'
+                  : startDate < today && !editing
+                    ? 'Começando no passado: os registros antigos que você fizer contam desde esse dia.'
+                    : undefined
+              }
+            >
+              <input
+                id="meta-inicio"
+                type="date"
+                className="field"
+                value={startDate}
+                onChange={event => /^\d{4}-\d{2}-\d{2}$/.test(event.target.value) && setStartDate(event.target.value)}
+              />
+            </Field>
             <Segmented
               label="A meta termina"
               value={endKind}
@@ -874,13 +895,19 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
               <Field
                 label={endKind === 'date' ? 'Data final' : 'Data estimada'}
                 htmlFor="meta-prazo"
-                hint={!deadlineOk ? (editing ? 'Escolha uma data depois do início da meta.' : 'Escolha uma data a partir de hoje.') : undefined}
+                hint={
+                  !deadlineOk
+                    ? finalDeadline && finalDeadline < startDate
+                      ? 'Escolha uma data depois do início da meta.'
+                      : 'Escolha uma data a partir de hoje.'
+                    : undefined
+                }
               >
                 <input
                   id="meta-prazo"
                   type="date"
                   className="field"
-                  min={editing ? editing.startDate : today}
+                  min={editing || startDate > today ? startDate : today}
                   value={deadline}
                   onChange={event => setDeadline(event.target.value)}
                 />
@@ -941,6 +968,7 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                   ['Mensurável', metricText()],
                   ['Alcançável', [startingPoint.trim(), achievableNote.trim()].filter(Boolean).join(' ')],
                   ['Relevante', why.trim()],
+                  ['Início', cap(fmt(startDate, "d 'de' MMMM 'de' yyyy"))],
                   ['Prazo', untilLabel({ deadline: finalDeadline, until }, goals)],
                   ...(editing ? [] : [['Na agenda', repeat ? describe(repeat) : 'Sem tarefa fixa'] as const]),
                 ] as const

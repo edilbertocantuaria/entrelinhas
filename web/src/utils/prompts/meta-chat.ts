@@ -50,6 +50,8 @@ export interface MetaProposta {
   prazo: string
   /** marco que encerra a meta ("passar no concurso"); vazio quando ela termina numa data */
   ate: string
+  /** "aaaa-mm-dd" quando a pessoa disse quando começa; vazio = começa hoje */
+  inicio: string
   tarefa: string
   /** dias da semana em que a tarefa entra na agenda (0 = domingo); vazio = sem repetição */
   diasDaTarefa: number[]
@@ -171,6 +173,7 @@ Como montar a meta:
 - "porQue": por que importa, com as palavras da pessoa.
 - "prazo": data "aaaa-mm-dd", depois de hoje. Sem prazo dito, use 31 de dezembro do ano atual, a menos que a meta tenha marco: aí, sem data dita, use "".
 - "ate": o marco que encerra a meta, quando ela vale até algo acontecer, em até 8 palavras, começando por verbo e sem o "até" (ex.: "passar no concurso", "conseguir o novo emprego"). Quando a meta termina numa data, use "". Na "descricao", diga o marco ("até passar no concurso").
+- "inicio": data "aaaa-mm-dd" em que a meta começa, só se a pessoa disse ("começo em janeiro", "a partir de segunda"); senão "". Até lá, a meta não sugere tarefas.
 - "tarefa": o título da tarefa do dia, começando por verbo, em até 5 palavras. Ex.: "Treino na academia".
 - "diasDaTarefa": dias da semana em que a tarefa entra na agenda, com 0 = domingo e 1 = segunda. Para "3 vezes por semana", algo como [1, 3, 5]; para "5 dias por semana", [1, 2, 3, 4, 5]. Em períodos longos, use o equivalente por semana (12 por mês ≈ 3 por semana). Só horas, sem dias ditos: dias úteis. Para etapas de projeto ou soma de dinheiro, use [].
 - "lembrete": "HH:mm" se a pessoa pediu lembrete ou disse um horário; senão "".
@@ -184,7 +187,7 @@ O que devolver:
 Responda neste formato:
 {"resposta": "...", "smart": {"especifica": "", "mensuravel": "", "alcancavel": "", "relevante": "", "prazo": ""}, "sugestoes": ["..."], "meta": null}
 ou, ao propor (com "mudancas" só ao ajustar uma meta existente):
-{"resposta": "...", "smart": {...}, "sugestoes": [], "mudancas": ["medida", "diasDaTarefa"], "meta": {"titulo": "...", "area": "...", "descricao": "...", "medida": {"tipo": "frequency", "min": 3, "max": 4, "nome": "treinos"}, "pontoDePartida": "...", "alcancavel": "...", "porQue": "...", "prazo": "aaaa-mm-dd", "ate": "", "tarefa": "...", "diasDaTarefa": [1, 3, 5], "lembrete": ""}}
+{"resposta": "...", "smart": {...}, "sugestoes": [], "mudancas": ["medida", "diasDaTarefa"], "meta": {"titulo": "...", "area": "...", "descricao": "...", "medida": {"tipo": "frequency", "min": 3, "max": 4, "nome": "treinos"}, "pontoDePartida": "...", "alcancavel": "...", "porQue": "...", "prazo": "aaaa-mm-dd", "ate": "", "inicio": "", "tarefa": "...", "diasDaTarefa": [1, 3, 5], "lembrete": ""}}
 Exemplo de medida com dias e horas e de meta com marco, sem data:
 "medida": {"tipo": "frequency", "min": 4, "max": 5, "periodo": "week", "contarEm": "diasEHoras", "horas": {"modo": "porDia", "min": 2, "max": 3}}, "prazo": "", "ate": "passar no concurso"`,
   user: entrada =>
@@ -266,6 +269,7 @@ Exemplo de medida com dias e horas e de meta com marco, sem data:
         porQue: texto(m.porQue, 400) ?? '',
         prazo: typeof m.prazo === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.prazo) ? m.prazo : '',
         ate: (texto(m.ate, 80) ?? '').replace(/^até\s+/i, ''),
+        inicio: typeof m.inicio === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.inicio) ? m.inicio : '',
         tarefa: texto(m.tarefa, 60) ?? titulo,
         diasDaTarefa: [...new Set(dias)].sort(),
         lembrete: typeof m.lembrete === 'string' && /^\d{2}:\d{2}$/.test(m.lembrete) ? m.lembrete : '',

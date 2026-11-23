@@ -87,6 +87,7 @@ O registro se adapta à medida da meta:
 
 Arquivo: [`domain/recurrence.ts`](../src/domain/recurrence.ts). A regra (`RecurringTask`) tem título, meta opcional, a repetição (`Repeat`) e os dias pulados.
 
+- **Início:** a folha da repetição tem "Começa em" (de hoje em diante). Antes desse dia, nada entra na agenda.
 - **Repetição:** a cada N dias, semanas (com dias da semana) ou meses (com dia do mês). Termina nunca, numa data ou depois de N vezes.
 - **Ocorrências:**
   - **Hoje:** viram tarefa (`ensureOccurrences`, chamado pelo `AppShell`), dentro do limite diário; o excesso vai para Depois.

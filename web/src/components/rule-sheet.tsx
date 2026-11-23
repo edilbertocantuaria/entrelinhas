@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { fmt } from '@/shared/format'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
 import type { RecurringTask, Repeat } from '@/domain/types'
@@ -61,7 +62,10 @@ function RuleForm({
   const [repeat, setRepeat] = useState<Repeat | null>(base?.repeat ?? null)
   const [confirming, setConfirming] = useState(false)
   // ao editar, a repetição recomeça hoje se o início já passou (assim a mudança não reescreve o passado)
-  const start = rule && rule.repeat.start < today ? today : (base?.repeat.start ?? today)
+  const [start, setStart] = useState(() => {
+    const initial = base?.repeat.start ?? today
+    return initial < today ? today : initial
+  })
 
   const save = () => {
     if (!title.trim() || !repeat) return
@@ -80,6 +84,16 @@ function RuleForm({
     <div className="flex flex-col gap-4">
       <Field label="Tarefa" htmlFor="regra-titulo">
         <input id="regra-titulo" className="field" value={title} onChange={event => setTitle(event.target.value)} placeholder="Ex.: ir à academia" />
+      </Field>
+      <Field label="Começa em" htmlFor="regra-inicio" hint={start > today ? `A primeira vez é em ${fmt(start, "EEEE, d 'de' MMM")}.` : undefined}>
+        <input
+          id="regra-inicio"
+          type="date"
+          className="field"
+          min={today}
+          value={start}
+          onChange={event => /^\d{4}-\d{2}-\d{2}$/.test(event.target.value) && setStart(event.target.value < today ? today : event.target.value)}
+        />
       </Field>
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] text-muted">Repetir</span>

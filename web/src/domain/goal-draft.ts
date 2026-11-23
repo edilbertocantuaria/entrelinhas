@@ -14,6 +14,8 @@ export interface GoalDraft extends Pick<
   'title' | 'areaId' | 'description' | 'metric' | 'startingPoint' | 'achievableNote' | 'why' | 'deadline' | 'until' | 'taskTitle' | 'reminder'
 > {
   art?: string
+  /** quando a meta começa (só em metas novas; sem ele, começa hoje) */
+  startDate?: string
   /** null = sem repetição; undefined = deixar a sugestão automática */
   repeat?: Repeat | null
 }
@@ -118,6 +120,8 @@ export function fromProposal(p: MetaProposta, areas: Area[], today: string): Goa
   // com marco, a data é opcional: só entra se a pessoa disse uma
   const deadline = p.prazo && p.prazo > today ? p.prazo : marco ? undefined : yearEnd > today ? yearEnd : shift(today, 90)
   const until = marco ? { type: 'event' as const, text: marco } : undefined
+  // começo dito pela pessoa: de hoje em diante, e nunca depois da data final
+  const startDate = p.inicio && p.inicio > today && (!deadline || p.inicio <= deadline) ? p.inicio : undefined
   const metric = toMetric(p.medida)
   return {
     title: p.titulo,
@@ -130,9 +134,12 @@ export function fromProposal(p: MetaProposta, areas: Area[], today: string): Goa
     why: p.porQue,
     deadline,
     until,
+    startDate,
     taskTitle: p.tarefa || p.titulo,
     reminder: p.lembrete ? { on: true, time: p.lembrete } : { on: false, time: '08:00' },
-    repeat: p.diasDaTarefa.length ? { freq: 'weekly', interval: 1, weekdays: p.diasDaTarefa, start: today, end: repeatEndFor({ deadline, until }) } : null,
+    repeat: p.diasDaTarefa.length
+      ? { freq: 'weekly', interval: 1, weekdays: p.diasDaTarefa, start: startDate ?? today, end: repeatEndFor({ deadline, until }) }
+      : null,
   }
 }
 

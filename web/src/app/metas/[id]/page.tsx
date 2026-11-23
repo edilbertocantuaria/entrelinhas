@@ -19,7 +19,7 @@ import { LogSheet } from '@/components/log-sheet'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/controls'
 import { Sheet } from '@/components/ui/sheet'
-import { fmt, shift, shortDay } from '@/shared/format'
+import { cap, fmt, shift, shortDay } from '@/shared/format'
 import { logsOf, marcoReachedOn, METRIC_LABEL, milestoneDates, paceOf, progressOf, streakOf, untilText } from '@/domain/goals'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
@@ -281,6 +281,7 @@ export default function GoalDetailPage() {
                 ['Mensurável', METRIC_LABEL[m.type].name],
                 ['Alcançável', [goal.startingPoint, goal.achievableNote].filter(Boolean).join(' ')],
                 ['Relevante', goal.why],
+                ['Início', cap(fmt(goal.startDate, "d 'de' MMMM 'de' yyyy"))],
                 ['Prazo', untilLabel(goal, goals)],
               ] as const
             )
