@@ -1,7 +1,7 @@
 import { endOfMonth, endOfQuarter, getQuarter, parseISO, startOfMonth, startOfQuarter, subMonths, subQuarters } from 'date-fns'
-import { cap, fmt, iso, num, plural } from './format'
-import { inRange, periodStats, type PeriodStats } from './goals'
-import type { AppData, Summary } from './types'
+import { cap, fmt, iso, num, plural } from '@/shared/format'
+import { inRange, periodStats, type PeriodStats } from '@/domain/goals'
+import type { AppData, Summary } from '@/domain/types'
 
 type Data = Pick<AppData, 'goals' | 'logs' | 'tasks' | 'journal'>
 
@@ -23,8 +23,7 @@ const TITLES = {
   quarterly: ['Um trimestre de caminho feito', 'Três meses no seu ritmo', 'Um trimestre de continuidade'],
 }
 
-const list = (items: string[]) =>
-  items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} e ${items.at(-1)}`
+const list = (items: string[]) => (items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} e ${items.at(-1)}`)
 
 /**
  * Texto de exemplo no lugar da chamada de IA. Usa os mesmos insumos que a geração real usaria:
@@ -63,7 +62,9 @@ export function mockNarrative(kind: 'monthly' | 'quarterly', start: string, stat
     [
       advanced.length ? `Neste período você cuidou de ${list(advanced)}.` : 'Este foi um período de pausa nas metas.',
       `Você escreveu no diário em ${days} e concluiu ${done}.`,
-      stats.tasks.dismissed ? `${stats.tasks.dismissed} ${plural(stats.tasks.dismissed, 'tarefa foi dispensada', 'tarefas foram dispensadas')}, o que também é uma forma de se cuidar.` : '',
+      stats.tasks.dismissed
+        ? `${stats.tasks.dismissed} ${plural(stats.tasks.dismissed, 'tarefa foi dispensada', 'tarefas foram dispensadas')}, o que também é uma forma de se cuidar.`
+        : '',
       later,
       'Vale levar adiante o que funcionou, do seu jeito.',
     ],

@@ -2,17 +2,34 @@
 
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { MAX_ACTIVE_AREAS, MAX_AREA_NAME } from './areas'
-import { STORAGE_KEY } from './constants'
-import { iso, uid } from './format'
-import { todayTasks, type Suggestion } from './goals'
-import { createSeed, DEFAULT_LETTER } from './seed'
-import { buildSummary, dueSummaries } from './summaries'
-import type { AppData, Area, ColorKey, Goal, JournalEntry, LogEntry, Retro, Session, Settings, StudySession, Summary, Task, Workout, AppModule, ModuleEntry, RecurringTask } from './types'
-import { MAX_FIELDS, MAX_MODULE_NAME } from './modules'
-import { rulesOn } from './recurrence'
-import type { BackupData } from './backup'
-import { kindOf, workoutMeta } from './fitness'
+import { MAX_ACTIVE_AREAS, MAX_AREA_NAME } from '@/domain/areas'
+import { STORAGE_KEY } from '@/shared/constants'
+import { iso, uid } from '@/shared/format'
+import { todayTasks, type Suggestion } from '@/domain/goals'
+import { createSeed, DEFAULT_LETTER } from '@/domain/seed'
+import { buildSummary, dueSummaries } from '@/domain/summaries'
+import type {
+  AppData,
+  Area,
+  ColorKey,
+  Goal,
+  JournalEntry,
+  LogEntry,
+  Retro,
+  Session,
+  Settings,
+  StudySession,
+  Summary,
+  Task,
+  Workout,
+  AppModule,
+  ModuleEntry,
+  RecurringTask,
+} from '@/domain/types'
+import { MAX_FIELDS, MAX_MODULE_NAME } from '@/domain/modules'
+import { rulesOn } from '@/domain/recurrence'
+import type { BackupData } from '@/domain/backup'
+import { kindOf, workoutMeta } from '@/domain/fitness'
 
 type AreaDraft = { name: string; icon: string; color: ColorKey }
 type SaveAreaResult = { ok: true; id: string } | { ok: false; error: string }
@@ -139,7 +156,8 @@ function mirror(state: AppData, log: LogEntry): Partial<Modules> {
     return { weights: [...state.weights, { id: `peso-${uid()}`, date: log.date, kg: log.value, logId: log.id }] }
   if (goal.metric.type === 'days' && log.value) {
     const subject = state.subjects.find(item => item.goalId === goal.id)
-    if (subject) return { studySessions: [...state.studySessions, { id: `estudo-${uid()}`, date: log.date, subjectId: subject.id, minutes: log.value, logId: log.id }] }
+    if (subject)
+      return { studySessions: [...state.studySessions, { id: `estudo-${uid()}`, date: log.date, subjectId: subject.id, minutes: log.value, logId: log.id }] }
   }
   return {}
 }
@@ -229,7 +247,7 @@ export const useStore = create<Store>()(
             .map(task => (task.goalId === id ? { ...task, goalId: undefined, milestoneId: undefined } : task)),
           journal: state.journal.map(entry => ({ ...entry, goalIds: entry.goalIds.filter(goalId => goalId !== id) })),
           subjects: state.subjects.map(subject => (subject.goalId === id ? { ...subject, goalId: undefined } : subject)),
-          modules: state.modules.map(module => (module.goal?.goalId === id ? { ...module, goal: undefined } : module)),
+          modules: state.modules.map(mod => (mod.goal?.goalId === id ? { ...mod, goal: undefined } : mod)),
           rules: state.rules.filter(rule => rule.goalId !== id),
         })),
 
@@ -279,7 +297,9 @@ export const useStore = create<Store>()(
             logs: entry ? [...state.logs, entry] : state.logs,
             ...(entry ? mirror(state, entry) : {}),
             // feita antes do dia marcado: passa para o dia em que foi feita
-            tasks: state.tasks.map(item => (item.id === id ? { ...item, status: 'done' as const, later: false, date: item.date > today ? today : item.date } : item)),
+            tasks: state.tasks.map(item =>
+              item.id === id ? { ...item, status: 'done' as const, later: false, date: item.date > today ? today : item.date } : item,
+            ),
           }
         }),
 
@@ -316,7 +336,9 @@ export const useStore = create<Store>()(
           const task = state.tasks.find(item => item.id === id)
           const rules =
             task?.ruleId && task.occurrence
-              ? state.rules.map(rule => (rule.id === task.ruleId && !rule.skipped.includes(task.occurrence!) ? { ...rule, skipped: [...rule.skipped, task.occurrence!] } : rule))
+              ? state.rules.map(rule =>
+                  rule.id === task.ruleId && !rule.skipped.includes(task.occurrence!) ? { ...rule, skipped: [...rule.skipped, task.occurrence!] } : rule,
+                )
               : state.rules
           return { tasks: state.tasks.filter(item => item.id !== id), rules }
         }),
@@ -343,7 +365,17 @@ export const useStore = create<Store>()(
         if (!rule) return null
         const existing = state.tasks.find(task => task.ruleId === ruleId && task.occurrence === occurrence)
         if (existing) return existing
-        const task: Task = { id: `tarefa-${uid()}`, title: rule.title, goalId: rule.goalId, date, status: 'pending', origin: 'recurring', later: false, ruleId, occurrence }
+        const task: Task = {
+          id: `tarefa-${uid()}`,
+          title: rule.title,
+          goalId: rule.goalId,
+          date,
+          status: 'pending',
+          origin: 'recurring',
+          later: false,
+          ruleId,
+          occurrence,
+        }
         set({ tasks: [...state.tasks, task] })
         return task
       },
@@ -378,7 +410,20 @@ export const useStore = create<Store>()(
             }
             const later = count >= state.settings.maxTasks
             if (!later) count++
-            tasks = [...tasks, { id: `tarefa-${uid()}`, title: rule.title, goalId: rule.goalId, date: today, status: 'pending', origin: 'recurring', later, ruleId: rule.id, occurrence: today }]
+            tasks = [
+              ...tasks,
+              {
+                id: `tarefa-${uid()}`,
+                title: rule.title,
+                goalId: rule.goalId,
+                date: today,
+                status: 'pending',
+                origin: 'recurring',
+                later,
+                ruleId: rule.id,
+                occurrence: today,
+              },
+            ]
           }
           return changed ? { tasks } : state
         }),
@@ -426,7 +471,15 @@ export const useStore = create<Store>()(
         const retros = { ...state.retros }
         if (retroYear !== null) {
           const current: Retro | undefined = retros[retroYear]
-          const base: Retro = current ?? { year: retroYear, generatedAt: today, saved: false, banner: false, announced: false, pinned: false, letter: letterFor(state) }
+          const base: Retro = current ?? {
+            year: retroYear,
+            generatedAt: today,
+            saved: false,
+            banner: false,
+            announced: false,
+            pinned: false,
+            letter: letterFor(state),
+          }
           retros[retroYear] = { ...base, generatedAt: today, announced: true, banner: true }
         }
         set({ summaries: [...state.summaries, ...summaries], retros })
@@ -439,8 +492,7 @@ export const useStore = create<Store>()(
         return summary.id
       },
 
-      updateSummary: (id, patch) =>
-        set(state => ({ summaries: state.summaries.map(summary => (summary.id === id ? { ...summary, ...patch } : summary)) })),
+      updateSummary: (id, patch) => set(state => ({ summaries: state.summaries.map(summary => (summary.id === id ? { ...summary, ...patch } : summary)) })),
 
       ensureRetro: (year, today) =>
         set(state =>
@@ -454,8 +506,7 @@ export const useStore = create<Store>()(
               },
         ),
 
-      updateRetro: (year, patch) =>
-        set(state => (state.retros[year] ? { retros: { ...state.retros, [year]: { ...state.retros[year], ...patch } } } : state)),
+      updateRetro: (year, patch) => set(state => (state.retros[year] ? { retros: { ...state.retros, [year]: { ...state.retros[year], ...patch } } } : state)),
 
       setReview: (key, text) => set(state => ({ reviews: { ...state.reviews, [key]: text } })),
 
@@ -468,9 +519,7 @@ export const useStore = create<Store>()(
           return {
             onboarded: true,
             // áreas desmarcadas saem; as que têm metas de exemplo ficam arquivadas, sem perder nada
-            areas: state.areas
-              .filter(area => keep.has(area.id) || used.has(area.id))
-              .map(area => (keep.has(area.id) ? area : { ...area, archived: true })),
+            areas: state.areas.filter(area => keep.has(area.id) || used.has(area.id)).map(area => (keep.has(area.id) ? area : { ...area, archived: true })),
           }
         }),
 
@@ -492,7 +541,8 @@ export const useStore = create<Store>()(
         if (!name) return { ok: false, error: 'Dê um nome para o módulo.' }
         if (name.length > MAX_MODULE_NAME) return { ok: false, error: `Use até ${MAX_MODULE_NAME} caracteres.` }
         const lower = name.toLocaleLowerCase('pt-BR')
-        if (modules.some(item => item.id !== id && !item.hidden && item.name.toLocaleLowerCase('pt-BR') === lower)) return { ok: false, error: 'Já existe um módulo com esse nome.' }
+        if (modules.some(item => item.id !== id && !item.hidden && item.name.toLocaleLowerCase('pt-BR') === lower))
+          return { ok: false, error: 'Já existe um módulo com esse nome.' }
         const custom = !current || current.kind === 'custom'
         const fields = (draft.fields ?? current?.fields ?? []).map(field => ({
           ...field,
@@ -504,11 +554,18 @@ export const useStore = create<Store>()(
           if (fields.length === 0) return { ok: false, error: 'Adicione pelo menos um campo para registrar.' }
           if (fields.length > MAX_FIELDS) return { ok: false, error: `Use até ${MAX_FIELDS} campos.` }
           if (fields.some(field => !field.label)) return { ok: false, error: 'Todo campo precisa de um nome.' }
-          if (fields.some(field => field.type === 'choice' && (field.options?.length ?? 0) < 2)) return { ok: false, error: 'Listas de opções precisam de pelo menos duas opções.' }
+          if (fields.some(field => field.type === 'choice' && (field.options?.length ?? 0) < 2))
+            return { ok: false, error: 'Listas de opções precisam de pelo menos duas opções.' }
         }
         const goal = draft.goal && get().goals.some(item => item.id === draft.goal?.goalId) ? draft.goal : undefined
         if (current) {
-          set({ modules: modules.map(item => (item.id === id ? { ...item, name, icon: draft.icon, color: draft.color, fields: custom ? fields : item.fields, goal: custom ? goal : undefined } : item)) })
+          set({
+            modules: modules.map(item =>
+              item.id === id
+                ? { ...item, name, icon: draft.icon, color: draft.color, fields: custom ? fields : item.fields, goal: custom ? goal : undefined }
+                : item,
+            ),
+          })
           return { ok: true, id: current.id }
         }
         const newId = `mod-${uid()}`
@@ -552,14 +609,15 @@ export const useStore = create<Store>()(
       // Se o módulo está ligado a uma meta, o registro conta para ela.
       addModuleEntry: entry =>
         set(state => {
-          const module = state.modules.find(item => item.id === entry.moduleId)
-          const goal = state.goals.find(item => item.id === module?.goal?.goalId)
+          const mod = state.modules.find(item => item.id === entry.moduleId)
+          const goal = state.goals.find(item => item.id === mod?.goal?.goalId)
           let log: LogEntry | null = null
-          if (module && goal && goal.metric.type !== 'milestones') {
-            const raw = module.goal?.fieldId ? entry.values[module.goal.fieldId] : undefined
+          if (mod && goal && goal.metric.type !== 'milestones') {
+            const raw = mod.goal?.fieldId ? entry.values[mod.goal.fieldId] : undefined
             const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined
             const needsValue = goal.metric.type === 'sum' || goal.metric.type === 'value'
-            if (!needsValue || value !== undefined) log = { id: `log-${uid()}`, date: entry.date, goalId: goal.id, value: goal.metric.type === 'frequency' ? undefined : value, note: module.name }
+            if (!needsValue || value !== undefined)
+              log = { id: `log-${uid()}`, date: entry.date, goalId: goal.id, value: goal.metric.type === 'frequency' ? undefined : value, note: mod.name }
           }
           return {
             moduleEntries: [...state.moduleEntries, { ...entry, id: `reg-${uid()}`, logId: log?.id }],
@@ -591,7 +649,7 @@ export const useStore = create<Store>()(
               subjects: [],
               studySessions: [],
               // os módulos ficam (como as áreas), sem registros e sem vínculo com metas
-              modules: state.modules.map(module => ({ ...module, goal: undefined })),
+              modules: state.modules.map(mod => ({ ...mod, goal: undefined })),
               moduleEntries: [],
               day: { openedOn: null, closedOn: null },
               startedAt: today,
@@ -610,7 +668,7 @@ export const useStore = create<Store>()(
             workouts: unlink(state.workouts),
             weights: unlink(state.weights),
             studySessions: unlink(state.studySessions),
-            modules: state.modules.map(module => ({ ...module, goal: undefined })),
+            modules: state.modules.map(mod => ({ ...mod, goal: undefined })),
             moduleEntries: unlink(state.moduleEntries),
           }
         }),
@@ -672,7 +730,8 @@ export const useStore = create<Store>()(
         if (!name) return { ok: false, error: 'Dê um nome para a disciplina.' }
         if (name.length > 40) return { ok: false, error: 'Use até 40 caracteres.' }
         const lower = name.toLocaleLowerCase('pt-BR')
-        if (subjects.some(subject => subject.id !== id && subject.name.toLocaleLowerCase('pt-BR') === lower)) return { ok: false, error: 'Já existe uma disciplina com esse nome.' }
+        if (subjects.some(subject => subject.id !== id && subject.name.toLocaleLowerCase('pt-BR') === lower))
+          return { ok: false, error: 'Já existe uma disciplina com esse nome.' }
         if (id) {
           set({ subjects: subjects.map(subject => (subject.id === id ? { ...subject, ...draft, name } : subject)) })
           return { ok: true, id }
@@ -684,7 +743,10 @@ export const useStore = create<Store>()(
 
       // As sessões da disciplina saem junto; os registros de meta já feitos ficam.
       removeSubject: id =>
-        set(state => ({ subjects: state.subjects.filter(subject => subject.id !== id), studySessions: state.studySessions.filter(item => item.subjectId !== id) })),
+        set(state => ({
+          subjects: state.subjects.filter(subject => subject.id !== id),
+          studySessions: state.studySessions.filter(item => item.subjectId !== id),
+        })),
 
       // Se a disciplina está ligada a uma meta, o tempo estudado conta para ela.
       addStudySession: session =>

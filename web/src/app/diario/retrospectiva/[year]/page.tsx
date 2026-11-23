@@ -18,7 +18,8 @@ export default function RetroReadPage() {
   const retro = useStore(state => state.retros[year])
   const updateRetro = useStore(state => state.updateRetro)
 
-  if (!cards || !retro) return <Missing title="Retrospectiva não encontrada" description="Ela fica disponível em dezembro." href="/diario?resumos" action="Ver resumos" />
+  if (!cards || !retro)
+    return <Missing title="Retrospectiva não encontrada" description="Ela fica disponível em dezembro." href="/diario?resumos" action="Ver resumos" />
 
   const [cover, ...rest] = cards
 

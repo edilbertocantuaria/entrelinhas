@@ -149,7 +149,11 @@ export default function CloseDayPage() {
                         <p className="mb-2 text-[12px] text-muted">Motivo (opcional). Tarefas ignoradas não contam contra o ritmo da meta.</p>
                         <div className="flex flex-wrap gap-2">
                           {REASONS.map(reason => (
-                            <Chip key={reason} selected={decision.reason === reason} onClick={() => decide(task.id, { action: 'dismiss', reason: decision.reason === reason ? undefined : reason })}>
+                            <Chip
+                              key={reason}
+                              selected={decision.reason === reason}
+                              onClick={() => decide(task.id, { action: 'dismiss', reason: decision.reason === reason ? undefined : reason })}
+                            >
                               {reason}
                             </Chip>
                           ))}

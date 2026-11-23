@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useStore } from '@/lib/store'
-import { useClock } from '@/lib/time'
-import type { RecurringTask, Repeat } from '@/lib/types'
+import { useStore } from '@/shared/store'
+import { useClock } from '@/shared/time'
+import type { RecurringTask, Repeat } from '@/domain/types'
 import { useShell } from './app-shell'
 import { RepeatPicker } from './repeat-picker'
 import { Button } from './ui/button'
@@ -29,13 +29,28 @@ export function RuleSheet({
   suggestedEnd?: string
 }) {
   return (
-    <Sheet open={open} onClose={onClose} title={rule ? 'Editar repetição' : 'Tarefa que se repete'} description={rule ? 'As mudanças valem daqui para frente. O que já foi feito continua no histórico.' : undefined}>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={rule ? 'Editar repetição' : 'Tarefa que se repete'}
+      description={rule ? 'As mudanças valem daqui para frente. O que já foi feito continua no histórico.' : undefined}
+    >
       {open && <RuleForm key={rule?.id ?? 'nova'} rule={rule} draft={draft} suggestedEnd={suggestedEnd} onClose={onClose} />}
     </Sheet>
   )
 }
 
-function RuleForm({ rule, draft, suggestedEnd, onClose }: { rule?: RecurringTask; draft?: { title: string; goalId?: string; repeat: Repeat }; suggestedEnd?: string; onClose: () => void }) {
+function RuleForm({
+  rule,
+  draft,
+  suggestedEnd,
+  onClose,
+}: {
+  rule?: RecurringTask
+  draft?: { title: string; goalId?: string; repeat: Repeat }
+  suggestedEnd?: string
+  onClose: () => void
+}) {
   const { today } = useClock()
   const { toast } = useShell()
   const addRule = useStore(state => state.addRule)

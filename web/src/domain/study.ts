@@ -1,5 +1,5 @@
-import { fmt, mondayOf, shift } from './format'
-import type { StudySession, Subject } from './types'
+import { fmt, mondayOf, shift } from '@/shared/format'
+import type { StudySession, Subject } from '@/domain/types'
 
 export type NoteKind = 'difficulty' | 'progress' | 'insight'
 
@@ -27,7 +27,16 @@ export function weekStats(sessions: StudySession[], today: string) {
 
 export function subjectStats(subject: Subject, sessions: StudySession[]) {
   const mine = sessions.filter(item => item.subjectId === subject.id)
-  return { subject, count: mine.length, minutes: sum(mine, item => item.minutes), last: mine.map(item => item.date).sort().at(-1), ...accuracy(mine) }
+  return {
+    subject,
+    count: mine.length,
+    minutes: sum(mine, item => item.minutes),
+    last: mine
+      .map(item => item.date)
+      .sort()
+      .at(-1),
+    ...accuracy(mine),
+  }
 }
 
 /** Minutos por disciplina e aproveitamento geral em cada uma das últimas `weeks` semanas. */
@@ -38,7 +47,11 @@ export function weeklySeries(sessions: StudySession[], subjects: Subject[], toda
     const end = shift(start, 6)
     const week = sessions.filter(item => item.date >= start && item.date <= end)
     const row: Record<string, number | string | null> = { week: fmt(start, 'd/M'), percent: null }
-    for (const subject of subjects) row[subject.id] = sum(week.filter(item => item.subjectId === subject.id), item => item.minutes)
+    for (const subject of subjects)
+      row[subject.id] = sum(
+        week.filter(item => item.subjectId === subject.id),
+        item => item.minutes,
+      )
     const { ratio } = accuracy(week)
     row.percent = ratio === null ? null : Math.round(ratio * 100)
     return row

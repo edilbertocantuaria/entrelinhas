@@ -33,9 +33,18 @@ Responda neste formato:
   user: entrada =>
     juntar(
       `Período: ${entrada.periodo}`,
-      bloco('Treinos por semana', entrada.treinosPorSemana.map(item => `- semana de ${item.semana}: ${item.treinos} treinos, ${item.minutos} min`)),
-      bloco('Tipos de treino', entrada.tipos.map(item => `- ${item.tipo}: ${item.vezes} vezes`)),
-      bloco('Cargas', entrada.cargas.slice(0, 8).map(item => `- ${item.exercicio}: de ${item.de} kg para ${item.para} kg em ${item.treinos} treinos`)),
+      bloco(
+        'Treinos por semana',
+        entrada.treinosPorSemana.map(item => `- semana de ${item.semana}: ${item.treinos} treinos, ${item.minutos} min`),
+      ),
+      bloco(
+        'Tipos de treino',
+        entrada.tipos.map(item => `- ${item.tipo}: ${item.vezes} vezes`),
+      ),
+      bloco(
+        'Cargas',
+        entrada.cargas.slice(0, 8).map(item => `- ${item.exercicio}: de ${item.de} kg para ${item.para} kg em ${item.treinos} treinos`),
+      ),
       entrada.peso ? bloco('Peso', [`- de ${entrada.peso.de} kg para ${entrada.peso.para} kg em ${entrada.peso.medicoes} medições`]) : '',
     ),
   maxTokens: 300,

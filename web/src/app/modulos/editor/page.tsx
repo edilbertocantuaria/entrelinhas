@@ -36,27 +36,27 @@ function ModuleEditorRoute() {
   const params = useSearchParams()
   const id = params.get('id')
   const template = params.get('modelo')
-  const module = useStore(state => state.modules.find(item => item.id === id))
-  if (id && !module) return <Missing title="Módulo não encontrado" description="Ele pode ter sido excluído." href="/modulos" action="Ver módulos" />
-  return <Editor key={id ?? template ?? 'novo'} module={module} templateKey={template} />
+  const mod = useStore(state => state.modules.find(item => item.id === id))
+  if (id && !mod) return <Missing title="Módulo não encontrado" description="Ele pode ter sido excluído." href="/modulos" action="Ver módulos" />
+  return <Editor key={id ?? template ?? 'novo'} mod={mod} templateKey={template} />
 }
 
-function Editor({ module, templateKey }: { module?: AppModule; templateKey: string | null }) {
+function Editor({ mod, templateKey }: { mod?: AppModule; templateKey: string | null }) {
   const router = useRouter()
   const { toast } = useShell()
   const goals = useStore(state => state.goals)
   const saveModule = useStore(state => state.saveModule)
   const preset = TEMPLATES.find(item => item.key === templateKey)
-  const custom = !module || module.kind === 'custom'
+  const custom = !mod || mod.kind === 'custom'
 
-  const [name, setName] = useState(module?.name ?? preset?.name ?? '')
-  const [icon, setIcon] = useState(module?.icon ?? preset?.icon ?? 'sparkles')
-  const [color, setColor] = useState<ColorKey>(module?.color ?? preset?.color ?? 'mar')
+  const [name, setName] = useState(mod?.name ?? preset?.name ?? '')
+  const [icon, setIcon] = useState(mod?.icon ?? preset?.icon ?? 'sparkles')
+  const [color, setColor] = useState<ColorKey>(mod?.color ?? preset?.color ?? 'mar')
   const [fields, setFields] = useState<DraftField[]>(() =>
-    module ? module.fields.map(toDraft) : preset ? preset.fields.map(field => toDraft({ ...field, id: `c-${uid()}` })) : [newField()],
+    mod ? mod.fields.map(toDraft) : preset ? preset.fields.map(field => toDraft({ ...field, id: `c-${uid()}` })) : [newField()],
   )
-  const [goalId, setGoalId] = useState<string | undefined>(module?.goal?.goalId)
-  const [fieldId, setFieldId] = useState<string | undefined>(module?.goal?.fieldId)
+  const [goalId, setGoalId] = useState<string | undefined>(mod?.goal?.goalId)
+  const [fieldId, setFieldId] = useState<string | undefined>(mod?.goal?.fieldId)
   const [error, setError] = useState('')
   const [removing, setRemoving] = useState(false)
 
@@ -64,7 +64,11 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
   const goal = goals.find(item => item.id === goalId)
   const numeric = fields.filter(field => (field.type === 'number' || field.type === 'duration') && field.label.trim())
   const needsField = goal && (goal.metric.type === 'sum' || goal.metric.type === 'value' || goal.metric.type === 'days')
-  const feed = numeric.find(field => field.id === fieldId) ?? (needsField ? (goal?.metric.type === 'days' ? numeric.find(field => field.type === 'duration') : numeric.find(field => field.type === 'number')) ?? numeric[0] : undefined)
+  const feed =
+    numeric.find(field => field.id === fieldId) ??
+    (needsField
+      ? ((goal?.metric.type === 'days' ? numeric.find(field => field.type === 'duration') : numeric.find(field => field.type === 'number')) ?? numeric[0])
+      : undefined)
 
   // qualquer mudança tira a mensagem de erro anterior
   const edit =
@@ -90,19 +94,21 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
         name,
         icon,
         color,
-        fields: custom ? fields.map(({ optionsText, ...field }) => ({ ...field, options: field.type === 'choice' ? optionsText.split(',') : undefined })) : undefined,
+        fields: custom
+          ? fields.map(({ optionsText, ...field }) => ({ ...field, options: field.type === 'choice' ? optionsText.split(',') : undefined }))
+          : undefined,
         goal: custom && goalId ? { goalId, fieldId: needsField ? feed?.id : undefined } : undefined,
       },
-      module?.id,
+      mod?.id,
     )
     if (!result.ok) return setError(result.error)
-    toast(module ? 'Módulo salvo' : 'Módulo criado')
-    router.replace(moduleHref({ id: result.id, kind: module?.kind ?? 'custom' }))
+    toast(mod ? 'Módulo salvo' : 'Módulo criado')
+    router.replace(moduleHref({ id: result.id, kind: mod?.kind ?? 'custom' }))
   }
 
   return (
     <div className="flex min-h-full flex-col">
-      <TopBar title={module ? 'Editar módulo' : 'Novo módulo'} back={<BackButton label="Voltar" />} />
+      <TopBar title={mod ? 'Editar módulo' : 'Novo módulo'} back={<BackButton label="Voltar" />} />
 
       <div className="flex flex-1 flex-col gap-5 px-5 pb-6">
         <div className="card flex items-center justify-between px-4 py-3">
@@ -110,8 +116,23 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
           <AreaChip area={{ name: name.trim() || 'Nome do módulo', icon, color }} />
         </div>
 
-        <Field label="Nome" htmlFor="modulo-nome" hint={<span className="flex justify-end tabular-nums">{name.length}/{MAX_MODULE_NAME}</span>}>
-          <input id="modulo-nome" className="field" maxLength={MAX_MODULE_NAME} placeholder="Ex.: Leitura" value={name} onChange={event => edit(setName)(event.target.value)} />
+        <Field
+          label="Nome"
+          htmlFor="modulo-nome"
+          hint={
+            <span className="flex justify-end tabular-nums">
+              {name.length}/{MAX_MODULE_NAME}
+            </span>
+          }
+        >
+          <input
+            id="modulo-nome"
+            className="field"
+            maxLength={MAX_MODULE_NAME}
+            placeholder="Ex.: Leitura"
+            value={name}
+            onChange={event => edit(setName)(event.target.value)}
+          />
         </Field>
 
         <div className="flex flex-col gap-2">
@@ -131,7 +152,10 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
                 <h2 id="campos" className="text-[15px] font-medium">
                   O que registrar
                 </h2>
-                <p className="text-[12px] text-muted">Cada campo vira uma pergunta na hora de registrar. Todos são opcionais no dia a dia. Um texto no topo vira o título do registro, como o nome do livro.</p>
+                <p className="text-[12px] text-muted">
+                  Cada campo vira uma pergunta na hora de registrar. Todos são opcionais no dia a dia. Um texto no topo vira o título do registro, como o nome
+                  do livro.
+                </p>
               </div>
               {fields.map((field, index) => (
                 <div key={field.id} className="card flex flex-col gap-2 p-3">
@@ -147,14 +171,31 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
                     <button type="button" className="icon-btn" aria-label={`Subir o campo ${index + 1}`} disabled={index === 0} onClick={() => move(index, -1)}>
                       <ArrowUp size={18} strokeWidth={1.75} />
                     </button>
-                    <button type="button" className="icon-btn" aria-label={`Descer o campo ${index + 1}`} disabled={index === fields.length - 1} onClick={() => move(index, 1)}>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Descer o campo ${index + 1}`}
+                      disabled={index === fields.length - 1}
+                      onClick={() => move(index, 1)}
+                    >
                       <ArrowDown size={18} strokeWidth={1.75} />
                     </button>
-                    <button type="button" className="icon-btn" aria-label={`Remover o campo ${index + 1}`} disabled={fields.length === 1} onClick={() => edit(setFields)(fields.filter((_, i) => i !== index))}>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Remover o campo ${index + 1}`}
+                      disabled={fields.length === 1}
+                      onClick={() => edit(setFields)(fields.filter((_, i) => i !== index))}
+                    >
                       <X size={18} strokeWidth={1.75} />
                     </button>
                   </div>
-                  <select className="field" aria-label={`Tipo do campo ${index + 1}`} value={field.type} onChange={event => patch(index, { type: event.target.value as FieldType })}>
+                  <select
+                    className="field"
+                    aria-label={`Tipo do campo ${index + 1}`}
+                    value={field.type}
+                    onChange={event => patch(index, { type: event.target.value as FieldType })}
+                  >
                     {FIELD_TYPES.map(type => (
                       <option key={type.value} value={type.value}>
                         {type.label}
@@ -163,14 +204,33 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
                   </select>
                   <p className="text-[12px] text-muted">{FIELD_TYPES.find(type => type.value === field.type)?.hint}</p>
                   {field.type === 'number' && (
-                    <input className="field" aria-label={`Unidade do campo ${index + 1}`} placeholder="Unidade (opcional): páginas, km, copos, R$" maxLength={14} value={field.unit ?? ''} onChange={event => patch(index, { unit: event.target.value })} />
+                    <input
+                      className="field"
+                      aria-label={`Unidade do campo ${index + 1}`}
+                      placeholder="Unidade (opcional): páginas, km, copos, R$"
+                      maxLength={14}
+                      value={field.unit ?? ''}
+                      onChange={event => patch(index, { unit: event.target.value })}
+                    />
                   )}
                   {field.type === 'choice' && (
-                    <input className="field" aria-label={`Opções do campo ${index + 1}`} placeholder="Opções separadas por vírgula" value={field.optionsText} onChange={event => patch(index, { optionsText: event.target.value })} />
+                    <input
+                      className="field"
+                      aria-label={`Opções do campo ${index + 1}`}
+                      placeholder="Opções separadas por vírgula"
+                      value={field.optionsText}
+                      onChange={event => patch(index, { optionsText: event.target.value })}
+                    />
                   )}
                 </div>
               ))}
-              <Button variant="ghost" size="sm" className="self-start" disabled={fields.length >= MAX_FIELDS} onClick={() => edit(setFields)([...fields, newField()])}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="self-start"
+                disabled={fields.length >= MAX_FIELDS}
+                onClick={() => edit(setFields)([...fields, newField()])}
+              >
                 <Plus size={18} strokeWidth={1.75} aria-hidden />
                 Adicionar campo
               </Button>
@@ -213,10 +273,12 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
             )}
           </>
         ) : (
-          <p className="card p-4 text-[13px] text-muted">Os campos de {module?.kind === 'fitness' ? 'treino e peso' : 'estudo'} são fixos. Aqui você muda o nome, o ícone e a cor.</p>
+          <p className="card p-4 text-[13px] text-muted">
+            Os campos de {mod?.kind === 'fitness' ? 'treino e peso' : 'estudo'} são fixos. Aqui você muda o nome, o ícone e a cor.
+          </p>
         )}
 
-        {module && (
+        {mod && (
           <Button variant="ghost" size="sm" className="self-start" onClick={() => setRemoving(true)}>
             <Trash2 size={18} strokeWidth={1.75} aria-hidden />
             {custom ? 'Excluir módulo' : 'Remover do app'}
@@ -231,11 +293,11 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
           </p>
         )}
         <Button block onClick={save}>
-          {module ? 'Salvar' : 'Criar módulo'}
+          {mod ? 'Salvar' : 'Criar módulo'}
         </Button>
       </div>
 
-      <RemoveModuleSheet module={removing ? (module ?? null) : null} onClose={() => setRemoving(false)} onRemoved={() => router.replace('/modulos')} />
+      <RemoveModuleSheet mod={removing ? (mod ?? null) : null} onClose={() => setRemoving(false)} onRemoved={() => router.replace('/modulos')} />
     </div>
   )
 }

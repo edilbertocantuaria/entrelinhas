@@ -1,13 +1,13 @@
 'use client'
 
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { areaColor } from '@/lib/areas'
-import { activityText, kindOf } from '@/lib/fitness'
-import { brl, fmt, minutesLabel, num, num1 } from '@/lib/format'
-import { amount, cumulativeSeries, heatmap, valueSeries, weeklyCounts, type Progress } from '@/lib/goals'
-import { useStore } from '@/lib/store'
-import type { Goal, LogEntry } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { areaColor } from '@/domain/areas'
+import { activityText, kindOf } from '@/domain/fitness'
+import { brl, fmt, minutesLabel, num, num1 } from '@/shared/format'
+import { amount, cumulativeSeries, heatmap, valueSeries, weeklyCounts, type Progress } from '@/domain/goals'
+import { useStore } from '@/shared/store'
+import type { Goal, LogEntry } from '@/domain/types'
+import { cn } from '@/shared/utils'
 import { Illustration, type IllustrationName } from './illustration'
 import { SCENES } from './illustrations/scenes'
 import { ProgressBar } from './ui/controls'
@@ -50,7 +50,15 @@ const isArt = (name: string | undefined): name is IllustrationName => !!name && 
 export const goalArt = (goal: Pick<Goal, 'art' | 'metric'>): IllustrationName => (isArt(goal.art) ? goal.art : METRIC_ART[goal.metric.type])
 
 /** Grade de ícones para escolher. `value` nulo = automático (segue o tipo de medida). */
-export function ArtPicker({ value, auto, onChange }: { value: IllustrationName | null; auto?: IllustrationName; onChange: (value: IllustrationName | null) => void }) {
+export function ArtPicker({
+  value,
+  auto,
+  onChange,
+}: {
+  value: IllustrationName | null
+  auto?: IllustrationName
+  onChange: (value: IllustrationName | null) => void
+}) {
   const options: (IllustrationName | null)[] = auto ? [null, ...GOAL_ART.filter(name => name !== auto)] : GOAL_ART
   return (
     <div role="radiogroup" aria-label="Ícone da meta" className="grid grid-cols-4 gap-2">
@@ -65,7 +73,10 @@ export function ArtPicker({ value, auto, onChange }: { value: IllustrationName |
             aria-checked={selected}
             aria-label={name ? SCENES[name].label : `Automático: ${SCENES[art].label}`}
             onClick={() => onChange(name)}
-            className={cn('relative grid aspect-square place-items-center rounded-card border-[0.5px] bg-surface transition-colors', selected ? 'border-primary bg-primary-soft ring-1 ring-primary' : 'border-line hover:bg-primary-soft')}
+            className={cn(
+              'relative grid aspect-square place-items-center rounded-card border-[0.5px] bg-surface transition-colors',
+              selected ? 'border-primary bg-primary-soft ring-1 ring-primary' : 'border-line hover:bg-primary-soft',
+            )}
           >
             <Illustration name={art} height={56} decorative always />
             {!name && <span className="absolute inset-x-0 bottom-1 text-center text-[11px] leading-none text-muted">auto</span>}
@@ -87,7 +98,11 @@ export function GoalProgress({ goal, progress, color }: { goal: Goal; progress: 
     indicator = (
       <div className="flex gap-1.5" aria-hidden>
         {Array.from({ length: m.max }, (_, index) => (
-          <span key={index} className={cn('h-2.5 flex-1 rounded-full', index >= m.min && 'max-w-6')} style={{ background: index < progress.current ? fill : 'var(--primary-soft)' }} />
+          <span
+            key={index}
+            className={cn('h-2.5 flex-1 rounded-full', index >= m.min && 'max-w-6')}
+            style={{ background: index < progress.current ? fill : 'var(--primary-soft)' }}
+          />
         ))}
       </div>
     )
@@ -121,7 +136,7 @@ export const tooltipStyle = {
   itemStyle: { color: 'var(--text)' },
   cursor: { stroke: 'var(--border)' },
 }
-export const chartMargin ={ top: 12, right: 12, left: 0, bottom: 0 }
+export const chartMargin = { top: 12, right: 12, left: 0, bottom: 0 }
 
 /** Gráfico de evolução conforme a métrica, na cor da área da meta. */
 export function GoalChart({ goal, logs, today, height = 180 }: { goal: Goal; logs: LogEntry[]; today: string; height?: number }) {
@@ -138,10 +153,26 @@ export function GoalChart({ goal, logs, today, height = 180 }: { goal: Goal; log
           <AreaChart data={data} margin={chartMargin}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis dataKey="label" tick={tick} tickLine={false} axisLine={false} minTickGap={28} />
-            <YAxis tick={tick} tickLine={false} axisLine={false} width={44} domain={[0, Math.max(m.target, last)]} tickFormatter={value => (m.currency && value >= 1000 ? `${num1(value / 1000)} mil` : num1(value))} />
+            <YAxis
+              tick={tick}
+              tickLine={false}
+              axisLine={false}
+              width={44}
+              domain={[0, Math.max(m.target, last)]}
+              tickFormatter={value => (m.currency && value >= 1000 ? `${num1(value / 1000)} mil` : num1(value))}
+            />
             <Tooltip {...tooltipStyle} formatter={value => [amount(m, Number(value)), 'Acumulado']} />
             <ReferenceLine y={m.target} stroke="var(--text-muted)" strokeDasharray="4 4" />
-            <Area type="monotone" dataKey="total" stroke={color} strokeWidth={2} fill={color} fillOpacity={0.16} dot={{ r: 3, fill: color, strokeWidth: 0 }} isAnimationActive={false} />
+            <Area
+              type="monotone"
+              dataKey="total"
+              stroke={color}
+              strokeWidth={2}
+              fill={color}
+              fillOpacity={0.16}
+              dot={{ r: 3, fill: color, strokeWidth: 0 }}
+              isAnimationActive={false}
+            />
           </AreaChart>
         </ResponsiveContainer>
         <figcaption className="mt-1 text-[12px] text-muted">
@@ -160,7 +191,13 @@ export function GoalChart({ goal, logs, today, height = 180 }: { goal: Goal; log
           <LineChart data={data} margin={chartMargin}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis dataKey="label" tick={tick} tickLine={false} axisLine={false} minTickGap={28} />
-            <YAxis tick={tick} tickLine={false} axisLine={false} width={36} domain={[Math.floor(Math.min(...values) - 1), Math.ceil(Math.max(...values) + 1)]} />
+            <YAxis
+              tick={tick}
+              tickLine={false}
+              axisLine={false}
+              width={36}
+              domain={[Math.floor(Math.min(...values) - 1), Math.ceil(Math.max(...values) + 1)]}
+            />
             <Tooltip {...tooltipStyle} formatter={value => [`${num(Number(value), 1)} ${m.unit}`, 'Medição']} />
             <ReferenceLine y={m.to} stroke="var(--text-muted)" strokeDasharray="4 4" />
             <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={{ r: 2.5, fill: color, strokeWidth: 0 }} isAnimationActive={false} />
@@ -181,8 +218,20 @@ export function GoalChart({ goal, logs, today, height = 180 }: { goal: Goal; log
           <BarChart data={data} margin={chartMargin}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis dataKey="week" tick={tick} tickLine={false} axisLine={false} minTickGap={12} />
-            <YAxis tick={tick} tickLine={false} axisLine={false} width={24} allowDecimals={false} domain={[0, Math.max(m.max, ...data.map(point => point.count))]} />
-            <Tooltip {...tooltipStyle} cursor={{ fill: 'var(--primary-soft)' }} formatter={value => [`${value} ${m.noun}`, 'Semana']} labelFormatter={label => `Semana de ${label}`} />
+            <YAxis
+              tick={tick}
+              tickLine={false}
+              axisLine={false}
+              width={24}
+              allowDecimals={false}
+              domain={[0, Math.max(m.max, ...data.map(point => point.count))]}
+            />
+            <Tooltip
+              {...tooltipStyle}
+              cursor={{ fill: 'var(--primary-soft)' }}
+              formatter={value => [`${value} ${m.noun}`, 'Semana']}
+              labelFormatter={label => `Semana de ${label}`}
+            />
             <ReferenceLine y={m.min} stroke="var(--text-muted)" strokeDasharray="4 4" />
             <Bar dataKey="count" fill={color} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
           </BarChart>
@@ -243,7 +292,14 @@ export function MoodChart({ data, height = 120 }: { data: { label: string; mood:
         <XAxis dataKey="label" tick={tick} tickLine={false} axisLine={false} minTickGap={20} />
         <YAxis tick={tick} tickLine={false} axisLine={false} width={20} domain={[1, 5]} ticks={[1, 3, 5]} />
         <Tooltip {...tooltipStyle} formatter={value => [`${num1(Number(value))} de 5`, 'Humor']} />
-        <Line type="monotone" dataKey="mood" stroke="var(--primary)" strokeWidth={2} dot={{ r: 3.5, fill: 'var(--primary)', strokeWidth: 0 }} isAnimationActive={false} />
+        <Line
+          type="monotone"
+          dataKey="mood"
+          stroke="var(--primary)"
+          strokeWidth={2}
+          dot={{ r: 3.5, fill: 'var(--primary)', strokeWidth: 0 }}
+          isAnimationActive={false}
+        />
       </LineChart>
     </ResponsiveContainer>
   )
@@ -255,7 +311,8 @@ export function logText(goal: Goal, log: LogEntry) {
   if (m.type === 'value') return `${num(log.value ?? 0, 1)} ${m.unit}`
   if (m.type === 'days') return log.value ? minutesLabel(log.value) : 'Dia feito'
   if (m.type === 'milestones') return log.note ?? 'Etapa concluída'
-  if (log.activity) return log.note && !log.note.startsWith(kindOf(log.activity.kind).label) ? `${activityText(log.activity)} · ${log.note}` : activityText(log.activity)
+  if (log.activity)
+    return log.note && !log.note.startsWith(kindOf(log.activity.kind).label) ? `${activityText(log.activity)} · ${log.note}` : activityText(log.activity)
   return log.note ?? 'Presença registrada'
 }
 

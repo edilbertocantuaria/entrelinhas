@@ -25,7 +25,12 @@ export const isObj = (valor: unknown): valor is Record<string, unknown> => typeo
 export const texto = (valor: unknown, max = 2000): string | null => (typeof valor === 'string' && valor.trim() ? valor.trim().slice(0, max) : null)
 
 export const listaTextos = (valor: unknown, maxItens: number, maxTexto = 300): string[] =>
-  Array.isArray(valor) ? valor.map(item => texto(item, maxTexto)).filter((item): item is string => !!item).slice(0, maxItens) : []
+  Array.isArray(valor)
+    ? valor
+        .map(item => texto(item, maxTexto))
+        .filter((item): item is string => !!item)
+        .slice(0, maxItens)
+    : []
 
 // ---------- Ajudantes para montar a mensagem ----------
 

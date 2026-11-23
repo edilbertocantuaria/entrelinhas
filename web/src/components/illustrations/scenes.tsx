@@ -1,9 +1,49 @@
 import type { ReactNode } from 'react'
 import {
-  Backdrop, Book, C, Calendar, ChartCard, CheckBadge, Checklist, Clock, Cloud, CoffeeCup, Coins, Compass, Dots, Dumbbell,
-  Envelope, FacelessCharacter, Flag, G, Gear, Ground, Heart, Leaf, Magnifier, Moon, Mountain, Notebook, Pen, PiggyBank,
-  Plant, PlusSign, Puzzle, PuzzlePiece, Ruler, Scale, Shield, SpotBackdrop, Star, StarBadge, Stars, Steps, Sun, Target,
-  Tile, Trophy,
+  Backdrop,
+  Book,
+  C,
+  Calendar,
+  ChartCard,
+  CheckBadge,
+  Checklist,
+  Clock,
+  Cloud,
+  CoffeeCup,
+  Coins,
+  Compass,
+  Dots,
+  Dumbbell,
+  Envelope,
+  FacelessCharacter,
+  Flag,
+  G,
+  Gear,
+  Ground,
+  Heart,
+  Leaf,
+  Magnifier,
+  Moon,
+  Mountain,
+  Notebook,
+  Pen,
+  PiggyBank,
+  Plant,
+  PlusSign,
+  Puzzle,
+  PuzzlePiece,
+  Ruler,
+  Scale,
+  Shield,
+  SpotBackdrop,
+  Star,
+  StarBadge,
+  Stars,
+  Steps,
+  Sun,
+  Target,
+  Tile,
+  Trophy,
 } from './primitives'
 
 export interface Scene {
@@ -38,9 +78,29 @@ const spot = (label: string, art: ReactNode, round = false): Scene => ({
 
 const confetti = (
   <>
-    <Dots pts={[[84, 66, 3], [236, 84, 3], [262, 132, 2.5]]} fill={C.teal} />
-    <Dots pts={[[70, 110, 2.5], [222, 52, 3], [250, 170, 2.5]]} fill={C.warm} />
-    <Dots pts={[[104, 44, 2.5], [270, 100, 2.5]]} fill={C.primary} />
+    <Dots
+      pts={[
+        [84, 66, 3],
+        [236, 84, 3],
+        [262, 132, 2.5],
+      ]}
+      fill={C.teal}
+    />
+    <Dots
+      pts={[
+        [70, 110, 2.5],
+        [222, 52, 3],
+        [250, 170, 2.5],
+      ]}
+      fill={C.warm}
+    />
+    <Dots
+      pts={[
+        [104, 44, 2.5],
+        [270, 100, 2.5],
+      ]}
+      fill={C.primary}
+    />
   </>
 )
 
@@ -51,7 +111,13 @@ const journalArt = (
     <Notebook open x={92} y={98} s={1.05} />
     <Pen x={226} y={70} rot={32} />
     <Plant x={244} y={128} />
-    <Dots pts={[[120, 70, 3], [196, 58, 2.5]]} fill={C.teal} />
+    <Dots
+      pts={[
+        [120, 70, 3],
+        [196, 58, 2.5],
+      ]}
+      fill={C.teal}
+    />
   </>
 )
 
@@ -79,7 +145,12 @@ export const SCENES = {
       <Flag x={62} y={138} />
       <Target x={152} y={126} r={56} arrow />
       <Coins x={234} y={160} n={3} />
-      <Stars pts={[[250, 78, 8], [96, 66, 5]]} />
+      <Stars
+        pts={[
+          [250, 78, 8],
+          [96, 66, 5],
+        ]}
+      />
     </>,
   ),
   'today-empty': full(
@@ -98,7 +169,14 @@ export const SCENES = {
     'Lua e estrelas sobre um caderno fechado com um selo de concluído',
     <>
       <Moon x={104} y={70} r={24} />
-      <Stars pts={[[156, 52, 7], [206, 74, 5], [236, 48, 6]]} fill={C.warm} />
+      <Stars
+        pts={[
+          [156, 52, 7],
+          [206, 74, 5],
+          [236, 48, 6],
+        ]}
+        fill={C.warm}
+      />
       <Ground y={196} />
       <Notebook x={124} y={104} />
       <CheckBadge x={194} y={180} r={17} />
@@ -196,7 +274,14 @@ export const SCENES = {
     <>
       <Cloud x={104} y={86} s={1.15} />
       <rect x="157" y="62" width="6" height="112" rx="3" transform="rotate(42 160 118)" fill={C.navy} />
-      <Dots pts={[[120, 176, 3], [160, 184, 3], [200, 176, 3]]} fill={C.teal} />
+      <Dots
+        pts={[
+          [120, 176, 3],
+          [160, 184, 3],
+          [200, 176, 3],
+        ]}
+        fill={C.teal}
+      />
     </>,
     1,
   ),
@@ -206,7 +291,14 @@ export const SCENES = {
       <Ground />
       <Compass x={150} y={122} r={46} />
       <Flag x={232} y={138} />
-      <Dots pts={[[76, 150, 3], [92, 136, 3], [104, 120, 3]]} fill={C.teal} />
+      <Dots
+        pts={[
+          [76, 150, 3],
+          [92, 136, 3],
+          [104, 120, 3],
+        ]}
+        fill={C.teal}
+      />
     </>,
   ),
 
@@ -313,10 +405,7 @@ export const SCENES = {
     art: (
       <>
         <G x={20} y={0} s={1}>
-          <path
-            d="M12 62c-3-26 14-46 38-50 16-3 26 4 40 4 14 1 22 14 22 34 0 22-8 44-28 52-16 7-28 0-42 0-16 0-28-18-30-40Z"
-            fill={C.soft}
-          />
+          <path d="M12 62c-3-26 14-46 38-50 16-3 26 4 40 4 14 1 22 14 22 34 0 22-8 44-28 52-16 7-28 0-42 0-16 0-28-18-30-40Z" fill={C.soft} />
         </G>
         <Envelope x={38} y={26} s={0.78} className="ill-bounce" />
         <Gear x={118} y={86} r={13} className="ill-spin" />
@@ -330,14 +419,16 @@ export const SCENES = {
     box: [320, 96],
     art: (
       <>
-        <path
-          d="M70 52c-4-24 22-40 56-42 28-2 44 6 72 4 34-2 56 12 56 36 0 22-22 36-52 38-26 2-44-4-70-2-32 2-58-10-62-34Z"
-          fill={C.soft}
-        />
+        <path d="M70 52c-4-24 22-40 56-42 28-2 44 6 72 4 34-2 56 12 56 36 0 22-22 36-52 38-26 2-44-4-70-2-32 2-58-10-62-34Z" fill={C.soft} />
         <Star x={160} y={48} r={18} />
         <Star x={196} y={30} r={7} fill={C.warm} />
         <Star x={126} y={66} r={6} fill={C.teal} />
-        <Dots pts={[[96, 36, 3], [226, 64, 3]]} />
+        <Dots
+          pts={[
+            [96, 36, 3],
+            [226, 64, 3],
+          ]}
+        />
         <PlusSign x={52} y={30} />
         <PlusSign x={270} y={66} fill={C.warm} />
       </>
@@ -433,7 +524,13 @@ export const SCENES = {
     'Lua e estrelas',
     <>
       <Moon x={62} y={60} r={28} />
-      <Stars pts={[[30, 40, 6], [94, 84, 5]]} fill={C.warm} />
+      <Stars
+        pts={[
+          [30, 40, 6],
+          [94, 84, 5],
+        ]}
+        fill={C.warm}
+      />
     </>,
     true,
   ),
@@ -561,7 +658,13 @@ export const SCENES = {
     'Lua e estrelas',
     <>
       <Moon x={56} y={60} r={26} />
-      <Stars pts={[[88, 40, 7], [96, 72, 4]]} fill={C.warm} />
+      <Stars
+        pts={[
+          [88, 40, 7],
+          [96, 72, 4],
+        ]}
+        fill={C.warm}
+      />
     </>,
   ),
 } satisfies Record<string, Scene>

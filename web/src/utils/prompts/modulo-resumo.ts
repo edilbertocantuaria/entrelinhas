@@ -33,8 +33,14 @@ Responda neste formato:
     juntar(
       `Módulo: ${entrada.modulo}`,
       `Período: ${entrada.periodo} (${entrada.registros} registros)`,
-      bloco('Números', entrada.numeros.map(linha => `- ${linha}`)),
-      bloco('Anotações', entrada.anotacoes.slice(0, 30).map(item => `- ${item.data} · ${item.campo}: ${cortar(item.texto, 200)}`)),
+      bloco(
+        'Números',
+        entrada.numeros.map(linha => `- ${linha}`),
+      ),
+      bloco(
+        'Anotações',
+        entrada.anotacoes.slice(0, 30).map(item => `- ${item.data} · ${item.campo}: ${cortar(item.texto, 200)}`),
+      ),
     ),
   maxTokens: 250,
   parse: bruto => {

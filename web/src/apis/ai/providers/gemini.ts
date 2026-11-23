@@ -1,5 +1,5 @@
-import type { Provider } from '../types'
-import { postJSON } from './http'
+import type { Provider } from '@/apis/ai/types'
+import { postJSON } from '@/apis/ai/providers/http'
 
 /** Google Gemini, pela API generateContent com resposta em JSON. */
 export const gemini: Provider = {

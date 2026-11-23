@@ -14,8 +14,20 @@ import { Sheet } from '@/components/ui/sheet'
 import { areaColor } from '@/domain/areas'
 import { longDay, num1, parseNum, plural, shortDay } from '@/shared/format'
 import {
-  aggregate, aggregateText, chartFields, checkStats, choiceBreakdown, entrySummary, entryTitle, isFilled, recentEntries, textNotes,
-  valueText, weekEntries, weeklyCount, weeklyField,
+  aggregate,
+  aggregateText,
+  chartFields,
+  checkStats,
+  choiceBreakdown,
+  entrySummary,
+  entryTitle,
+  isFilled,
+  recentEntries,
+  textNotes,
+  valueText,
+  weekEntries,
+  weeklyCount,
+  weeklyField,
 } from '@/domain/modules'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
@@ -33,19 +45,19 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 export default function CustomModulePage() {
   const { id } = useParams<{ id: string }>()
-  const module = useStore(state => state.modules.find(item => item.id === id && item.kind === 'custom'))
-  if (!module) return <Missing title="Módulo não encontrado" description="Ele pode ter sido excluído." href="/modulos" action="Ver módulos" />
-  return <ModuleView module={module} />
+  const mod = useStore(state => state.modules.find(item => item.id === id && item.kind === 'custom'))
+  if (!mod) return <Missing title="Módulo não encontrado" description="Ele pode ter sido excluído." href="/modulos" action="Ver módulos" />
+  return <ModuleView mod={mod} />
 }
 
-function ModuleView({ module }: { module: AppModule }) {
+function ModuleView({ mod }: { mod: AppModule }) {
   const { today } = useClock()
   const { toast } = useShell()
   const all = useStore(state => state.moduleEntries)
   const removeEntry = useStore(state => state.removeModuleEntry)
   const restoreModule = useStore(state => state.restoreModule)
-  const entries = useMemo(() => all.filter(entry => entry.moduleId === module.id), [all, module.id])
-  const color = areaColor(module.color)
+  const entries = useMemo(() => all.filter(entry => entry.moduleId === mod.id), [all, mod.id])
+  const color = areaColor(mod.color)
 
   const [form, setForm] = useState(false)
   const [detail, setDetail] = useState<ModuleEntry | null>(null)
@@ -55,48 +67,51 @@ function ModuleView({ module }: { module: AppModule }) {
 
   const week = weekEntries(entries, today)
   const recent = recentEntries(entries, today)
-  const charts = chartFields(module)
+  const charts = chartFields(mod)
   const chart = charts.find(field => field.id === chartId) ?? charts[0]
   const series = chart ? weeklyField(chart, entries, today) : weeklyCount(entries, today)
-  const choices = module.fields.filter(field => field.type === 'choice')
-  const checks = module.fields.filter(field => field.type === 'check')
-  const notes = textNotes(module, entries)
+  const choices = mod.fields.filter(field => field.type === 'choice')
+  const checks = mod.fields.filter(field => field.type === 'check')
+  const notes = textNotes(mod, entries)
   const history = [...entries].sort((a, b) => b.date.localeCompare(a.date))
-  const sumField = module.fields.find(field => field.type === 'number' || field.type === 'duration')
-  const scaleField = module.fields.find(field => field.type === 'scale')
+  const sumField = mod.fields.find(field => field.type === 'number' || field.type === 'duration')
+  const scaleField = mod.fields.find(field => field.type === 'scale')
 
   const stats: { value: string; label: string }[] = [{ value: String(week.length), label: plural(week.length, 'registro na semana', 'registros na semana') }]
   if (sumField) stats.push({ value: aggregateText(sumField, aggregate(sumField, week)), label: `${sumField.label.toLocaleLowerCase('pt-BR')} na semana` })
-  if (scaleField) stats.push({ value: aggregateText(scaleField, aggregate(scaleField, recent)), label: `${scaleField.label.toLocaleLowerCase('pt-BR')}, média 30 dias` })
+  if (scaleField)
+    stats.push({ value: aggregateText(scaleField, aggregate(scaleField, recent)), label: `${scaleField.label.toLocaleLowerCase('pt-BR')}, média 30 dias` })
   if (stats.length < 3) stats.push({ value: String(recent.length), label: 'registros em 30 dias' })
 
   return (
     <div className="flex min-h-full flex-col">
       <TopBar
-        title={module.name}
+        title={mod.name}
         back={<BackButton href="/metas" label="Voltar para Metas" />}
         right={
-          <Link href={`/modulos/editor?id=${module.id}`} className="icon-btn" aria-label={`Editar ${module.name}`}>
+          <Link href={`/modulos/editor?id=${mod.id}`} className="icon-btn" aria-label={`Editar ${mod.name}`}>
             <Pencil size={20} strokeWidth={1.75} />
           </Link>
         }
       />
 
       <div className="flex flex-col gap-4 px-5 pb-8">
-        {module.hidden && (
+        {mod.hidden && (
           <div className="card flex items-center gap-3 p-3 text-[13px]">
             <span className="flex-1 text-muted">Este módulo está fora da aba Metas.</span>
-            <Button variant="ghost" size="sm" onClick={() => restoreModule(module.id)}>
+            <Button variant="ghost" size="sm" onClick={() => restoreModule(mod.id)}>
               Trazer de volta
             </Button>
           </div>
         )}
 
         <div className="flex items-center gap-3">
-          <AreaIcon area={module} size={44} />
-          <p className="flex-1 text-[13px] text-muted">{module.goal ? 'Cada registro também conta para a meta abaixo.' : 'Registre do seu jeito. Os números se organizam sozinhos.'}</p>
+          <AreaIcon area={mod} size={44} />
+          <p className="flex-1 text-[13px] text-muted">
+            {mod.goal ? 'Cada registro também conta para a meta abaixo.' : 'Registre do seu jeito. Os números se organizam sozinhos.'}
+          </p>
         </div>
-        {module.goal && <GoalChip goalId={module.goal.goalId} className="self-start" />}
+        {mod.goal && <GoalChip goalId={mod.goal.goalId} className="self-start" />}
 
         <dl className="grid grid-cols-3 gap-2">
           {stats.slice(0, 3).map(stat => (
@@ -111,7 +126,7 @@ function ModuleView({ module }: { module: AppModule }) {
 
         {entries.length === 0 ? (
           <div className="card flex flex-col items-center gap-3 px-6 py-8 text-center">
-            <AreaIcon area={module} size={56} />
+            <AreaIcon area={mod} size={56} />
             <p className="text-[15px] font-medium">Nenhum registro ainda</p>
             <p className="text-[13px] text-muted">O primeiro registro já começa a desenhar os gráficos daqui.</p>
           </div>
@@ -137,15 +152,32 @@ function ModuleView({ module }: { module: AppModule }) {
                       <CartesianGrid stroke="var(--border)" vertical={false} />
                       <XAxis dataKey="week" tick={tick} tickLine={false} axisLine={false} minTickGap={12} />
                       <YAxis tick={tick} tickLine={false} axisLine={false} width={24} domain={[1, 5]} ticks={[1, 3, 5]} />
-                      <Tooltip {...tooltipStyle} formatter={value => [`${num1(Number(value))} de 5`, chart.label]} labelFormatter={label => `Semana de ${label}`} />
-                      <Line type="monotone" dataKey="value" connectNulls stroke={color} strokeWidth={2} dot={{ r: 3, fill: color, strokeWidth: 0 }} isAnimationActive={false} />
+                      <Tooltip
+                        {...tooltipStyle}
+                        formatter={value => [`${num1(Number(value))} de 5`, chart.label]}
+                        labelFormatter={label => `Semana de ${label}`}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        connectNulls
+                        stroke={color}
+                        strokeWidth={2}
+                        dot={{ r: 3, fill: color, strokeWidth: 0 }}
+                        isAnimationActive={false}
+                      />
                     </LineChart>
                   ) : (
                     <BarChart data={series} margin={chartMargin}>
                       <CartesianGrid stroke="var(--border)" vertical={false} />
                       <XAxis dataKey="week" tick={tick} tickLine={false} axisLine={false} minTickGap={12} />
                       <YAxis tick={tick} tickLine={false} axisLine={false} width={36} allowDecimals={false} />
-                      <Tooltip {...tooltipStyle} cursor={{ fill: 'var(--primary-soft)' }} formatter={value => [chart ? aggregateText(chart, Number(value)) : `${value}`, chart?.label ?? 'Registros']} labelFormatter={label => `Semana de ${label}`} />
+                      <Tooltip
+                        {...tooltipStyle}
+                        cursor={{ fill: 'var(--primary-soft)' }}
+                        formatter={value => [chart ? aggregateText(chart, Number(value)) : `${value}`, chart?.label ?? 'Registros']}
+                        labelFormatter={label => `Semana de ${label}`}
+                      />
                       <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
                     </BarChart>
                   )}
@@ -231,9 +263,15 @@ function ModuleView({ module }: { module: AppModule }) {
               </h2>
               <ul className="card divide-y-[0.5px] divide-line">
                 {history.slice(0, shown).map(entry => {
-                  const title = entryTitle(module, entry)
+                  const title = entryTitle(mod, entry)
                   // sem título nem números, mostra o começo da primeira anotação
-                  const summary = entrySummary(module, entry) || module.fields.filter(field => field.type === 'text').map(field => entry.values[field.id]).find((value): value is string => typeof value === 'string' && !!value.trim()) || ''
+                  const summary =
+                    entrySummary(mod, entry) ||
+                    mod.fields
+                      .filter(field => field.type === 'text')
+                      .map(field => entry.values[field.id])
+                      .find((value): value is string => typeof value === 'string' && !!value.trim()) ||
+                    ''
                   return (
                     <li key={entry.id}>
                       <button type="button" className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left" onClick={() => setDetail(entry)}>
@@ -257,18 +295,31 @@ function ModuleView({ module }: { module: AppModule }) {
         )}
       </div>
 
-      <EntryForm module={module} open={form} onClose={() => setForm(false)} />
+      <EntryForm mod={mod} open={form} onClose={() => setForm(false)} />
 
-      <Sheet open={!!detail} onClose={() => setDetail(null)} title={detail ? entryTitle(module, detail) || module.name : ''} description={detail ? longDay(detail.date) : undefined}>
+      <Sheet
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail ? entryTitle(mod, detail) || mod.name : ''}
+        description={detail ? longDay(detail.date) : undefined}
+      >
         {detail && (
           <div className="flex flex-col gap-4">
             <dl className="card divide-y-[0.5px] divide-line">
-              {module.fields
+              {mod.fields
                 .filter(field => isFilled(detail.values[field.id]))
                 .map(field => (
                   <div key={field.id} className="flex justify-between gap-3 px-3 py-2.5 text-[14px]">
                     <dt className="text-muted">{field.label}</dt>
-                    <dd className="text-right">{field.type === 'check' ? (detail.values[field.id] ? 'Sim' : 'Não') : field.type === 'scale' ? `${detail.values[field.id]} de 5` : valueText(field, detail.values[field.id])}</dd>
+                    <dd className="text-right">
+                      {field.type === 'check'
+                        ? detail.values[field.id]
+                          ? 'Sim'
+                          : 'Não'
+                        : field.type === 'scale'
+                          ? `${detail.values[field.id]} de 5`
+                          : valueText(field, detail.values[field.id])}
+                    </dd>
                   </div>
                 ))}
             </dl>
@@ -297,21 +348,22 @@ type Draft = Record<string, string | number | boolean | undefined>
 
 const QUICK_MINUTES = [15, 30, 45, 60]
 
-function toDraft(module: AppModule, values: Record<string, FieldValue>): Draft {
+function toDraft(mod: AppModule, values: Record<string, FieldValue>): Draft {
   const draft: Draft = {}
-  for (const field of module.fields) {
+  for (const field of mod.fields) {
     const value = values[field.id]
     if (value === undefined) continue
-    draft[field.id] = field.type === 'number' && typeof value === 'number' ? num1(value) : field.type === 'duration' && typeof value === 'number' ? String(value) : value
+    draft[field.id] =
+      field.type === 'number' && typeof value === 'number' ? num1(value) : field.type === 'duration' && typeof value === 'number' ? String(value) : value
   }
   return draft
 }
 
-function EntryForm({ module, open, onClose }: { module: AppModule; open: boolean; onClose: () => void }) {
+function EntryForm({ mod, open, onClose }: { mod: AppModule; open: boolean; onClose: () => void }) {
   const { today } = useClock()
   const { toast } = useShell()
   const addEntry = useStore(state => state.addModuleEntry)
-  const last = useStore(state => [...state.moduleEntries].filter(entry => entry.moduleId === module.id).sort((a, b) => b.date.localeCompare(a.date))[0])
+  const last = useStore(state => [...state.moduleEntries].filter(entry => entry.moduleId === mod.id).sort((a, b) => b.date.localeCompare(a.date))[0])
   const [draft, setDraft] = useState<Draft>({})
   const [date, setDate] = useState('')
   const [error, setError] = useState('')
@@ -331,7 +383,7 @@ function EntryForm({ module, open, onClose }: { module: AppModule; open: boolean
 
   const save = () => {
     const values: Record<string, FieldValue> = {}
-    for (const field of module.fields) {
+    for (const field of mod.fields) {
       const raw = draft[field.id]
       if (raw === undefined || raw === '') continue
       if (field.type === 'number' || field.type === 'duration') {
@@ -344,13 +396,13 @@ function EntryForm({ module, open, onClose }: { module: AppModule; open: boolean
       } else values[field.id] = raw
     }
     if (Object.keys(values).length === 0) return setError('Preencha pelo menos um campo.')
-    addEntry({ moduleId: module.id, date: day > today ? today : day, values })
-    toast(module.goal ? 'Registrado e contado na meta' : 'Registrado')
+    addEntry({ moduleId: mod.id, date: day > today ? today : day, values })
+    toast(mod.goal ? 'Registrado e contado na meta' : 'Registrado')
     close()
   }
 
   return (
-    <Sheet open={open} onClose={close} title={`Registrar em ${module.name}`}>
+    <Sheet open={open} onClose={close} title={`Registrar em ${mod.name}`}>
       <div className="flex flex-col gap-4">
         <div className="flex items-end gap-2">
           <div className="flex-1">
@@ -359,30 +411,47 @@ function EntryForm({ module, open, onClose }: { module: AppModule; open: boolean
             </Field>
           </div>
           {last && (
-            <Button variant="ghost" size="sm" className="h-12" onClick={() => setDraft(toDraft(module, last.values))}>
+            <Button variant="ghost" size="sm" className="h-12" onClick={() => setDraft(toDraft(mod, last.values))}>
               Repetir o último
             </Button>
           )}
         </div>
 
-        {module.fields.map(field => {
+        {mod.fields.map(field => {
           const id = `campo-${field.id}`
           const value = draft[field.id]
           if (field.type === 'number')
             return (
               <Field key={field.id} label={field.unit ? `${field.label} (${field.unit})` : field.label} htmlFor={id}>
-                <input id={id} className="field" inputMode="decimal" value={typeof value === 'string' || typeof value === 'number' ? value : ''} onChange={event => set(field, event.target.value)} />
+                <input
+                  id={id}
+                  className="field"
+                  inputMode="decimal"
+                  value={typeof value === 'string' || typeof value === 'number' ? value : ''}
+                  onChange={event => set(field, event.target.value)}
+                />
               </Field>
             )
           if (field.type === 'duration')
             return (
               <div key={field.id} className="flex flex-col gap-1.5">
                 <Field label={`${field.label} (min)`} htmlFor={id}>
-                  <input id={id} className="field" inputMode="numeric" value={typeof value === 'string' || typeof value === 'number' ? value : ''} onChange={event => set(field, event.target.value)} />
+                  <input
+                    id={id}
+                    className="field"
+                    inputMode="numeric"
+                    value={typeof value === 'string' || typeof value === 'number' ? value : ''}
+                    onChange={event => set(field, event.target.value)}
+                  />
                 </Field>
                 <div className="flex gap-2" role="group" aria-label={`Tempos rápidos para ${field.label}`}>
                   {QUICK_MINUTES.map(minutes => (
-                    <Chip key={minutes} selected={String(value) === String(minutes)} onClick={() => set(field, String(minutes))} aria-label={`${minutes} minutos`}>
+                    <Chip
+                      key={minutes}
+                      selected={String(value) === String(minutes)}
+                      onClick={() => set(field, String(minutes))}
+                      aria-label={`${minutes} minutos`}
+                    >
                       {minutes} min
                     </Chip>
                   ))}
@@ -402,7 +471,10 @@ function EntryForm({ module, open, onClose }: { module: AppModule; open: boolean
                       aria-checked={value === n}
                       aria-label={`${n} de 5`}
                       onClick={() => set(field, value === n ? undefined : n)}
-                      className={cn('h-11 rounded-ctl border-[0.5px] text-[15px] tabular-nums transition-colors', value === n ? 'border-primary bg-primary-soft font-medium text-ink' : 'border-line bg-surface text-muted')}
+                      className={cn(
+                        'h-11 rounded-ctl border-[0.5px] text-[15px] tabular-nums transition-colors',
+                        value === n ? 'border-primary bg-primary-soft font-medium text-ink' : 'border-line bg-surface text-muted',
+                      )}
                     >
                       {n}
                     </button>

@@ -1,5 +1,5 @@
-import type { Provider } from '../types'
-import { postJSON } from './http'
+import type { Provider } from '@/apis/ai/types'
+import { postJSON } from '@/apis/ai/providers/http'
 
 /** OpenAI (GPT), pela API de Chat Completions em modo JSON. */
 export const openai: Provider = {

@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 /** Nome da guia de IA do app. */
 export const ESTHER = 'Esther'
@@ -28,7 +28,13 @@ export function EstherAvatar({ size = 28, className, label }: { size?: number; c
       <path d="M28.2 12.6l1.2-5.8-4.6 3.4Z" fill="var(--primary)" />
       {/* barriga */}
       <path d="M14.5 26.5c0-2.6 2.5-4.4 5.5-4.4s5.5 1.8 5.5 4.4c0 3.2-2.5 5.5-5.5 5.5s-5.5-2.3-5.5-5.5Z" fill="var(--surface)" opacity="0.9" />
-      <path d="M17 26.2q1.5 1.2 3 0q1.5 1.2 3 0M17.8 28.8q1.1 1 2.2 0q1.1 1 2.2 0" fill="none" stroke="var(--primary-soft)" strokeWidth="0.9" strokeLinecap="round" />
+      <path
+        d="M17 26.2q1.5 1.2 3 0q1.5 1.2 3 0M17.8 28.8q1.1 1 2.2 0q1.1 1 2.2 0"
+        fill="none"
+        stroke="var(--primary-soft)"
+        strokeWidth="0.9"
+        strokeLinecap="round"
+      />
       {/* olhos */}
       <circle cx="15.8" cy="17.6" r="3.9" fill="var(--surface)" />
       <circle cx="24.2" cy="17.6" r="3.9" fill="var(--surface)" />

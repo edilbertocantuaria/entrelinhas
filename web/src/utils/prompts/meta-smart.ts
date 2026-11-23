@@ -51,7 +51,13 @@ Responda neste formato:
 {"descricao": "...", "medida": {"tipo": "frequency", "explicacao": "...", "sugestao": "..."}, "pontoDePartida": "...", "porQue": "...", "tarefa": "..."}`,
   user: entrada =>
     juntar(
-      bloco('Meta', [`- título: ${entrada.titulo}`, entrada.descricao && `- descrição da pessoa: ${entrada.descricao}`, `- área da vida: ${entrada.area}`, `- prazo: ${entrada.prazo}`, `- hoje: ${entrada.hoje}`]),
+      bloco('Meta', [
+        `- título: ${entrada.titulo}`,
+        entrada.descricao && `- descrição da pessoa: ${entrada.descricao}`,
+        `- área da vida: ${entrada.area}`,
+        `- prazo: ${entrada.prazo}`,
+        `- hoje: ${entrada.hoje}`,
+      ]),
     ),
   maxTokens: 500,
   parse: bruto => {

@@ -28,11 +28,17 @@ export default function GoalsPage() {
   const hideStreaks = useStore(state => state.settings.hideStreaks)
   const [filter, setFilter] = useState('all')
   const [clearing, setClearing] = useState(false)
-  const fitWeek = fitnessWeek(useStore(state => state.workouts), today)
-  const studyWeek = studyWeekStats(useStore(state => state.studySessions), today)
+  const fitWeek = fitnessWeek(
+    useStore(state => state.workouts),
+    today,
+  )
+  const studyWeek = studyWeekStats(
+    useStore(state => state.studySessions),
+    today,
+  )
   const allModules = useStore(state => state.modules)
   const entries = useStore(state => state.moduleEntries)
-  const modules = allModules.filter(module => !module.hidden).sort((a, b) => a.order - b.order)
+  const modules = allModules.filter(mod => !mod.hidden).sort((a, b) => a.order - b.order)
 
   const ordered = [...areas].sort((a, b) => Number(a.archived) - Number(b.archived) || a.order - b.order)
   const active = ordered.filter(area => !area.archived)
@@ -66,18 +72,22 @@ export default function GoalsPage() {
           </Link>
         </div>
         <nav aria-label="Módulos" className="grid grid-cols-2 gap-3">
-          {modules.map(module => {
+          {modules.map(mod => {
             const text =
-              module.kind === 'fitness'
+              mod.kind === 'fitness'
                 ? `${fitWeek.count} ${plural(fitWeek.count, 'treino', 'treinos')} na semana`
-                : module.kind === 'study'
+                : mod.kind === 'study'
                   ? `${studyWeek.minutes ? minutesLabel(studyWeek.minutes) : '0 min'} na semana`
-                  : moduleCardText(module, entries.filter(entry => entry.moduleId === module.id), today)
+                  : moduleCardText(
+                      mod,
+                      entries.filter(entry => entry.moduleId === mod.id),
+                      today,
+                    )
             return (
-              <Link key={module.id} href={moduleHref(module)} className="card flex items-center gap-3 p-3">
-                <AreaIcon area={module} size={40} />
+              <Link key={mod.id} href={moduleHref(mod)} className="card flex items-center gap-3 p-3">
+                <AreaIcon area={mod} size={40} />
                 <span className="min-w-0">
-                  <span className="block truncate text-[14px] font-medium">{module.name}</span>
+                  <span className="block truncate text-[14px] font-medium">{mod.name}</span>
                   <span className="block text-[12px] leading-snug text-muted">{text}</span>
                 </span>
               </Link>
@@ -93,21 +103,21 @@ export default function GoalsPage() {
       </section>
 
       <div className="mt-3">
-      <ScrollRow className="px-5 pb-1" label="Filtrar por área">
-        <Chip selected={current === 'all'} onClick={() => setFilter('all')}>
-          Todas
-        </Chip>
-        {active.map(area => (
-          <Chip key={area.id} selected={current === area.id} onClick={() => setFilter(area.id)} className="pl-2">
-            <AreaIcon area={area} />
-            {area.name}
+        <ScrollRow className="px-5 pb-1" label="Filtrar por área">
+          <Chip selected={current === 'all'} onClick={() => setFilter('all')}>
+            Todas
           </Chip>
-        ))}
-        <Link href="/ajustes/areas" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] whitespace-nowrap text-primary">
-          <Settings2 size={16} strokeWidth={1.75} aria-hidden />
-          Gerenciar áreas
-        </Link>
-      </ScrollRow>
+          {active.map(area => (
+            <Chip key={area.id} selected={current === area.id} onClick={() => setFilter(area.id)} className="pl-2">
+              <AreaIcon area={area} />
+              {area.name}
+            </Chip>
+          ))}
+          <Link href="/ajustes/areas" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] whitespace-nowrap text-primary">
+            <Settings2 size={16} strokeWidth={1.75} aria-hidden />
+            Gerenciar áreas
+          </Link>
+        </ScrollRow>
       </div>
 
       {goals.length === 0 ? (

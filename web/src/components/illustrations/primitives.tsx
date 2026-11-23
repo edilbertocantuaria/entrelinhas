@@ -19,9 +19,7 @@ export type Place = { x?: number; y?: number; s?: number; rot?: number; classNam
 
 /** Posiciona um grupo. Classes de animação vão num <g> interno para não brigar com o transform. */
 export function G({ x = 0, y = 0, s = 1, rot = 0, className, children }: Place & { children: ReactNode }) {
-  const group = (
-    <g transform={`translate(${x} ${y})${rot ? ` rotate(${rot})` : ''}${s !== 1 ? ` scale(${s})` : ''}`}>{children}</g>
-  )
+  const group = <g transform={`translate(${x} ${y})${rot ? ` rotate(${rot})` : ''}${s !== 1 ? ` scale(${s})` : ''}`}>{children}</g>
   return className ? <g className={className}>{group}</g> : group
 }
 
@@ -102,14 +100,34 @@ export function PlusSign({ x = 0, y = 0, r = 4, fill = C.teal }: { x?: number; y
 
 const DECO: { dots: [number, number, number, string][]; plus: [number, number][]; stars: [number, number, number, string][] }[] = [
   {
-    dots: [[36, 62, 3, C.primary], [290, 152, 2.5, C.teal], [66, 216, 2, C.warm]],
-    plus: [[274, 40], [26, 168]],
-    stars: [[296, 92, 6, C.primary], [58, 30, 5, C.warm]],
+    dots: [
+      [36, 62, 3, C.primary],
+      [290, 152, 2.5, C.teal],
+      [66, 216, 2, C.warm],
+    ],
+    plus: [
+      [274, 40],
+      [26, 168],
+    ],
+    stars: [
+      [296, 92, 6, C.primary],
+      [58, 30, 5, C.warm],
+    ],
   },
   {
-    dots: [[44, 196, 3, C.primary], [280, 54, 2.5, C.warm], [254, 220, 2, C.teal]],
-    plus: [[38, 78], [296, 184]],
-    stars: [[88, 22, 5, C.primary], [302, 118, 6, C.teal]],
+    dots: [
+      [44, 196, 3, C.primary],
+      [280, 54, 2.5, C.warm],
+      [254, 220, 2, C.teal],
+    ],
+    plus: [
+      [38, 78],
+      [296, 184],
+    ],
+    stars: [
+      [88, 22, 5, C.primary],
+      [302, 118, 6, C.teal],
+    ],
   },
 ]
 
@@ -356,7 +374,16 @@ export function ChartCard({ bars = false, ...place }: Place & { bars?: boolean }
         ))
       ) : (
         <>
-          <path d="M16 66l22-14 18 8 24-26 22-10" fill="none" stroke={C.primary} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" pathLength={1} className="ill-draw" />
+          <path
+            d="M16 66l22-14 18 8 24-26 22-10"
+            fill="none"
+            stroke={C.primary}
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            pathLength={1}
+            className="ill-draw"
+          />
           <g className="ill-pulse">
             <circle cx="102" cy="24" r="6" fill={C.warm} />
           </g>
@@ -448,13 +475,7 @@ export function Sun({ r = 22, face = false, fill = C.warm, ...place }: Place & {
         <>
           <circle cx={-r * 0.32} cy={-r * 0.14} r={r * 0.09} fill={C.navy} />
           <circle cx={r * 0.32} cy={-r * 0.14} r={r * 0.09} fill={C.navy} />
-          <path
-            d={`M${-r * 0.34} ${r * 0.2}Q0 ${r * 0.56} ${r * 0.34} ${r * 0.2}`}
-            fill="none"
-            stroke={C.navy}
-            strokeWidth={r * 0.1}
-            strokeLinecap="round"
-          />
+          <path d={`M${-r * 0.34} ${r * 0.2}Q0 ${r * 0.56} ${r * 0.34} ${r * 0.2}`} fill="none" stroke={C.navy} strokeWidth={r * 0.1} strokeLinecap="round" />
         </>
       )}
     </G>
@@ -610,10 +631,10 @@ export function Compass({ r = 22, ...place }: Place & { r?: number }) {
       <circle r={r} fill={C.navy} />
       <circle r={r - 5} fill={C.paper} />
       <g className="ill-needle">
-      <g transform="rotate(32)">
-        <path d={`M0 ${-n}L5 0H-5Z`} fill={C.warm} />
-        <path d={`M0 ${n}L5 0H-5Z`} fill={C.navy} />
-      </g>
+        <g transform="rotate(32)">
+          <path d={`M0 ${-n}L5 0H-5Z`} fill={C.warm} />
+          <path d={`M0 ${n}L5 0H-5Z`} fill={C.navy} />
+        </g>
       </g>
       <circle r="2" fill={C.paper} />
     </G>

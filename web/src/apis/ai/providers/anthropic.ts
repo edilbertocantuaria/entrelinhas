@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { LLMError, type Provider } from '../types'
+import { LLMError, type Provider } from '@/apis/ai/types'
 
 /**
  * Anthropic (Claude), pelo SDK oficial.

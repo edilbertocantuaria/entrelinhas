@@ -4,9 +4,9 @@ import { BookOpen, Settings2, Sun, Target, WifiOff } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useStore } from '@/lib/store'
-import { useClock } from '@/lib/time'
-import { cn } from '@/lib/utils'
+import { useStore } from '@/shared/store'
+import { useClock } from '@/shared/time'
+import { cn } from '@/shared/utils'
 import { Illustration, OverridesContext } from './illustration'
 import { Login } from './login'
 import { Onboarding } from './onboarding'
@@ -24,7 +24,12 @@ export const useShell = () => useContext(ShellContext)
 
 const TABS = [
   { href: '/', label: 'Hoje', icon: Sun, match: (path: string) => path === '/' },
-  { href: '/metas', label: 'Metas', icon: Target, match: (path: string) => ['/metas', '/fitness', '/estudos', '/modulos'].some(prefix => path.startsWith(prefix)) },
+  {
+    href: '/metas',
+    label: 'Metas',
+    icon: Target,
+    match: (path: string) => ['/metas', '/fitness', '/estudos', '/modulos'].some(prefix => path.startsWith(prefix)),
+  },
   { href: '/diario', label: 'Diário', icon: BookOpen, match: (path: string) => path.startsWith('/diario') || path.startsWith('/revisao') },
   { href: '/ajustes', label: 'Ajustes', icon: Settings2, match: (path: string) => path.startsWith('/ajustes') },
 ]
@@ -130,7 +135,10 @@ export function AppShell({ children, overrides }: { children: ReactNode; overrid
                   {children}
                 </main>
                 {showTabs && (
-                  <nav aria-label="Navegação principal" className="grid shrink-0 grid-cols-4 border-t-[0.5px] border-line bg-surface px-2 pb-[max(4px,env(safe-area-inset-bottom))]">
+                  <nav
+                    aria-label="Navegação principal"
+                    className="grid shrink-0 grid-cols-4 border-t-[0.5px] border-line bg-surface px-2 pb-[max(4px,env(safe-area-inset-bottom))]"
+                  >
                     {TABS.map(tab => {
                       const active = tab.match(pathname)
                       return (
@@ -138,7 +146,10 @@ export function AppShell({ children, overrides }: { children: ReactNode; overrid
                           key={tab.href}
                           href={tab.href}
                           aria-current={active ? 'page' : undefined}
-                          className={cn('flex h-[60px] flex-col items-center justify-center gap-1 rounded-ctl text-[12px]', active ? 'font-medium text-primary' : 'text-muted')}
+                          className={cn(
+                            'flex h-[60px] flex-col items-center justify-center gap-1 rounded-ctl text-[12px]',
+                            active ? 'font-medium text-primary' : 'text-muted',
+                          )}
                         >
                           <tab.icon size={20} strokeWidth={1.75} aria-hidden />
                           {tab.label}

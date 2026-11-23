@@ -2,9 +2,9 @@
 
 import { Check, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { MAX_ACTIVE_AREAS } from '@/lib/areas'
-import { useStore } from '@/lib/store'
-import { cn } from '@/lib/utils'
+import { MAX_ACTIVE_AREAS } from '@/domain/areas'
+import { useStore } from '@/shared/store'
+import { cn } from '@/shared/utils'
 import { AreaEditor } from './area-editor'
 import { AreaIcon } from './common'
 import { Illustration, type IllustrationName } from './illustration'
@@ -70,8 +70,19 @@ export function Onboarding() {
             const on = !off.has(area.id)
             return (
               <li key={area.id} className="flex items-center gap-1 pr-1 pl-2">
-                <button type="button" role="checkbox" aria-checked={on} onClick={() => toggle(area.id)} className="flex min-h-14 flex-1 items-center gap-3 rounded-ctl px-2 text-left">
-                  <span className={cn('grid size-6 shrink-0 place-items-center rounded-full border', on ? 'border-primary bg-primary text-on-primary' : 'border-line')}>
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  onClick={() => toggle(area.id)}
+                  className="flex min-h-14 flex-1 items-center gap-3 rounded-ctl px-2 text-left"
+                >
+                  <span
+                    className={cn(
+                      'grid size-6 shrink-0 place-items-center rounded-full border',
+                      on ? 'border-primary bg-primary text-on-primary' : 'border-line',
+                    )}
+                  >
                     {on && <Check size={14} strokeWidth={2.5} aria-hidden />}
                   </span>
                   <AreaIcon area={area} size={28} />

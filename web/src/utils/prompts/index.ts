@@ -14,7 +14,7 @@
  *   fitness-progresso.ts    texto sobre os treinos do módulo Fitness
  *   modulo-resumo.ts        resumo dos módulos criados pela pessoa
  *
- * Os prompts só rodam no servidor (app/api/ia/route.ts), onde fica a chave da API.
+ * Os prompts só rodam no servidor (src/app/api/ia/route.ts), onde fica a chave da API.
  */
 import { estudosInsights } from './estudos-insights'
 import { fitnessProgresso } from './fitness-progresso'

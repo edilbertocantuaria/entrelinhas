@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority'
 import type { ButtonHTMLAttributes } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 /** Uma ação primária por tela (variant "primary"). As demais usam outline ou ghost. */
 export const buttonVariants = cva(

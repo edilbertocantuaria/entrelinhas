@@ -1,7 +1,24 @@
 import { parseISO } from 'date-fns'
-import { shift } from './format'
-import { BUILTIN_MODULES } from './modules'
-import type { AppData, AppModule, ModuleEntry, RecurringTask, Area, BodyWeight, Goal, JournalEntry, LogEntry, Settings, StudySession, Subject, Summary, Task, Workout, WorkoutSet } from './types'
+import { shift } from '@/shared/format'
+import { BUILTIN_MODULES } from '@/domain/modules'
+import type {
+  AppData,
+  AppModule,
+  ModuleEntry,
+  RecurringTask,
+  Area,
+  BodyWeight,
+  Goal,
+  JournalEntry,
+  LogEntry,
+  Settings,
+  StudySession,
+  Subject,
+  Summary,
+  Task,
+  Workout,
+  WorkoutSet,
+} from '@/domain/types'
 
 export const DEFAULT_AREAS: Area[] = [
   { id: 'saude', name: 'Saúde', icon: 'heart-pulse', color: 'verde', order: 0, archived: false },
@@ -161,9 +178,7 @@ function buildLogs(): LogEntry[] {
   )
 
   // Peso: uma medição por segunda-feira
-  WEIGHTS.forEach((value, index) =>
-    logs.push({ id: `peso-${index}`, date: shift('2026-07-06', index * 7), goalId: 'peso', value }),
-  )
+  WEIGHTS.forEach((value, index) => logs.push({ id: `peso-${index}`, date: shift('2026-07-06', index * 7), goalId: 'peso', value }))
 
   // Academia: treinos por semana, alternando A, B e C
   let workout = 0
@@ -209,8 +224,7 @@ function buildTasks(today: string, logs: LogEntry[]): Task[] {
     if (has('academia', date)) add({ title: 'Treino na academia', goalId: 'academia', date, status: 'done' })
     if (has('peso', date)) add({ title: 'Registrar o peso', goalId: 'peso', date, status: 'done' })
     if (has('logica', date)) add({ title: 'Raciocínio Lógico: 30 min', goalId: 'logica', date, status: 'done' })
-    else if (date === '2026-11-07')
-      add({ title: 'Raciocínio Lógico: 30 min', goalId: 'logica', date, status: 'dismissed', dismissReason: 'Viagem' })
+    else if (date === '2026-11-07') add({ title: 'Raciocínio Lógico: 30 min', goalId: 'logica', date, status: 'dismissed', dismissReason: 'Viagem' })
     else if (weekday !== 0) add({ title: 'Raciocínio Lógico: 30 min', goalId: 'logica', date, status: 'not_done' })
   }
   add({ title: 'Ligar para a mãe', date: '2026-11-08', status: 'done' })
@@ -295,7 +309,15 @@ function buildFitness(logs: LogEntry[]): { workouts: Workout[]; weights: BodyWei
   // os treinos e pesos das metas aparecem também no módulo
   const workouts: Workout[] = logs
     .filter(log => log.goalId === 'academia')
-    .map(log => ({ id: `w-${log.id}`, date: log.date, kind: 'musculacao', minutes: log.note?.includes('cardio') ? 45 : 60, exercises: log.workout, note: log.note, logId: log.id }))
+    .map(log => ({
+      id: `w-${log.id}`,
+      date: log.date,
+      kind: 'musculacao',
+      minutes: log.note?.includes('cardio') ? 45 : 60,
+      exercises: log.workout,
+      note: log.note,
+      logId: log.id,
+    }))
   const extra: [string, Workout['kind'], number, number | undefined, string | undefined][] = [
     ['2026-09-13', 'caminhada', 35, 2.8, undefined],
     ['2026-09-27', 'caminhada', 40, 3.2, undefined],
@@ -356,7 +378,16 @@ function buildStudy(logs: LogEntry[]): StudySession[] {
       const questions = 10 + (index % 3) * 5
       // o aproveitamento sobe aos poucos, de cerca de 55% para 85%
       const rate = Math.min(0.85, 0.55 + index * 0.009) + ((index % 4) - 1.5) * 0.03
-      return { id: `e-${log.id}`, date: log.date, subjectId: 'logica', minutes: log.value ?? 30, questions, correct: Math.round(questions * rate), logId: log.id, ...STUDY_NOTES[log.date] }
+      return {
+        id: `e-${log.id}`,
+        date: log.date,
+        subjectId: 'logica',
+        minutes: log.value ?? 30,
+        questions,
+        correct: Math.round(questions * rate),
+        logId: log.id,
+        ...STUDY_NOTES[log.date],
+      }
     })
   let extra = 0
   for (let date = '2026-10-20'; date <= '2026-11-15'; date = shift(date, 1)) {
@@ -370,12 +401,22 @@ function buildStudy(logs: LogEntry[]): StudySession[] {
         minutes: 40,
         questions: 15,
         correct,
-        ...(date === '2026-10-29' ? { difficulty: 'Crase antes de pronomes possessivos.' } : date === '2026-11-12' ? { progress: 'Regência verbal parou de ser chute.' } : {}),
+        ...(date === '2026-10-29'
+          ? { difficulty: 'Crase antes de pronomes possessivos.' }
+          : date === '2026-11-12'
+            ? { progress: 'Regência verbal parou de ser chute.' }
+            : {}),
       })
       extra++
     }
     if (weekday === 6 && date !== '2026-11-07')
-      sessions.push({ id: `e-inf-${date}`, date, subjectId: 'informatica', minutes: 45, ...(date === '2026-10-31' ? { insight: 'Montar um quadro com os atalhos que mais caem ajuda a lembrar.' } : {}) })
+      sessions.push({
+        id: `e-inf-${date}`,
+        date,
+        subjectId: 'informatica',
+        minutes: 45,
+        ...(date === '2026-10-31' ? { insight: 'Montar um quadro com os atalhos que mais caem ajuda a lembrar.' } : {}),
+      })
   }
   return sessions.sort((a, b) => a.date.localeCompare(b.date))
 }
@@ -383,10 +424,33 @@ function buildStudy(logs: LogEntry[]): StudySession[] {
 // ---------- Tarefas que se repetem ----------
 
 const RULES: RecurringTask[] = [
-  { id: 'rep-academia', title: 'Treino na academia', goalId: 'academia', skipped: [], repeat: { freq: 'weekly', interval: 1, weekdays: [1, 3, 5], start: '2026-08-31', end: { type: 'date', date: '2026-12-31' } } },
-  { id: 'rep-logica', title: 'Raciocínio Lógico: 30 min', goalId: 'logica', skipped: [], repeat: { freq: 'weekly', interval: 1, weekdays: [1, 2, 3, 4, 5, 6], start: '2026-10-01', end: { type: 'date', date: '2026-12-31' } } },
-  { id: 'rep-peso', title: 'Registrar o peso', goalId: 'peso', skipped: [], repeat: { freq: 'weekly', interval: 1, weekdays: [1], start: '2026-07-06', end: { type: 'date', date: '2026-12-31' } } },
-  { id: 'rep-luz', title: 'Pagar a conta de luz', skipped: [], repeat: { freq: 'monthly', interval: 1, monthDay: 10, start: '2026-11-10', end: { type: 'never' } } },
+  {
+    id: 'rep-academia',
+    title: 'Treino na academia',
+    goalId: 'academia',
+    skipped: [],
+    repeat: { freq: 'weekly', interval: 1, weekdays: [1, 3, 5], start: '2026-08-31', end: { type: 'date', date: '2026-12-31' } },
+  },
+  {
+    id: 'rep-logica',
+    title: 'Raciocínio Lógico: 30 min',
+    goalId: 'logica',
+    skipped: [],
+    repeat: { freq: 'weekly', interval: 1, weekdays: [1, 2, 3, 4, 5, 6], start: '2026-10-01', end: { type: 'date', date: '2026-12-31' } },
+  },
+  {
+    id: 'rep-peso',
+    title: 'Registrar o peso',
+    goalId: 'peso',
+    skipped: [],
+    repeat: { freq: 'weekly', interval: 1, weekdays: [1], start: '2026-07-06', end: { type: 'date', date: '2026-12-31' } },
+  },
+  {
+    id: 'rep-luz',
+    title: 'Pagar a conta de luz',
+    skipped: [],
+    repeat: { freq: 'monthly', interval: 1, monthDay: 10, start: '2026-11-10', end: { type: 'never' } },
+  },
 ]
 
 // ---------- Módulo criado pela pessoa: Leitura ----------
@@ -420,7 +484,12 @@ function buildReading(): ModuleEntry[] {
     ['2026-11-12', 'Hábitos atômicos', 28, 30, 4],
     ['2026-11-15', 'O avesso da pele', 42, 50, 5],
   ]
-  return rows.map(([date, livro, paginas, tempo, gostei], index) => ({ id: `ler-${index}`, moduleId: 'leitura', date, values: { livro, paginas, tempo, gostei } }))
+  return rows.map(([date, livro, paginas, tempo, gostei], index) => ({
+    id: `ler-${index}`,
+    moduleId: 'leitura',
+    date,
+    values: { livro, paginas, tempo, gostei },
+  }))
 }
 
 export const DEFAULT_LETTER =

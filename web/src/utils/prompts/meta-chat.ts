@@ -70,15 +70,33 @@ export interface SaidaMetaChat {
   mudancas: CampoMeta[]
 }
 
-export const CAMPOS_META = ['titulo', 'area', 'descricao', 'medida', 'pontoDePartida', 'alcancavel', 'porQue', 'prazo', 'tarefa', 'diasDaTarefa', 'lembrete'] as const
+export const CAMPOS_META = [
+  'titulo',
+  'area',
+  'descricao',
+  'medida',
+  'pontoDePartida',
+  'alcancavel',
+  'porQue',
+  'prazo',
+  'tarefa',
+  'diasDaTarefa',
+  'lembrete',
+] as const
 export type CampoMeta = (typeof CAMPOS_META)[number]
 
 const TIPOS = ['frequency', 'sum', 'value', 'milestones', 'days'] as const
-const numero = (valor: unknown) => (typeof valor === 'number' && Number.isFinite(valor) ? valor : typeof valor === 'string' && valor.trim() && Number.isFinite(Number(valor.replace(',', '.'))) ? Number(valor.replace(',', '.')) : undefined)
+const numero = (valor: unknown) =>
+  typeof valor === 'number' && Number.isFinite(valor)
+    ? valor
+    : typeof valor === 'string' && valor.trim() && Number.isFinite(Number(valor.replace(',', '.')))
+      ? Number(valor.replace(',', '.'))
+      : undefined
 
 export const metaChat: PromptDef<EntradaMetaChat, SaidaMetaChat> = {
   id: 'meta-chat',
-  quando: 'Na conversa com a Esther: "Criar com a Esther" (aba Metas) e "Ajustar com a Esther" (página da meta). A cada mensagem, até propor a meta completa para revisão.',
+  quando:
+    'Na conversa com a Esther: "Criar com a Esther" (aba Metas) e "Ajustar com a Esther" (página da meta). A cada mensagem, até propor a meta completa para revisão.',
   system: `${TOM}
 
 Você é a Esther, a guia do Entrelinhas. Fale em primeira pessoa, com calma e simpatia, sem exagerar na personagem: nada de apelidos, nada de falar de si mesma além do necessário.
@@ -149,7 +167,10 @@ ou, ao propor (com "mudancas" só ao ajustar uma meta existente):
   user: entrada =>
     juntar(
       `Hoje: ${entrada.hoje}`,
-      bloco('Áreas da vida da pessoa', entrada.areas.map(area => `- ${area}`)),
+      bloco(
+        'Áreas da vida da pessoa',
+        entrada.areas.map(area => `- ${area}`),
+      ),
       entrada.metaAtual ? bloco('Meta atual (a pessoa quer ajustar esta meta)', [cortar(entrada.metaAtual, 2500)]) : '',
       bloco(
         'Conversa até agora',
@@ -186,7 +207,9 @@ ou, ao propor (com "mudancas" só ao ajustar uma meta existente):
     const tipo = TIPOS.find(item => item === md.tipo)
     const titulo = texto(m.titulo, 80)
     if (!tipo || !titulo) return { resposta, smart, sugestoes, meta: null, mudancas: [] }
-    const dias = Array.isArray(m.diasDaTarefa) ? m.diasDaTarefa.map(numero).filter((dia): dia is number => dia !== undefined && Number.isInteger(dia) && dia >= 0 && dia <= 6) : []
+    const dias = Array.isArray(m.diasDaTarefa)
+      ? m.diasDaTarefa.map(numero).filter((dia): dia is number => dia !== undefined && Number.isInteger(dia) && dia >= 0 && dia <= 6)
+      : []
     return {
       resposta,
       smart,

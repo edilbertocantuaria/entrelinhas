@@ -47,7 +47,8 @@ export default function SummaryPage() {
     if (summary && !summary.seen) updateSummary(summary.id, { seen: true })
   }, [summary, updateSummary])
 
-  if (!summary || !stats) return <Missing title="Resumo não encontrado" description="Ele pode ter sido gerado de novo." href="/diario?resumos" action="Ver resumos" />
+  if (!summary || !stats)
+    return <Missing title="Resumo não encontrado" description="Ele pode ter sido gerado de novo." href="/diario?resumos" action="Ver resumos" />
 
   const run = async () => {
     setConfirming(false)
@@ -65,11 +66,7 @@ export default function SummaryPage() {
 
   const writing = phase === 'loading' || summary.aiStatus === 'pending'
 
-  const status = [
-    `Gerado em ${shortDay(summary.generatedAt)}`,
-    summary.edited ? 'editado por você' : null,
-    summary.usedAI ? null : 'sem IA',
-  ]
+  const status = [`Gerado em ${shortDay(summary.generatedAt)}`, summary.edited ? 'editado por você' : null, summary.usedAI ? null : 'sem IA']
     .filter(Boolean)
     .join(' · ')
 
@@ -105,7 +102,13 @@ export default function SummaryPage() {
           </div>
         ) : draft !== null ? (
           <div className="mt-4">
-            <textarea autoFocus aria-label="Texto do resumo" className="field voice min-h-56 text-[15px]" value={draft} onChange={event => setDraft(event.target.value)} />
+            <textarea
+              autoFocus
+              aria-label="Texto do resumo"
+              className="field voice min-h-56 text-[15px]"
+              value={draft}
+              onChange={event => setDraft(event.target.value)}
+            />
             <div className="mt-2 flex gap-2">
               <Button variant="ghost" className="flex-1" onClick={() => setDraft(null)}>
                 Cancelar

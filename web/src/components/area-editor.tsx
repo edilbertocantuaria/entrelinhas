@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { COLOR_PRESETS, MAX_AREA_NAME } from '@/lib/areas'
-import { useStore } from '@/lib/store'
-import type { Area, ColorKey } from '@/lib/types'
+import { COLOR_PRESETS, MAX_AREA_NAME } from '@/domain/areas'
+import { useStore } from '@/shared/store'
+import type { Area, ColorKey } from '@/domain/types'
 import { AreaChip } from './common'
 import { Illustration } from './illustration'
 import { ColorPicker, IconPicker } from './pickers'

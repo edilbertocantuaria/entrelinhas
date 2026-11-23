@@ -27,17 +27,33 @@ export function mensagemPeriodo(entrada: EntradaPeriodo, limiteDiario: number) {
   const diario = entrada.diario.slice(-limiteDiario)
   return juntar(
     `Período: ${entrada.periodo}`,
-    bloco('Metas que avançaram', entrada.avancaram.map(item => `- ${item.meta}${item.area ? ` (${item.area})` : ''}: ${item.progresso}${item.ritmo ? `, ${item.ritmo}` : ''}`)),
-    bloco('Metas sem registro no período', entrada.paradas.map(item => `- ${item.meta}${item.area ? ` (${item.area})` : ''}`)),
-    bloco('Tarefas', [`- feitas: ${entrada.tarefas.feitas}`, `- dispensadas (não contam contra o ritmo): ${entrada.tarefas.dispensadas}`, `- não feitas: ${entrada.tarefas.naoFeitas}`]),
+    bloco(
+      'Metas que avançaram',
+      entrada.avancaram.map(item => `- ${item.meta}${item.area ? ` (${item.area})` : ''}: ${item.progresso}${item.ritmo ? `, ${item.ritmo}` : ''}`),
+    ),
+    bloco(
+      'Metas sem registro no período',
+      entrada.paradas.map(item => `- ${item.meta}${item.area ? ` (${item.area})` : ''}`),
+    ),
+    bloco('Tarefas', [
+      `- feitas: ${entrada.tarefas.feitas}`,
+      `- dispensadas (não contam contra o ritmo): ${entrada.tarefas.dispensadas}`,
+      `- não feitas: ${entrada.tarefas.naoFeitas}`,
+    ]),
     bloco('Humor', [entrada.humorMedio !== null ? `- média: ${entrada.humorMedio.toFixed(1).replace('.', ',')} de 5` : '- sem registros de humor']),
-    bloco('Módulos', (entrada.modulos ?? []).map(linha => `- ${linha}`)),
+    bloco(
+      'Módulos',
+      (entrada.modulos ?? []).map(linha => `- ${linha}`),
+    ),
     bloco(
       `Diário (${diario.length} de ${entrada.diario.length} entradas)`,
       diario.map(item => `- ${item.data}${item.humor ? ` [humor ${HUMOR[item.humor] ?? item.humor}]` : ''}: ${cortar(item.texto.replace(/\s+/g, ' '), 500)}`),
     ),
     entrada.anterior
-      ? bloco('Versão anterior (escreva uma nova, com outra abertura, outra ordem e outras palavras; mantenha os fatos)', [`Título: ${entrada.anterior.titulo}`, `Texto: ${entrada.anterior.texto}`])
+      ? bloco('Versão anterior (escreva uma nova, com outra abertura, outra ordem e outras palavras; mantenha os fatos)', [
+          `Título: ${entrada.anterior.titulo}`,
+          `Texto: ${entrada.anterior.texto}`,
+        ])
       : '',
   )
 }

@@ -95,16 +95,33 @@ export default function FitnessPage() {
               Peso
             </h2>
             {body.length < 2 ? (
-              <p className="mt-2 text-[13px] text-muted">{body.length ? `${num(body[0].kg, 1)} kg em ${shortDay(body[0].date)}. O gráfico aparece a partir da segunda medição.` : 'Registre o peso para acompanhar a evolução.'}</p>
+              <p className="mt-2 text-[13px] text-muted">
+                {body.length
+                  ? `${num(body[0].kg, 1)} kg em ${shortDay(body[0].date)}. O gráfico aparece a partir da segunda medição.`
+                  : 'Registre o peso para acompanhar a evolução.'}
+              </p>
             ) : (
               <figure className="mt-2">
                 <ResponsiveContainer width="100%" height={160}>
                   <LineChart data={body} margin={chartMargin}>
                     <CartesianGrid stroke="var(--border)" vertical={false} />
                     <XAxis dataKey="label" tick={tick} tickLine={false} axisLine={false} minTickGap={28} />
-                    <YAxis tick={tick} tickLine={false} axisLine={false} width={36} domain={[(min: number) => Math.floor(min - 1), (max: number) => Math.ceil(max + 1)]} />
+                    <YAxis
+                      tick={tick}
+                      tickLine={false}
+                      axisLine={false}
+                      width={36}
+                      domain={[(min: number) => Math.floor(min - 1), (max: number) => Math.ceil(max + 1)]}
+                    />
                     <Tooltip {...tooltipStyle} formatter={value => [`${num(Number(value), 1)} kg`, 'Peso']} />
-                    <Line type="monotone" dataKey="kg" stroke={areaVerde} strokeWidth={2} dot={{ r: 2.5, fill: areaVerde, strokeWidth: 0 }} isAnimationActive={false} />
+                    <Line
+                      type="monotone"
+                      dataKey="kg"
+                      stroke={areaVerde}
+                      strokeWidth={2}
+                      dot={{ r: 2.5, fill: areaVerde, strokeWidth: 0 }}
+                      isAnimationActive={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
                 <figcaption className="mt-1 text-[12px] text-muted">
@@ -150,9 +167,22 @@ export default function FitnessPage() {
                     <LineChart data={load.points} margin={chartMargin}>
                       <CartesianGrid stroke="var(--border)" vertical={false} />
                       <XAxis dataKey="label" tick={tick} tickLine={false} axisLine={false} minTickGap={28} />
-                      <YAxis tick={tick} tickLine={false} axisLine={false} width={36} domain={[(min: number) => Math.floor(min - 5), (max: number) => Math.ceil(max + 5)]} />
+                      <YAxis
+                        tick={tick}
+                        tickLine={false}
+                        axisLine={false}
+                        width={36}
+                        domain={[(min: number) => Math.floor(min - 5), (max: number) => Math.ceil(max + 5)]}
+                      />
                       <Tooltip {...tooltipStyle} formatter={value => [`${num1(Number(value))} kg`, 'Carga']} />
-                      <Line type="stepAfter" dataKey="weight" stroke={areaMar} strokeWidth={2} dot={{ r: 2.5, fill: areaMar, strokeWidth: 0 }} isAnimationActive={false} />
+                      <Line
+                        type="stepAfter"
+                        dataKey="weight"
+                        stroke={areaMar}
+                        strokeWidth={2}
+                        dot={{ r: 2.5, fill: areaMar, strokeWidth: 0 }}
+                        isAnimationActive={false}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                   <figcaption className="mt-1 text-[12px] text-muted">
@@ -210,7 +240,9 @@ export default function FitnessPage() {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[14px]">{item.note || kind.label}</span>
-                          <span className="block truncate text-[12px] text-muted">{[item.note ? kind.label : '', workoutMeta(item)].filter(Boolean).join(' · ') || 'Presença registrada'}</span>
+                          <span className="block truncate text-[12px] text-muted">
+                            {[item.note ? kind.label : '', workoutMeta(item)].filter(Boolean).join(' · ') || 'Presença registrada'}
+                          </span>
                         </span>
                         <span className="shrink-0 text-[12px] text-muted">{shortDay(item.date)}</span>
                       </button>
@@ -231,7 +263,12 @@ export default function FitnessPage() {
       <WorkoutForm open={form === 'workout'} onClose={() => setForm(null)} />
       <WeightForm open={form === 'weight'} onClose={() => setForm(null)} />
 
-      <Sheet open={!!detail} onClose={() => setDetail(null)} title={detail ? detail.note || kindOf(detail.kind).label : ''} description={detail ? [longDay(detail.date), detail.note ? kindOf(detail.kind).label : '', workoutMeta(detail)].filter(Boolean).join(' · ') : undefined}>
+      <Sheet
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail ? detail.note || kindOf(detail.kind).label : ''}
+        description={detail ? [longDay(detail.date), detail.note ? kindOf(detail.kind).label : '', workoutMeta(detail)].filter(Boolean).join(' · ') : undefined}
+      >
         {detail && (
           <div className="flex flex-col gap-4">
             {detail.exercises?.length ? (
@@ -266,7 +303,12 @@ export default function FitnessPage() {
 
 type Row = { exercise: string; sets: string; reps: string; weight: string }
 const emptyRow = (): Row => ({ exercise: '', sets: '', reps: '', weight: '' })
-const toRow = (set: WorkoutSet): Row => ({ exercise: set.exercise, sets: set.sets ? String(set.sets) : '', reps: set.reps ? String(set.reps) : '', weight: set.weight ? num1(set.weight) : '' })
+const toRow = (set: WorkoutSet): Row => ({
+  exercise: set.exercise,
+  sets: set.sets ? String(set.sets) : '',
+  reps: set.reps ? String(set.reps) : '',
+  weight: set.weight ? num1(set.weight) : '',
+})
 const positive = (text: string) => {
   const value = parseNum(text)
   return Number.isFinite(value) && value > 0 ? value : undefined
@@ -347,7 +389,14 @@ function WorkoutForm({ open, onClose }: { open: boolean; onClose: () => void }) 
 
         {def.distance && (
           <Field label="Distância (km)" htmlFor="treino-km">
-            <input id="treino-km" className="field" inputMode="decimal" placeholder="3,5" value={distance} onChange={event => setDistance(event.target.value)} />
+            <input
+              id="treino-km"
+              className="field"
+              inputMode="decimal"
+              placeholder="3,5"
+              value={distance}
+              onChange={event => setDistance(event.target.value)}
+            />
           </Field>
         )}
 
@@ -364,17 +413,49 @@ function WorkoutForm({ open, onClose }: { open: boolean; onClose: () => void }) 
             {rows.map((row, index) => (
               <div key={index} className="card flex flex-col gap-2 p-2.5">
                 <div className="flex gap-1">
-                  <input className="field min-w-0 flex-1" aria-label={`Exercício ${index + 1}`} placeholder="Exercício" value={row.exercise} onChange={event => setRow(index, { exercise: event.target.value })} />
+                  <input
+                    className="field min-w-0 flex-1"
+                    aria-label={`Exercício ${index + 1}`}
+                    placeholder="Exercício"
+                    value={row.exercise}
+                    onChange={event => setRow(index, { exercise: event.target.value })}
+                  />
                   {rows.length > 1 && (
-                    <button type="button" className="icon-btn h-12" aria-label={`Remover exercício ${index + 1}`} onClick={() => setRows(rows.filter((_, i) => i !== index))}>
+                    <button
+                      type="button"
+                      className="icon-btn h-12"
+                      aria-label={`Remover exercício ${index + 1}`}
+                      onClick={() => setRows(rows.filter((_, i) => i !== index))}
+                    >
                       <X size={18} strokeWidth={1.75} />
                     </button>
                   )}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <input className="field px-2 text-center" inputMode="numeric" aria-label={`Séries do exercício ${index + 1}`} placeholder="Séries" value={row.sets} onChange={event => setRow(index, { sets: event.target.value })} />
-                  <input className="field px-2 text-center" inputMode="numeric" aria-label={`Repetições do exercício ${index + 1}`} placeholder="Reps" value={row.reps} onChange={event => setRow(index, { reps: event.target.value })} />
-                  <input className="field px-2 text-center" inputMode="decimal" aria-label={`Carga em kg do exercício ${index + 1}`} placeholder="Carga kg" value={row.weight} onChange={event => setRow(index, { weight: event.target.value })} />
+                  <input
+                    className="field px-2 text-center"
+                    inputMode="numeric"
+                    aria-label={`Séries do exercício ${index + 1}`}
+                    placeholder="Séries"
+                    value={row.sets}
+                    onChange={event => setRow(index, { sets: event.target.value })}
+                  />
+                  <input
+                    className="field px-2 text-center"
+                    inputMode="numeric"
+                    aria-label={`Repetições do exercício ${index + 1}`}
+                    placeholder="Reps"
+                    value={row.reps}
+                    onChange={event => setRow(index, { reps: event.target.value })}
+                  />
+                  <input
+                    className="field px-2 text-center"
+                    inputMode="decimal"
+                    aria-label={`Carga em kg do exercício ${index + 1}`}
+                    placeholder="Carga kg"
+                    value={row.weight}
+                    onChange={event => setRow(index, { weight: event.target.value })}
+                  />
                 </div>
               </div>
             ))}
@@ -449,11 +530,25 @@ function WeightForm({ open, onClose }: { open: boolean; onClose: () => void }) {
   }
 
   return (
-    <Sheet open={open} onClose={close} title="Registrar peso" description={last ? `Última medição: ${num(last.kg, 1)} kg em ${shortDay(last.date)}.` : undefined}>
+    <Sheet
+      open={open}
+      onClose={close}
+      title="Registrar peso"
+      description={last ? `Última medição: ${num(last.kg, 1)} kg em ${shortDay(last.date)}.` : undefined}
+    >
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Peso (kg)" htmlFor="peso-kg">
-            <input id="peso-kg" className="field" inputMode="decimal" placeholder={last ? num(last.kg, 1) : '80,0'} value={text} onChange={event => setText(event.target.value)} aria-invalid={!!error} aria-describedby={error ? 'peso-erro' : undefined} />
+            <input
+              id="peso-kg"
+              className="field"
+              inputMode="decimal"
+              placeholder={last ? num(last.kg, 1) : '80,0'}
+              value={text}
+              onChange={event => setText(event.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? 'peso-erro' : undefined}
+            />
           </Field>
           <Field label="Dia" htmlFor="peso-dia">
             <input id="peso-dia" type="date" className="field" max={today} value={day} onChange={event => setDate(event.target.value)} />

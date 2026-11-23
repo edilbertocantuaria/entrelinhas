@@ -3,7 +3,7 @@
 import { Switch as SwitchPrimitive } from '@base-ui/react/switch'
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
   return (
@@ -29,7 +29,12 @@ interface SegmentedProps<T extends string> {
 
 export function Segmented<T extends string>({ value, onChange, options, label, className }: SegmentedProps<T>) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn('grid gap-1 rounded-ctl bg-primary-soft p-1', className)} style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={cn('grid gap-1 rounded-ctl bg-primary-soft p-1', className)}
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
       {options.map(option => {
         const selected = option.value === value
         return (
@@ -56,13 +61,25 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
 export function Stepper({ value, onChange, min, max, label }: { value: number; onChange: (value: number) => void; min: number; max: number; label: string }) {
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
-      <button type="button" className="icon-btn border-[0.5px] border-line bg-surface" aria-label="Diminuir" disabled={value <= min} onClick={() => onChange(value - 1)}>
+      <button
+        type="button"
+        className="icon-btn border-[0.5px] border-line bg-surface"
+        aria-label="Diminuir"
+        disabled={value <= min}
+        onClick={() => onChange(value - 1)}
+      >
         <Minus size={18} strokeWidth={1.75} />
       </button>
       <span className="w-8 text-center text-[15px] font-medium tabular-nums" aria-live="polite">
         {value}
       </span>
-      <button type="button" className="icon-btn border-[0.5px] border-line bg-surface" aria-label="Aumentar" disabled={value >= max} onClick={() => onChange(value + 1)}>
+      <button
+        type="button"
+        className="icon-btn border-[0.5px] border-line bg-surface"
+        aria-label="Aumentar"
+        disabled={value >= max}
+        onClick={() => onChange(value + 1)}
+      >
         <Plus size={18} strokeWidth={1.75} />
       </button>
     </div>
@@ -70,7 +87,19 @@ export function Stepper({ value, onChange, min, max, label }: { value: number; o
 }
 
 /** Chip de escolha (filtros, motivos, metas). */
-export function Chip({ selected, onClick, children, className, ...rest }: { selected?: boolean; onClick?: () => void; children: ReactNode; className?: string; 'aria-label'?: string }) {
+export function Chip({
+  selected,
+  onClick,
+  children,
+  className,
+  ...rest
+}: {
+  selected?: boolean
+  onClick?: () => void
+  children: ReactNode
+  className?: string
+  'aria-label'?: string
+}) {
   return (
     <button
       type="button"
@@ -143,7 +172,8 @@ export function ScrollRow({
     if (el) el.scrollBy({ left: direction * el.clientWidth * 0.7, behavior: 'smooth' })
   }
 
-  const arrow = 'absolute top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border-[0.5px] border-line bg-surface text-ink after:absolute after:-inset-1 [@media(hover:none)]:hidden'
+  const arrow =
+    'absolute top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border-[0.5px] border-line bg-surface text-ink after:absolute after:-inset-1 [@media(hover:none)]:hidden'
 
   return (
     <div className="relative">
@@ -192,7 +222,11 @@ export function ScrollRow({
       </div>
       {edges.start && (
         <>
-          <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-10" style={{ background: `linear-gradient(to right, ${fade}, transparent)` }} />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-10"
+            style={{ background: `linear-gradient(to right, ${fade}, transparent)` }}
+          />
           <button type="button" tabIndex={-1} aria-hidden className={cn(arrow, 'left-1')} onClick={() => step(-1)}>
             <ChevronLeft size={18} strokeWidth={1.75} />
           </button>
@@ -200,7 +234,11 @@ export function ScrollRow({
       )}
       {edges.end && (
         <>
-          <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-10" style={{ background: `linear-gradient(to left, ${fade}, transparent)` }} />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-10"
+            style={{ background: `linear-gradient(to left, ${fade}, transparent)` }}
+          />
           <button type="button" tabIndex={-1} aria-hidden className={cn(arrow, 'right-1')} onClick={() => step(1)}>
             <ChevronRight size={18} strokeWidth={1.75} />
           </button>
@@ -225,7 +263,14 @@ export function Field({ label, hint, children, htmlFor }: { label: string; hint?
 export function ProgressBar({ value, color = 'var(--primary)', label }: { value: number; color?: string; label?: string }) {
   const percent = Math.round(Math.max(0, Math.min(1, value)) * 100)
   return (
-    <div role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={label} className="h-1.5 overflow-hidden rounded-full bg-primary-soft">
+    <div
+      role="progressbar"
+      aria-valuenow={percent}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label}
+      className="h-1.5 overflow-hidden rounded-full bg-primary-soft"
+    >
       <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${percent}%`, background: color }} />
     </div>
   )

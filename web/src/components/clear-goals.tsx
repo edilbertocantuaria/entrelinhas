@@ -2,9 +2,9 @@
 
 import { Check } from 'lucide-react'
 import { useState } from 'react'
-import { useStore } from '@/lib/store'
-import { useClock } from '@/lib/time'
-import { cn } from '@/lib/utils'
+import { useStore } from '@/shared/store'
+import { useClock } from '@/shared/time'
+import { cn } from '@/shared/utils'
 import { useShell } from './app-shell'
 import { Button } from './ui/button'
 import { Sheet } from './ui/sheet'
@@ -12,7 +12,11 @@ import { Sheet } from './ui/sheet'
 type Mode = 'goals' | 'all'
 
 const OPTIONS: { value: Mode; title: string; text: string }[] = [
-  { value: 'all', title: 'Começar do zero', text: 'Saem as metas, as tarefas, o diário, os resumos, os treinos e os estudos. Ficam as suas áreas e os ajustes.' },
+  {
+    value: 'all',
+    title: 'Começar do zero',
+    text: 'Saem as metas, as tarefas, o diário, os resumos, os treinos e os estudos. Ficam as suas áreas e os ajustes.',
+  },
   { value: 'goals', title: 'Só as metas', text: 'Saem as metas e os registros delas. Tarefas avulsas, diário, treinos e estudos continuam.' },
 ]
 
@@ -44,7 +48,12 @@ export function ClearGoalsSheet({ open, onClose }: { open: boolean; onClose: () 
                 onClick={() => setMode(option.value)}
                 className={cn('card flex items-start gap-3 p-3 text-left transition-colors', selected && 'border-primary bg-primary-soft')}
               >
-                <span className={cn('mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border', selected ? 'border-primary bg-primary text-on-primary' : 'border-line')}>
+                <span
+                  className={cn(
+                    'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border',
+                    selected ? 'border-primary bg-primary text-on-primary' : 'border-line',
+                  )}
+                >
                   {selected && <Check size={12} strokeWidth={2.5} aria-hidden />}
                 </span>
                 <span>

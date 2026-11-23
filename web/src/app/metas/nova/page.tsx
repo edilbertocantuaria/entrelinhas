@@ -86,12 +86,18 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
   const [description, setDescription] = useState(draft?.description ?? '')
   const [type, setType] = useState<MetricType>(dm?.type ?? 'frequency')
   const [freq, setFreq] = useState(dm?.type === 'frequency' ? { min: dm.min, max: dm.max, noun: dm.noun } : { min: 3, max: 4, noun: 'vezes' })
-  const [sum, setSum] = useState(dm?.type === 'sum' ? { target: decimal(dm.target), currency: dm.currency, unit: dm.currency ? '' : dm.unit } : { target: '', currency: true, unit: '' })
+  const [sum, setSum] = useState(
+    dm?.type === 'sum' ? { target: decimal(dm.target), currency: dm.currency, unit: dm.currency ? '' : dm.unit } : { target: '', currency: true, unit: '' },
+  )
   const [value, setValue] = useState(dm?.type === 'value' ? { from: decimal(dm.from), to: decimal(dm.to), unit: dm.unit } : { from: '', to: '', unit: 'kg' })
   const [items, setItems] = useState(dm?.type === 'milestones' ? dm.items.map(item => item.title) : ['', '', ''])
   // as etapas existentes guardam o id, para os registros já feitos continuarem ligados a elas
   const [itemIds, setItemIds] = useState<(string | undefined)[]>(dm?.type === 'milestones' ? dm.items.map(item => item.id) : [])
-  const [days, setDays] = useState(dm?.type === 'days' ? { target: String(dm.target), unit: dm.unit, session: dm.sessionMinutes } : { target: '30', unit: 'dias' as 'dias' | 'horas', session: 30 })
+  const [days, setDays] = useState(
+    dm?.type === 'days'
+      ? { target: String(dm.target), unit: dm.unit, session: dm.sessionMinutes }
+      : { target: '30', unit: 'dias' as 'dias' | 'horas', session: 30 },
+  )
   const [startingPoint, setStartingPoint] = useState(draft?.startingPoint ?? '')
   const [achievableNote, setAchievableNote] = useState(draft?.achievableNote ?? '')
   const [why, setWhy] = useState(draft?.why ?? '')
@@ -195,7 +201,15 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
     <div className="flex min-h-full flex-col">
       <TopBar
         title={editing ? 'Editar meta' : 'Nova meta'}
-        back={step > 0 ? <button type="button" className="icon-btn" aria-label="Passo anterior" onClick={() => setStep(step - 1)}><ChevronLeft size={20} strokeWidth={1.75} /></button> : <BackButton href={editing ? `/metas/${editing.id}` : '/metas'} label={editing ? 'Cancelar e voltar para a meta' : 'Cancelar e voltar para Metas'} />}
+        back={
+          step > 0 ? (
+            <button type="button" className="icon-btn" aria-label="Passo anterior" onClick={() => setStep(step - 1)}>
+              <ChevronLeft size={20} strokeWidth={1.75} />
+            </button>
+          ) : (
+            <BackButton href={editing ? `/metas/${editing.id}` : '/metas'} label={editing ? 'Cancelar e voltar para a meta' : 'Cancelar e voltar para Metas'} />
+          )
+        }
         right={
           <Link href={editing ? `/metas/${editing.id}` : '/metas'} className="icon-btn" aria-label="Cancelar">
             <X size={20} strokeWidth={1.75} />
@@ -227,7 +241,9 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
         {step === 0 && fromChat && (
           <p className="mb-4 flex items-center gap-2.5 rounded-ctl bg-primary-soft p-3 text-[12px] leading-relaxed">
             <EstherAvatar size={28} />
-            {editing ? `Ajuste sugerido pela ${ESTHER}. Confira cada passo antes de salvar.` : `Rascunho da conversa com a ${ESTHER}. Confira cada passo e ajuste o que quiser antes de salvar.`}
+            {editing
+              ? `Ajuste sugerido pela ${ESTHER}. Confira cada passo antes de salvar.`
+              : `Rascunho da conversa com a ${ESTHER}. Confira cada passo e ajuste o que quiser antes de salvar.`}
           </p>
         )}
         <div className="mb-5 flex items-center gap-3">
@@ -244,7 +260,14 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
               <input id="meta-titulo" className="field" placeholder="Ex.: correr 5 km" value={title} onChange={event => setTitle(event.target.value)} />
             </Field>
             <Field label="Descreva em uma frase (opcional)" htmlFor="meta-descricao">
-              <textarea id="meta-descricao" className="field" rows={2} placeholder="O que exatamente, e como." value={description} onChange={event => setDescription(event.target.value)} />
+              <textarea
+                id="meta-descricao"
+                className="field"
+                rows={2}
+                placeholder="O que exatamente, e como."
+                value={description}
+                onChange={event => setDescription(event.target.value)}
+              />
             </Field>
             <div className="flex flex-col gap-1.5">
               <span className="text-[13px] text-muted">Área da vida</span>
@@ -255,7 +278,11 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                     {item.name}
                   </Chip>
                 ))}
-                <button type="button" onClick={() => setEditorOpen(true)} className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 text-[13px] text-primary">
+                <button
+                  type="button"
+                  onClick={() => setEditorOpen(true)}
+                  className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 text-[13px] text-primary"
+                >
                   <Plus size={16} strokeWidth={1.75} aria-hidden />
                   Criar nova área
                 </button>
@@ -264,7 +291,9 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
             <div className="flex flex-col gap-1.5">
               <span className="text-[13px] text-muted">Ícone</span>
               <ArtPicker value={art} auto={METRIC_ART[type]} onChange={setArt} />
-              <p className="text-[12px] text-muted">{art ? 'Você pode trocar depois, na página da meta.' : 'No automático, o ícone acompanha o jeito de medir que você escolher.'}</p>
+              <p className="text-[12px] text-muted">
+                {art ? 'Você pode trocar depois, na página da meta.' : 'No automático, o ícone acompanha o jeito de medir que você escolher.'}
+              </p>
             </div>
           </div>
         )}
@@ -273,7 +302,8 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
           <div className="flex flex-col gap-4">
             {editing && goalLogs > 0 && type !== editing.metric.type && (
               <p className="rounded-ctl bg-primary-soft p-3 text-[12px] leading-relaxed">
-                Esta meta já tem {goalLogs} {goalLogs === 1 ? 'registro' : 'registros'}. Eles continuam guardados, mas podem não fazer sentido no novo jeito de medir.
+                Esta meta já tem {goalLogs} {goalLogs === 1 ? 'registro' : 'registros'}. Eles continuam guardados, mas podem não fazer sentido no novo jeito de
+                medir.
               </p>
             )}
             <div className="flex flex-col gap-2" role="radiogroup" aria-label="Tipo de métrica">
@@ -286,7 +316,10 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                     role="radio"
                     aria-checked={on}
                     onClick={() => setType(option)}
-                    className={cn('flex min-h-14 flex-col justify-center rounded-card border-[0.5px] px-4 py-2 text-left', on ? 'border-primary bg-primary-soft' : 'border-line bg-surface')}
+                    className={cn(
+                      'flex min-h-14 flex-col justify-center rounded-card border-[0.5px] px-4 py-2 text-left',
+                      on ? 'border-primary bg-primary-soft' : 'border-line bg-surface',
+                    )}
                   >
                     <span className="text-[14px] font-medium">{METRIC_LABEL[option].name}</span>
                     <span className="text-[12px] text-muted">{METRIC_LABEL[option].hint}</span>
@@ -299,14 +332,26 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
               <div className="card flex flex-col gap-3 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-[14px]">Mínimo por semana</span>
-                  <Stepper label="Mínimo por semana" min={1} max={7} value={freq.min} onChange={min => setFreq({ ...freq, min, max: Math.max(min, freq.max) })} />
+                  <Stepper
+                    label="Mínimo por semana"
+                    min={1}
+                    max={7}
+                    value={freq.min}
+                    onChange={min => setFreq({ ...freq, min, max: Math.max(min, freq.max) })}
+                  />
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-[14px]">Máximo por semana</span>
                   <Stepper label="Máximo por semana" min={freq.min} max={7} value={Math.max(freq.min, freq.max)} onChange={max => setFreq({ ...freq, max })} />
                 </div>
                 <Field label="Como chamar cada vez" htmlFor="meta-noun">
-                  <input id="meta-noun" className="field" placeholder="vezes, treinos, aulas" value={freq.noun} onChange={event => setFreq({ ...freq, noun: event.target.value })} />
+                  <input
+                    id="meta-noun"
+                    className="field"
+                    placeholder="vezes, treinos, aulas"
+                    value={freq.noun}
+                    onChange={event => setFreq({ ...freq, noun: event.target.value })}
+                  />
                 </Field>
               </div>
             )}
@@ -324,11 +369,24 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                 />
                 {!sum.currency && (
                   <Field label="Unidade" htmlFor="meta-unidade">
-                    <input id="meta-unidade" className="field" placeholder="km, páginas, livros" value={sum.unit} onChange={event => setSum({ ...sum, unit: event.target.value })} />
+                    <input
+                      id="meta-unidade"
+                      className="field"
+                      placeholder="km, páginas, livros"
+                      value={sum.unit}
+                      onChange={event => setSum({ ...sum, unit: event.target.value })}
+                    />
                   </Field>
                 )}
                 <Field label="Alvo" htmlFor="meta-alvo">
-                  <input id="meta-alvo" className="field" inputMode="decimal" placeholder={sum.currency ? '5.000,00' : '100'} value={sum.target} onChange={event => setSum({ ...sum, target: event.target.value })} />
+                  <input
+                    id="meta-alvo"
+                    className="field"
+                    inputMode="decimal"
+                    placeholder={sum.currency ? '5.000,00' : '100'}
+                    value={sum.target}
+                    onChange={event => setSum({ ...sum, target: event.target.value })}
+                  />
                 </Field>
               </div>
             )}
@@ -336,13 +394,33 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
             {type === 'value' && (
               <div className="card grid grid-cols-3 gap-3 p-4">
                 <Field label="De" htmlFor="meta-de">
-                  <input id="meta-de" className="field" inputMode="decimal" placeholder="85" value={value.from} onChange={event => setValue({ ...value, from: event.target.value })} />
+                  <input
+                    id="meta-de"
+                    className="field"
+                    inputMode="decimal"
+                    placeholder="85"
+                    value={value.from}
+                    onChange={event => setValue({ ...value, from: event.target.value })}
+                  />
                 </Field>
                 <Field label="Para" htmlFor="meta-para">
-                  <input id="meta-para" className="field" inputMode="decimal" placeholder="78" value={value.to} onChange={event => setValue({ ...value, to: event.target.value })} />
+                  <input
+                    id="meta-para"
+                    className="field"
+                    inputMode="decimal"
+                    placeholder="78"
+                    value={value.to}
+                    onChange={event => setValue({ ...value, to: event.target.value })}
+                  />
                 </Field>
                 <Field label="Unidade" htmlFor="meta-valor-unidade">
-                  <input id="meta-valor-unidade" className="field" placeholder="kg" value={value.unit} onChange={event => setValue({ ...value, unit: event.target.value })} />
+                  <input
+                    id="meta-valor-unidade"
+                    className="field"
+                    placeholder="kg"
+                    value={value.unit}
+                    onChange={event => setValue({ ...value, unit: event.target.value })}
+                  />
                 </Field>
               </div>
             )}
@@ -351,7 +429,13 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
               <div className="card flex flex-col gap-2 p-4">
                 {items.map((item, index) => (
                   <div key={index} className="flex gap-1">
-                    <input className="field" aria-label={`Etapa ${index + 1}`} placeholder={`Etapa ${index + 1}`} value={item} onChange={event => setItems(items.map((text, i) => (i === index ? event.target.value : text)))} />
+                    <input
+                      className="field"
+                      aria-label={`Etapa ${index + 1}`}
+                      placeholder={`Etapa ${index + 1}`}
+                      value={item}
+                      onChange={event => setItems(items.map((text, i) => (i === index ? event.target.value : text)))}
+                    />
                     {items.length > 1 && (
                       <button
                         type="button"
@@ -386,7 +470,13 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                   ]}
                 />
                 <Field label={days.unit === 'dias' ? 'Quantos dias' : 'Quantas horas'} htmlFor="meta-dias">
-                  <input id="meta-dias" className="field" inputMode="numeric" value={days.target} onChange={event => setDays({ ...days, target: event.target.value })} />
+                  <input
+                    id="meta-dias"
+                    className="field"
+                    inputMode="numeric"
+                    value={days.target}
+                    onChange={event => setDays({ ...days, target: event.target.value })}
+                  />
                 </Field>
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[13px] text-muted">Duração de cada sessão</span>
@@ -406,31 +496,70 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
         {step === 2 && (
           <div className="flex flex-col gap-4">
             <Field label="Ponto de partida" htmlFor="meta-partida">
-              <input id="meta-partida" className="field" placeholder="Como está hoje" value={startingPoint} onChange={event => setStartingPoint(event.target.value)} />
+              <input
+                id="meta-partida"
+                className="field"
+                placeholder="Como está hoje"
+                value={startingPoint}
+                onChange={event => setStartingPoint(event.target.value)}
+              />
             </Field>
             <Field label="Dá para alcançar? O que ajuda?" htmlFor="meta-alcancavel">
-              <textarea id="meta-alcancavel" className="field voice" rows={4} placeholder="O que torna essa meta possível para você." value={achievableNote} onChange={event => setAchievableNote(event.target.value)} />
+              <textarea
+                id="meta-alcancavel"
+                className="field voice"
+                rows={4}
+                placeholder="O que torna essa meta possível para você."
+                value={achievableNote}
+                onChange={event => setAchievableNote(event.target.value)}
+              />
             </Field>
           </div>
         )}
 
         {step === 3 && (
           <Field label="Escreva para você, sem pressa" htmlFor="meta-porque">
-            <textarea id="meta-porque" className="field voice" rows={6} placeholder="O que muda na sua vida quando isso acontecer." value={why} onChange={event => setWhy(event.target.value)} />
+            <textarea
+              id="meta-porque"
+              className="field voice"
+              rows={6}
+              placeholder="O que muda na sua vida quando isso acontecer."
+              value={why}
+              onChange={event => setWhy(event.target.value)}
+            />
           </Field>
         )}
 
         {step === 4 && (
           <div className="flex flex-col gap-4">
-            <Field label="Data final" htmlFor="meta-prazo" hint={!deadlineOk ? (editing ? 'Escolha uma data depois do início da meta.' : 'Escolha uma data a partir de hoje.') : undefined}>
-              <input id="meta-prazo" type="date" className="field" min={editing ? editing.startDate : today} value={deadline} onChange={event => setDeadline(event.target.value)} />
+            <Field
+              label="Data final"
+              htmlFor="meta-prazo"
+              hint={!deadlineOk ? (editing ? 'Escolha uma data depois do início da meta.' : 'Escolha uma data a partir de hoje.') : undefined}
+            >
+              <input
+                id="meta-prazo"
+                type="date"
+                className="field"
+                min={editing ? editing.startDate : today}
+                value={deadline}
+                onChange={event => setDeadline(event.target.value)}
+              />
             </Field>
             <div className="card flex min-h-14 items-center gap-3 px-4">
               <div className="flex-1">
                 <p className="text-[14px]">Lembrete</p>
                 <p className="text-[12px] text-muted">Um aviso discreto, fora do horário de silêncio.</p>
               </div>
-              {reminder.on && <input type="time" aria-label="Horário do lembrete" className="field w-28" value={reminder.time} onChange={event => setReminder({ ...reminder, time: event.target.value })} />}
+              {reminder.on && (
+                <input
+                  type="time"
+                  aria-label="Horário do lembrete"
+                  className="field w-28"
+                  value={reminder.time}
+                  onChange={event => setReminder({ ...reminder, time: event.target.value })}
+                />
+              )}
               <Switch checked={reminder.on} onChange={on => setReminder({ ...reminder, on })} label="Ativar lembrete" />
             </div>
             {editing ? (
@@ -448,7 +577,9 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                 <RepeatPicker value={repeat} onChange={setRepeatChoice} start={startDate} suggestedEnd={deadline} />
               </div>
             )}
-            {type === 'sum' && <p className="text-[12px] text-muted">Metas de soma não criam tarefas diárias. Você registra quando houver um valor, e há um lembrete por mês.</p>}
+            {type === 'sum' && (
+              <p className="text-[12px] text-muted">Metas de soma não criam tarefas diárias. Você registra quando houver um valor, e há um lembrete por mês.</p>
+            )}
           </div>
         )}
 

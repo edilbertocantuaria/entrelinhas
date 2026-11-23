@@ -32,6 +32,8 @@ export default function AreasPage() {
   const [moveTo, setMoveTo] = useState('')
   const [archivedOpen, setArchivedOpen] = useState(false)
   const [dragOrder, setDragOrder] = useState<string[] | null>(null)
+  // a linha arrastada fica destacada (estado, não ref: a tela precisa redesenhar)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
   const drag = useRef<{ id: string; startY: number; startIndex: number } | null>(null)
 
   const active = areas.filter(area => !area.archived).sort((a, b) => a.order - b.order)
@@ -52,23 +54,37 @@ export default function AreasPage() {
   const onPointerDown = (event: PointerEvent<HTMLButtonElement>, id: string, index: number) => {
     event.currentTarget.setPointerCapture(event.pointerId)
     drag.current = { id, startY: event.clientY, startIndex: index }
+    setDraggingId(id)
     setDragOrder(active.map(area => area.id))
   }
   const onPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
     const state = drag.current
     if (!state) return
     const to = state.startIndex + Math.round((event.clientY - state.startY) / ROW)
-    setDragOrder(move(active.map(area => area.id), state.id, to))
+    setDragOrder(
+      move(
+        active.map(area => area.id),
+        state.id,
+        to,
+      ),
+    )
   }
   const onPointerUp = () => {
     if (drag.current && dragOrder) reorderAreas(dragOrder)
     drag.current = null
+    setDraggingId(null)
     setDragOrder(null)
   }
   const onKeyDown = (event: KeyboardEvent, id: string, index: number) => {
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
     event.preventDefault()
-    reorderAreas(move(active.map(area => area.id), id, index + (event.key === 'ArrowUp' ? -1 : 1)))
+    reorderAreas(
+      move(
+        active.map(area => area.id),
+        id,
+        index + (event.key === 'ArrowUp' ? -1 : 1),
+      ),
+    )
   }
 
   const askRemove = (area: Area) => {
@@ -101,7 +117,7 @@ export default function AreasPage() {
             {rows.map((area, index) => {
               const total = count(area.id)
               return (
-                <li key={area.id} className={cn('flex items-center gap-1 pr-1', drag.current?.id === area.id && 'bg-primary-soft')} style={{ height: ROW }}>
+                <li key={area.id} className={cn('flex items-center gap-1 pr-1', draggingId === area.id && 'bg-primary-soft')} style={{ height: ROW }}>
                   <button
                     type="button"
                     className="icon-btn cursor-grab touch-none active:cursor-grabbing"
@@ -130,7 +146,12 @@ export default function AreasPage() {
 
         {archived.length > 0 && (
           <section className="mt-5">
-            <button type="button" aria-expanded={archivedOpen} onClick={() => setArchivedOpen(!archivedOpen)} className="flex min-h-11 w-full items-center gap-2 rounded-ctl px-1 text-left text-muted">
+            <button
+              type="button"
+              aria-expanded={archivedOpen}
+              onClick={() => setArchivedOpen(!archivedOpen)}
+              className="flex min-h-11 w-full items-center gap-2 rounded-ctl px-1 text-left text-muted"
+            >
               <Archive size={18} strokeWidth={1.75} aria-hidden />
               <span className="flex-1 text-[14px]">Arquivadas</span>
               <span className="text-[12px] tabular-nums">{archived.length}</span>
@@ -207,7 +228,13 @@ export default function AreasPage() {
       >
         {removingGoals > 0 && (
           <div className="mb-4 flex flex-col gap-2" role="radiogroup" aria-label="Destino das metas">
-            <button type="button" role="radio" aria-checked={choice === 'move'} onClick={() => setChoice('move')} className={cn('rounded-card border-[0.5px] p-4 text-left', choice === 'move' ? 'border-primary bg-primary-soft' : 'border-line bg-surface')}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={choice === 'move'}
+              onClick={() => setChoice('move')}
+              className={cn('rounded-card border-[0.5px] p-4 text-left', choice === 'move' ? 'border-primary bg-primary-soft' : 'border-line bg-surface')}
+            >
               <span className="block text-[14px] font-medium">Mover as metas para outra área</span>
               <span className="text-[12px] text-muted">A área é excluída e as metas continuam com todo o histórico.</span>
             </button>
@@ -221,7 +248,13 @@ export default function AreasPage() {
                 ))}
               </div>
             )}
-            <button type="button" role="radio" aria-checked={choice === 'archive'} onClick={() => setChoice('archive')} className={cn('rounded-card border-[0.5px] p-4 text-left', choice === 'archive' ? 'border-primary bg-primary-soft' : 'border-line bg-surface')}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={choice === 'archive'}
+              onClick={() => setChoice('archive')}
+              className={cn('rounded-card border-[0.5px] p-4 text-left', choice === 'archive' ? 'border-primary bg-primary-soft' : 'border-line bg-surface')}
+            >
               <span className="block text-[14px] font-medium">Arquivar a área</span>
               <span className="text-[12px] text-muted">Mantém metas, registros e histórico. Ela some dos filtros e das novas metas.</span>
             </button>
@@ -231,7 +264,12 @@ export default function AreasPage() {
           <Button variant="ghost" className="flex-1" onClick={() => setRemoving(null)}>
             Cancelar
           </Button>
-          <Button variant={removingGoals ? 'primary' : 'outline'} className="flex-1" disabled={removingGoals > 0 && choice === 'move' && !moveTo} onClick={confirmRemove}>
+          <Button
+            variant={removingGoals ? 'primary' : 'outline'}
+            className="flex-1"
+            disabled={removingGoals > 0 && choice === 'move' && !moveTo}
+            onClick={confirmRemove}
+          >
             {removingGoals === 0 ? 'Excluir área' : choice === 'archive' ? 'Arquivar área' : 'Mover e excluir'}
           </Button>
         </div>

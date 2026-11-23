@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { useMemo, type ReactNode } from 'react'
-import { areaColor } from '@/lib/areas'
-import { fmt, shortDay } from '@/lib/format'
-import { inRange, paceOf, periodStats, progressOf } from '@/lib/goals'
-import { useStore } from '@/lib/store'
-import { useClock } from '@/lib/time'
+import { areaColor } from '@/domain/areas'
+import { fmt, shortDay } from '@/shared/format'
+import { inRange, paceOf, periodStats, progressOf } from '@/domain/goals'
+import { useStore } from '@/shared/store'
+import { useClock } from '@/shared/time'
 import { useShell } from './app-shell'
 import { AreaIcon } from './common'
 import { GoalChart, MoodChart } from './goal-visuals'
@@ -46,11 +46,19 @@ export function useRetroCards(year: number): RetroCard[] | null {
     const dates = [...logs.map(log => log.date), ...journal.map(entry => entry.date)].filter(date => inRange(date, start, end)).sort()
     const yearGoals = goals.filter(goal => goal.startDate <= end)
     const ranked = yearGoals
-      .map(goal => ({ goal, ratio: stats.advanced.find(item => item.goal.id === goal.id)?.ratio ?? 0, progress: progressOf(goal, logs, end), pace: paceOf(goal, logs, tasks, end) }))
+      .map(goal => ({
+        goal,
+        ratio: stats.advanced.find(item => item.goal.id === goal.id)?.ratio ?? 0,
+        progress: progressOf(goal, logs, end),
+        pace: paceOf(goal, logs, tasks, end),
+      }))
       .sort((a, b) => b.ratio - a.ratio)
     const byMonth = new Map<string, number[]>()
     for (const item of stats.moods) byMonth.set(item.date.slice(0, 7), [...(byMonth.get(item.date.slice(0, 7)) ?? []), item.mood])
-    const moods = [...byMonth].map(([month, values]) => ({ label: fmt(`${month}-01`, 'MMM'), mood: values.reduce((sum, value) => sum + value, 0) / values.length }))
+    const moods = [...byMonth].map(([month, values]) => ({
+      label: fmt(`${month}-01`, 'MMM'),
+      mood: values.reduce((sum, value) => sum + value, 0) / values.length,
+    }))
     return { start, end, stats, first: dates[0] ?? start, yearGoals, ranked, moods }
   }, [year, today, goals, logs, tasks, journal])
 
@@ -138,7 +146,9 @@ export function useRetroCards(year: number): RetroCard[] | null {
                 {pace.status === 'done' && <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[12px]">concluída</span>}
               </div>
               <ProgressBar value={ratio} color={areaColor(areaOf(goal.areaId)?.color)} label={goal.title} />
-              <p className="mt-1 text-[12px] text-muted">{goal.metric.type === 'frequency' ? (stats.advanced.find(item => item.goal.id === goal.id)?.text ?? progress.label) : progress.label}</p>
+              <p className="mt-1 text-[12px] text-muted">
+                {goal.metric.type === 'frequency' ? (stats.advanced.find(item => item.goal.id === goal.id)?.text ?? progress.label) : progress.label}
+              </p>
             </li>
           ))}
         </ul>
@@ -191,7 +201,9 @@ export function useRetroCards(year: number): RetroCard[] | null {
       key: 'depois',
       title: 'O que ficou para depois',
       art: 'retro-later',
-      lead: later.length ? 'Nem tudo andou no mesmo ritmo, e isso faz parte. Estas metas seguem com você, se ainda fizerem sentido.' : 'Todas as metas tiveram movimento neste ano.',
+      lead: later.length
+        ? 'Nem tudo andou no mesmo ritmo, e isso faz parte. Estas metas seguem com você, se ainda fizerem sentido.'
+        : 'Todas as metas tiveram movimento neste ano.',
       body: later.length ? (
         <ul className="card divide-y-[0.5px] divide-line">
           {later.map(({ goal, progress }) => (

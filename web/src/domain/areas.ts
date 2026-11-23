@@ -1,11 +1,61 @@
 import {
-  Activity, Apple, Baby, BedDouble, Bike, Coffee, Droplets, Footprints, Utensils, BookOpen, Brain, Briefcase, Brush, Building2, CalendarDays, Camera, Clapperboard, CloudSun,
-  Coins, Dog, Dumbbell, Flower2, Gift, GraduationCap, HandCoins, Handshake, Heart, HeartPulse, Home, Landmark,
-  Languages, Laptop, Leaf, Library, Mail, MessageCircle, Moon, Music, NotebookPen, Palette, PenTool, PencilRuler,
-  PiggyBank, Plane, Rocket, Smile, Sparkles, Stethoscope, Sun, Target, TrendingUp, User, Users, Wallet,
+  Activity,
+  Apple,
+  Baby,
+  BedDouble,
+  Bike,
+  Coffee,
+  Droplets,
+  Footprints,
+  Utensils,
+  BookOpen,
+  Brain,
+  Briefcase,
+  Brush,
+  Building2,
+  CalendarDays,
+  Camera,
+  Clapperboard,
+  CloudSun,
+  Coins,
+  Dog,
+  Dumbbell,
+  Flower2,
+  Gift,
+  GraduationCap,
+  HandCoins,
+  Handshake,
+  Heart,
+  HeartPulse,
+  Home,
+  Landmark,
+  Languages,
+  Laptop,
+  Leaf,
+  Library,
+  Mail,
+  MessageCircle,
+  Moon,
+  Music,
+  NotebookPen,
+  Palette,
+  PenTool,
+  PencilRuler,
+  PiggyBank,
+  Plane,
+  Rocket,
+  Smile,
+  Sparkles,
+  Stethoscope,
+  Sun,
+  Target,
+  TrendingUp,
+  User,
+  Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
-import type { ColorKey } from './types'
+import type { ColorKey } from '@/domain/types'
 
 export const COLOR_PRESETS: { key: ColorKey; label: string; light: string; dark: string }[] = [
   { key: 'verde', label: 'Verde', light: '#4F8A4C', dark: '#7DBB79' },
@@ -127,9 +177,7 @@ export const ICON_GROUPS: { name: string; icons: IconDef[] }[] = [
   },
 ]
 
-const ICONS: Record<string, LucideIcon> = Object.fromEntries(
-  ICON_GROUPS.flatMap(group => group.icons.map(def => [def.name, def.icon])),
-)
+const ICONS: Record<string, LucideIcon> = Object.fromEntries(ICON_GROUPS.flatMap(group => group.icons.map(def => [def.name, def.icon])))
 
 export const areaIcon = (name: string | undefined): LucideIcon => (name && ICONS[name]) || Target
 

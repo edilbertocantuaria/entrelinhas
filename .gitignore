@@ -1,0 +1,7 @@
+﻿# Cada projeto (web/, ...) tem o seu .gitignore. Aqui só restos que possam aparecer na raiz.
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+.env*
+!.env.example

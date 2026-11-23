@@ -61,7 +61,10 @@ export default function GoalDetailPage() {
   const done = milestoneDates(goal, logs)
   const streak = m.type === 'days' && !hideStreaks ? streakOf(goal, logs, today) : 0
   const upcoming = rule ? nextDates(rule, shift(today, 1), 3) : []
-  const draftRepeat = suggestRepeat({ metric: m, startDate: today, deadline: goal.deadline }) ?? { ...defaultRepeat(today), end: { type: 'date' as const, date: goal.deadline } }
+  const draftRepeat = suggestRepeat({ metric: m, startDate: today, deadline: goal.deadline }) ?? {
+    ...defaultRepeat(today),
+    end: { type: 'date' as const, date: goal.deadline },
+  }
 
   const toggleMilestone = (milestoneId: string, title: string) => {
     const existing = logs.find(log => log.goalId === goal.id && log.milestoneId === milestoneId)
@@ -90,7 +93,10 @@ export default function GoalDetailPage() {
         <header className="flex flex-col items-center text-center">
           <button type="button" className="group relative rounded-card" aria-label="Trocar o ícone da meta" onClick={() => setPicking(true)}>
             <Illustration name={goalArt(goal)} height={120} decorative always />
-            <span aria-hidden className="absolute right-0 bottom-1 grid size-8 place-items-center rounded-full border-[0.5px] border-line bg-surface text-muted group-hover:text-ink">
+            <span
+              aria-hidden
+              className="absolute right-0 bottom-1 grid size-8 place-items-center rounded-full border-[0.5px] border-line bg-surface text-muted group-hover:text-ink"
+            >
               <Pencil size={14} strokeWidth={1.75} />
             </span>
           </button>
@@ -126,7 +132,9 @@ export default function GoalDetailPage() {
                 <p className="text-[13px]">
                   {rule.title}: {describe(rule.repeat).toLocaleLowerCase('pt-BR')}
                 </p>
-                {upcoming.length > 0 && <p className="mt-0.5 text-[12px] text-muted">Próximas: {upcoming.map(date => fmt(date, "EEE, d 'de' MMM")).join(' · ')}</p>}
+                {upcoming.length > 0 && (
+                  <p className="mt-0.5 text-[12px] text-muted">Próximas: {upcoming.map(date => fmt(date, "EEE, d 'de' MMM")).join(' · ')}</p>
+                )}
               </>
             ) : (
               <p className="text-[13px] text-muted">Sem tarefa fixa. As sugestões aparecem na abertura do dia.</p>
@@ -154,8 +162,19 @@ export default function GoalDetailPage() {
                 const date = done.get(item.id)
                 return (
                   <li key={item.id}>
-                    <button type="button" role="checkbox" aria-checked={!!date} onClick={() => toggleMilestone(item.id, item.title)} className="flex min-h-12 w-full items-center gap-3 rounded-ctl px-2 text-left">
-                      <span className={cn('grid size-6 shrink-0 place-items-center rounded-full border-[1.5px]', date ? 'border-primary bg-primary text-on-primary' : 'border-muted')}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={!!date}
+                      onClick={() => toggleMilestone(item.id, item.title)}
+                      className="flex min-h-12 w-full items-center gap-3 rounded-ctl px-2 text-left"
+                    >
+                      <span
+                        className={cn(
+                          'grid size-6 shrink-0 place-items-center rounded-full border-[1.5px]',
+                          date ? 'border-primary bg-primary text-on-primary' : 'border-muted',
+                        )}
+                      >
                         {date && <Check size={14} strokeWidth={2.5} aria-hidden />}
                       </span>
                       <span className={cn('flex-1 text-[14px]', date && 'text-muted')}>{item.title}</span>
@@ -292,7 +311,12 @@ export default function GoalDetailPage() {
         />
       </Sheet>
 
-      <Sheet open={confirming} onClose={() => setConfirming(false)} title="Excluir esta meta?" description="Os registros dela saem junto. As entradas do diário continuam guardadas.">
+      <Sheet
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title="Excluir esta meta?"
+        description="Os registros dela saem junto. As entradas do diário continuam guardadas."
+      >
         <div className="flex gap-2">
           <Button variant="ghost" className="flex-1" onClick={() => setConfirming(false)}>
             Cancelar

@@ -1,14 +1,4 @@
-export type ColorKey =
-  | 'verde'
-  | 'mar'
-  | 'tijolo'
-  | 'celeste'
-  | 'periwinkle'
-  | 'azul-cinza'
-  | 'ambar'
-  | 'lavanda'
-  | 'musgo'
-  | 'areia'
+export type ColorKey = 'verde' | 'mar' | 'tijolo' | 'celeste' | 'periwinkle' | 'azul-cinza' | 'ambar' | 'lavanda' | 'musgo' | 'areia'
 
 export interface Area {
   id: string

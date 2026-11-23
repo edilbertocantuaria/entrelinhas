@@ -1,7 +1,7 @@
 import { BicepsFlexed, Activity, Bike, Dumbbell, Footprints, Music, PersonStanding, Wind, type LucideIcon } from 'lucide-react'
-import { logsOf } from './goals'
-import { minutesLabel, mondayOf, num1, shift, shortDay } from './format'
-import type { Area, BodyWeight, Goal, LogEntry, Workout, WorkoutKind, WorkoutSet } from './types'
+import { logsOf } from '@/domain/goals'
+import { minutesLabel, mondayOf, num1, shift, shortDay } from '@/shared/format'
+import type { Area, BodyWeight, Goal, LogEntry, Workout, WorkoutKind, WorkoutSet } from '@/domain/types'
 
 export const WORKOUT_KINDS: { value: WorkoutKind; label: string; icon: LucideIcon; distance: boolean; exercises: boolean }[] = [
   { value: 'musculacao', label: 'Musculação', icon: Dumbbell, distance: false, exercises: true },
@@ -49,7 +49,9 @@ export function guessKind(goal: Goal, logs: LogEntry[]): WorkoutKind | undefined
 
 /** "Caminhada · 40 min · 3,2 km" */
 export function activityText(activity: NonNullable<LogEntry['activity']>) {
-  return [kindOf(activity.kind).label, activity.minutes ? minutesLabel(activity.minutes) : '', activity.distanceKm ? `${num1(activity.distanceKm)} km` : ''].filter(Boolean).join(' · ')
+  return [kindOf(activity.kind).label, activity.minutes ? minutesLabel(activity.minutes) : '', activity.distanceKm ? `${num1(activity.distanceKm)} km` : '']
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export const kindOf = (kind: WorkoutKind) => WORKOUT_KINDS.find(item => item.value === kind) ?? WORKOUT_KINDS[WORKOUT_KINDS.length - 1]

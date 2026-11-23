@@ -13,7 +13,7 @@ import { fmt, longDay } from '@/shared/format'
 import { useStore } from '@/shared/store'
 import { inLastDaysOfMonth, KIND_LABEL, monthRange, periodLabel } from '@/domain/summaries'
 import { useClock } from '@/shared/time'
-import type { JournalEntry, SummaryKind } from '@/domain/types'
+import type { SummaryKind } from '@/domain/types'
 import { cn } from '@/shared/utils'
 
 type View = 'entries' | 'summaries'
@@ -96,7 +96,15 @@ function Entries({ onEdit, today }: { onEdit: (date: string) => void; today: str
       <div className="mt-4 flex gap-2">
         <div className="relative flex-1">
           <Search size={18} strokeWidth={1.75} aria-hidden className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" />
-          <input type="search" className="field" style={{ paddingLeft: 42 }} aria-label="Buscar no diário" placeholder="Buscar no diário" value={query} onChange={event => setQuery(event.target.value)} />
+          <input
+            type="search"
+            className="field"
+            style={{ paddingLeft: 42 }}
+            aria-label="Buscar no diário"
+            placeholder="Buscar no diário"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+          />
         </div>
         <Button variant="outline" size="icon" className="size-12" aria-label="Escrever a entrada de hoje" onClick={() => onEdit(today)}>
           <PenLine size={20} strokeWidth={1.75} />
@@ -141,7 +149,14 @@ function EntryForm({ date, onClose }: { date: string; onClose: () => void }) {
   return (
     <div className="flex flex-col gap-3">
       <MoodPicker value={mood} onChange={setMood} />
-      <textarea autoFocus aria-label="Texto da entrada" className="field voice min-h-48" placeholder="Como foi o dia, do seu jeito." value={text} onChange={event => setText(event.target.value)} />
+      <textarea
+        autoFocus
+        aria-label="Texto da entrada"
+        className="field voice min-h-48"
+        placeholder="Como foi o dia, do seu jeito."
+        value={text}
+        onChange={event => setText(event.target.value)}
+      />
       <div className="flex gap-2">
         {entry && (
           <Button
@@ -264,7 +279,13 @@ function Summaries({ today }: { today: string }) {
       )}
 
       {cards.length === 0 ? (
-        <EmptyState className="flex-1 justify-center" illustration="summary-ready" icon={Mail} title="Nenhum resumo ainda" description="O primeiro aparece quando o mês terminar." />
+        <EmptyState
+          className="flex-1 justify-center"
+          illustration="summary-ready"
+          icon={Mail}
+          title="Nenhum resumo ainda"
+          description="O primeiro aparece quando o mês terminar."
+        />
       ) : (
         <ul className="flex flex-col gap-3">
           {cards.map(card => (

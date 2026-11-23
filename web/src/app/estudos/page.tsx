@@ -64,7 +64,8 @@ export default function StudyPage() {
   const hourStep = topMinutes > 360 ? 120 : 60
   const hourTicks = Array.from({ length: Math.ceil(topMinutes / hourStep) + 1 }, (_, index) => index * hourStep)
 
-  const accuracyText = overall.ratio === null ? 'sem questões' : hidePercent ? `${overall.correct} de ${overall.questions}` : `${Math.round(overall.ratio * 100)}%`
+  const accuracyText =
+    overall.ratio === null ? 'sem questões' : hidePercent ? `${overall.correct} de ${overall.questions}` : `${Math.round(overall.ratio * 100)}%`
 
   return (
     <div className="flex min-h-full flex-col">
@@ -106,10 +107,31 @@ export default function StudyPage() {
                 <BarChart data={weekly} margin={chartMargin}>
                   <CartesianGrid stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="week" tick={tick} tickLine={false} axisLine={false} minTickGap={12} />
-                  <YAxis tick={tick} tickLine={false} axisLine={false} width={36} domain={[0, hourTicks.at(-1) ?? 60]} ticks={hourTicks} tickFormatter={value => `${num1(Number(value) / 60)} h`} />
-                  <Tooltip {...tooltipStyle} cursor={{ fill: 'var(--primary-soft)' }} formatter={(value, key) => [minutesLabel(Number(value)), subjectOf(String(key))?.name ?? '']} labelFormatter={label => `Semana de ${label}`} />
+                  <YAxis
+                    tick={tick}
+                    tickLine={false}
+                    axisLine={false}
+                    width={36}
+                    domain={[0, hourTicks.at(-1) ?? 60]}
+                    ticks={hourTicks}
+                    tickFormatter={value => `${num1(Number(value) / 60)} h`}
+                  />
+                  <Tooltip
+                    {...tooltipStyle}
+                    cursor={{ fill: 'var(--primary-soft)' }}
+                    formatter={(value, key) => [minutesLabel(Number(value)), subjectOf(String(key))?.name ?? '']}
+                    labelFormatter={label => `Semana de ${label}`}
+                  />
                   {subjects.map((subject, index) => (
-                    <Bar key={subject.id} dataKey={subject.id} stackId="tempo" fill={areaColor(subject.color)} maxBarSize={22} radius={index === subjects.length - 1 ? [4, 4, 0, 0] : 0} isAnimationActive={false} />
+                    <Bar
+                      key={subject.id}
+                      dataKey={subject.id}
+                      stackId="tempo"
+                      fill={areaColor(subject.color)}
+                      maxBarSize={22}
+                      radius={index === subjects.length - 1 ? [4, 4, 0, 0] : 0}
+                      isAnimationActive={false}
+                    />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -134,12 +156,30 @@ export default function StudyPage() {
                   <LineChart data={weekly} margin={chartMargin}>
                     <CartesianGrid stroke="var(--border)" vertical={false} />
                     <XAxis dataKey="week" tick={tick} tickLine={false} axisLine={false} minTickGap={12} />
-                    <YAxis tick={tick} tickLine={false} axisLine={false} width={36} domain={[0, 100]} ticks={[0, 50, 100]} tickFormatter={value => `${value}%`} />
+                    <YAxis
+                      tick={tick}
+                      tickLine={false}
+                      axisLine={false}
+                      width={36}
+                      domain={[0, 100]}
+                      ticks={[0, 50, 100]}
+                      tickFormatter={value => `${value}%`}
+                    />
                     <Tooltip {...tooltipStyle} formatter={value => [`${value}%`, 'Acertos']} labelFormatter={label => `Semana de ${label}`} />
-                    <Line type="monotone" dataKey="percent" connectNulls stroke="var(--primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--primary)', strokeWidth: 0 }} isAnimationActive={false} />
+                    <Line
+                      type="monotone"
+                      dataKey="percent"
+                      connectNulls
+                      stroke="var(--primary)"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: 'var(--primary)', strokeWidth: 0 }}
+                      isAnimationActive={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
-                <figcaption className="mt-1 text-[12px] text-muted">Parte das questões feitas que você acertou em cada semana, somando as disciplinas.</figcaption>
+                <figcaption className="mt-1 text-[12px] text-muted">
+                  Parte das questões feitas que você acertou em cada semana, somando as disciplinas.
+                </figcaption>
               </figure>
             </section>
           )}
@@ -169,7 +209,12 @@ export default function StudyPage() {
                       </div>
                     )}
                   </div>
-                  <button type="button" className="icon-btn" aria-label={`Editar ${item.subject.name}`} onClick={() => setEditor({ open: true, id: item.subject.id })}>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={`Editar ${item.subject.name}`}
+                    onClick={() => setEditor({ open: true, id: item.subject.id })}
+                  >
                     <Pencil size={18} strokeWidth={1.75} />
                   </button>
                 </li>
@@ -200,7 +245,9 @@ export default function StudyPage() {
               ]}
             />
             {visibleNotes.length === 0 ? (
-              <p className="card mt-2 p-4 text-[13px] text-muted">Nada anotado aqui ainda. Ao registrar um estudo, conte o que travou, o que melhorou ou o que você descobriu.</p>
+              <p className="card mt-2 p-4 text-[13px] text-muted">
+                Nada anotado aqui ainda. Ao registrar um estudo, conte o que travou, o que melhorou ou o que você descobriu.
+              </p>
             ) : (
               <ul className="mt-2 flex flex-col gap-2">
                 {visibleNotes.slice(0, notesShown).map(note => {
@@ -270,7 +317,11 @@ export default function StudyPage() {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={detail ? (subjectOf(detail.subjectId)?.name ?? 'Sessão de estudo') : ''}
-        description={detail ? `${longDay(detail.date)} · ${minutesLabel(detail.minutes)}${detail.questions ? ` · ${detail.correct ?? 0} de ${detail.questions} acertos` : ''}` : undefined}
+        description={
+          detail
+            ? `${longDay(detail.date)} · ${minutesLabel(detail.minutes)}${detail.questions ? ` · ${detail.correct ?? 0} de ${detail.questions} acertos` : ''}`
+            : undefined
+        }
       >
         {detail && (
           <div className="flex flex-col gap-4">
@@ -328,7 +379,11 @@ function SessionForm({ open, onClose, onNewSubject }: { open: boolean; onClose: 
   const [insight, setInsight] = useState('')
   const [error, setError] = useState('')
 
-  const subjectId = subjects.some(subject => subject.id === picked) ? picked : subjects.some(subject => subject.id === lastSubject) ? lastSubject : subjects[0]?.id
+  const subjectId = subjects.some(subject => subject.id === picked)
+    ? picked
+    : subjects.some(subject => subject.id === lastSubject)
+      ? lastSubject
+      : subjects[0]?.id
   const subject = subjects.find(item => item.id === subjectId)
   const goal = goals.find(item => item.id === subject?.goalId)
   const day = date || today
@@ -351,7 +406,8 @@ function SessionForm({ open, onClose, onNewSubject }: { open: boolean; onClose: 
     if (!subjectId) return setError('Crie uma disciplina para registrar o estudo.')
     if (!Number.isFinite(mins) || mins <= 0) return setError('Informe o tempo em minutos.')
     if (asked !== undefined && (!Number.isFinite(asked) || asked <= 0)) return setError('Confira o número de questões.')
-    if (right !== undefined && (asked === undefined || !Number.isFinite(right) || right < 0 || right > asked)) return setError('Os acertos vão de zero até o número de questões feitas.')
+    if (right !== undefined && (asked === undefined || !Number.isFinite(right) || right < 0 || right > asked))
+      return setError('Os acertos vão de zero até o número de questões feitas.')
     addSession({
       date: day > today ? today : day,
       subjectId,
@@ -404,21 +460,56 @@ function SessionForm({ open, onClose, onNewSubject }: { open: boolean; onClose: 
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Questões feitas" htmlFor="estudo-questoes">
-            <input id="estudo-questoes" className="field" inputMode="numeric" placeholder="opcional" value={questions} onChange={event => setQuestions(event.target.value)} />
+            <input
+              id="estudo-questoes"
+              className="field"
+              inputMode="numeric"
+              placeholder="opcional"
+              value={questions}
+              onChange={event => setQuestions(event.target.value)}
+            />
           </Field>
           <Field label="Acertos" htmlFor="estudo-acertos">
-            <input id="estudo-acertos" className="field" inputMode="numeric" placeholder="opcional" value={correct} onChange={event => setCorrect(event.target.value)} />
+            <input
+              id="estudo-acertos"
+              className="field"
+              inputMode="numeric"
+              placeholder="opcional"
+              value={correct}
+              onChange={event => setCorrect(event.target.value)}
+            />
           </Field>
         </div>
 
         <Field label="O que travou (opcional)" htmlFor="estudo-dificuldade">
-          <textarea id="estudo-dificuldade" rows={2} className="field" placeholder="Uma dificuldade para revisar depois" value={difficulty} onChange={event => setDifficulty(event.target.value)} />
+          <textarea
+            id="estudo-dificuldade"
+            rows={2}
+            className="field"
+            placeholder="Uma dificuldade para revisar depois"
+            value={difficulty}
+            onChange={event => setDifficulty(event.target.value)}
+          />
         </Field>
         <Field label="Progresso que você notou (opcional)" htmlFor="estudo-progresso">
-          <textarea id="estudo-progresso" rows={2} className="field" placeholder="Algo que ficou mais fácil" value={progress} onChange={event => setProgress(event.target.value)} />
+          <textarea
+            id="estudo-progresso"
+            rows={2}
+            className="field"
+            placeholder="Algo que ficou mais fácil"
+            value={progress}
+            onChange={event => setProgress(event.target.value)}
+          />
         </Field>
         <Field label="Insight (opcional)" htmlFor="estudo-insight">
-          <textarea id="estudo-insight" rows={2} className="field" placeholder="Um atalho, uma ideia, um jeito novo de pensar" value={insight} onChange={event => setInsight(event.target.value)} />
+          <textarea
+            id="estudo-insight"
+            rows={2}
+            className="field"
+            placeholder="Um atalho, uma ideia, um jeito novo de pensar"
+            value={insight}
+            onChange={event => setInsight(event.target.value)}
+          />
         </Field>
 
         {error && (
@@ -494,7 +585,15 @@ function SubjectFields({
   return (
     <div className="flex flex-col gap-4">
       <Field label="Nome" htmlFor="disciplina-nome">
-        <input id="disciplina-nome" className="field" maxLength={40} placeholder="Ex.: Português" value={name} onChange={event => setName(event.target.value)} aria-invalid={!!error} />
+        <input
+          id="disciplina-nome"
+          className="field"
+          maxLength={40}
+          placeholder="Ex.: Português"
+          value={name}
+          onChange={event => setName(event.target.value)}
+          aria-invalid={!!error}
+        />
       </Field>
       {error && (
         <p role="alert" className="-mt-2 text-[12px]">
@@ -508,8 +607,19 @@ function SubjectFields({
           {COLOR_PRESETS.map(preset => {
             const selected = preset.key === color
             return (
-              <button key={preset.key} type="button" role="radio" aria-checked={selected} aria-label={preset.label} onClick={() => setColor(preset.key)} className="grid h-11 place-items-center rounded-ctl">
-                <span className={cn('grid size-8 place-items-center rounded-full text-surface', selected && 'ring-2 ring-primary ring-offset-2 ring-offset-bg')} style={{ background: areaColor(preset.key) }}>
+              <button
+                key={preset.key}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={preset.label}
+                onClick={() => setColor(preset.key)}
+                className="grid h-11 place-items-center rounded-ctl"
+              >
+                <span
+                  className={cn('grid size-8 place-items-center rounded-full text-surface', selected && 'ring-2 ring-primary ring-offset-2 ring-offset-bg')}
+                  style={{ background: areaColor(preset.key) }}
+                >
                   {selected && <Check size={16} strokeWidth={2.5} aria-hidden />}
                 </span>
               </button>
@@ -542,7 +652,8 @@ function SubjectFields({
         (confirming ? (
           <div className="card p-3">
             <p className="text-[13px]">
-              {sessions ? `Excluir a disciplina e ${sessions} ${plural(sessions, 'sessão registrada', 'sessões registradas')}?` : 'Excluir a disciplina?'} Os registros já contados nas metas ficam.
+              {sessions ? `Excluir a disciplina e ${sessions} ${plural(sessions, 'sessão registrada', 'sessões registradas')}?` : 'Excluir a disciplina?'} Os
+              registros já contados nas metas ficam.
             </p>
             <div className="mt-2 flex gap-2">
               <Button variant="ghost" size="sm" className="flex-1" onClick={() => setConfirming(false)}>

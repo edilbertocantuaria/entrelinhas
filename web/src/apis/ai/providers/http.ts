@@ -1,4 +1,4 @@
-import { LLMError } from '../types'
+import { LLMError } from '@/apis/ai/types'
 
 /** POST com JSON para os provedores chamados por HTTP direto. */
 export async function postJSON(url: string, headers: Record<string, string>, body: unknown, signal: AbortSignal) {
@@ -12,7 +12,11 @@ export async function postJSON(url: string, headers: Record<string, string>, bod
   if (!response.ok) {
     const detail = (data?.error as { message?: string } | undefined)?.message ?? response.statusText
     // erro do pedido (400) ou de chave (401/403) não melhora tentando de novo no mesmo provedor
-    throw new LLMError(`respondeu ${response.status}: ${detail}`, response.status >= 500 || response.status === 429 ? 502 : response.status, response.status >= 500 || response.status === 429)
+    throw new LLMError(
+      `respondeu ${response.status}: ${detail}`,
+      response.status >= 500 || response.status === 429 ? 502 : response.status,
+      response.status >= 500 || response.status === 429,
+    )
   }
   return data ?? {}
 }

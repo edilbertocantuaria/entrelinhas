@@ -35,10 +35,22 @@ Responda neste formato:
     juntar(
       `Dia: ${entrada.dia}`,
       entrada.humor ? `Humor: ${entrada.humor} de 5` : '',
-      bloco('Feitas', entrada.feitas.map(item => `- ${item}`)),
-      bloco('Dispensadas', entrada.dispensadas.map(item => `- ${item}`)),
-      bloco('Não feitas', entrada.naoFeitas.map(item => `- ${item}`)),
-      bloco('Últimas entradas do diário', (entrada.ultimasEntradas ?? []).slice(-3).map(item => `- ${item.slice(0, 200)}`)),
+      bloco(
+        'Feitas',
+        entrada.feitas.map(item => `- ${item}`),
+      ),
+      bloco(
+        'Dispensadas',
+        entrada.dispensadas.map(item => `- ${item}`),
+      ),
+      bloco(
+        'Não feitas',
+        entrada.naoFeitas.map(item => `- ${item}`),
+      ),
+      bloco(
+        'Últimas entradas do diário',
+        (entrada.ultimasEntradas ?? []).slice(-3).map(item => `- ${item.slice(0, 200)}`),
+      ),
     ),
   maxTokens: 120,
   parse: bruto => {

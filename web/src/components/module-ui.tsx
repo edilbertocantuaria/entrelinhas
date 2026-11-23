@@ -3,9 +3,9 @@
 import { Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { useStore } from '@/lib/store'
-import type { AppModule } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { useStore } from '@/shared/store'
+import type { AppModule } from '@/domain/types'
+import { cn } from '@/shared/utils'
 import { TopBar, useShell } from './app-shell'
 import { BackButton } from './common'
 import { Button } from './ui/button'
@@ -13,25 +13,25 @@ import { Sheet } from './ui/sheet'
 
 /** Cabeçalho das telas de Fitness e Estudos: nome escolhido pela pessoa, botão de editar e aviso se estiver removido. */
 export function BuiltinModuleHeader({ kind, fallback }: { kind: 'fitness' | 'study'; fallback: string }) {
-  const module = useStore(state => state.modules.find(item => item.kind === kind))
+  const mod = useStore(state => state.modules.find(item => item.kind === kind))
   const restoreModule = useStore(state => state.restoreModule)
   return (
     <>
       <TopBar
-        title={module?.name ?? fallback}
+        title={mod?.name ?? fallback}
         back={<BackButton href="/metas" label="Voltar para Metas" />}
         right={
-          module && (
-            <Link href={`/modulos/editor?id=${module.id}`} className="icon-btn" aria-label={`Editar ${module.name}`}>
+          mod && (
+            <Link href={`/modulos/editor?id=${mod.id}`} className="icon-btn" aria-label={`Editar ${mod.name}`}>
               <Pencil size={20} strokeWidth={1.75} />
             </Link>
           )
         }
       />
-      {module?.hidden && (
+      {mod?.hidden && (
         <div className="card mx-5 mb-3 flex items-center gap-3 p-3 text-[13px]">
           <span className="flex-1 text-muted">Este módulo está fora da aba Metas.</span>
-          <Button variant="ghost" size="sm" onClick={() => restoreModule(module.id)}>
+          <Button variant="ghost" size="sm" onClick={() => restoreModule(mod.id)}>
             Trazer de volta
           </Button>
         </div>
@@ -41,28 +41,28 @@ export function BuiltinModuleHeader({ kind, fallback }: { kind: 'fitness' | 'stu
 }
 
 /** Confirmação para tirar um módulo do app. */
-export function RemoveModuleSheet({ module, onClose, onRemoved }: { module: AppModule | null; onClose: () => void; onRemoved?: () => void }) {
+export function RemoveModuleSheet({ mod, onClose, onRemoved }: { mod: AppModule | null; onClose: () => void; onRemoved?: () => void }) {
   return (
     <Sheet
-      open={!!module}
+      open={!!mod}
       onClose={onClose}
-      title={module ? (module.kind === 'custom' ? `Excluir o módulo ${module.name}?` : `Remover ${module.name} do app?`) : ''}
+      title={mod ? (mod.kind === 'custom' ? `Excluir o módulo ${mod.name}?` : `Remover ${mod.name} do app?`) : ''}
       description={
-        module?.kind === 'custom'
+        mod?.kind === 'custom'
           ? 'O módulo e os registros dele saem deste aparelho. O que já contou para as metas continua nelas.'
           : 'Ele some da aba Metas. Dá para trazer de volta em Gerenciar módulos.'
       }
     >
-      {module && <RemoveBody key={module.id} module={module} onClose={onClose} onRemoved={onRemoved} />}
+      {mod && <RemoveBody key={mod.id} mod={mod} onClose={onClose} onRemoved={onRemoved} />}
     </Sheet>
   )
 }
 
-function RemoveBody({ module, onClose, onRemoved }: { module: AppModule; onClose: () => void; onRemoved?: () => void }) {
+function RemoveBody({ mod, onClose, onRemoved }: { mod: AppModule; onClose: () => void; onRemoved?: () => void }) {
   const { toast } = useShell()
   const removeModule = useStore(state => state.removeModule)
   const [erase, setErase] = useState(false)
-  const builtin = module.kind !== 'custom'
+  const builtin = mod.kind !== 'custom'
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,7 +70,11 @@ function RemoveBody({ module, onClose, onRemoved }: { module: AppModule; onClose
         <div role="radiogroup" aria-label="E os registros?" className="flex flex-col gap-2">
           {[
             { value: false, title: 'Guardar os registros', text: 'Se você trouxer o módulo de volta, tudo estará lá.' },
-            { value: true, title: 'Apagar os registros também', text: module.kind === 'fitness' ? 'Treinos e pesos registrados saem.' : 'Disciplinas e sessões de estudo saem.' },
+            {
+              value: true,
+              title: 'Apagar os registros também',
+              text: mod.kind === 'fitness' ? 'Treinos e pesos registrados saem.' : 'Disciplinas e sessões de estudo saem.',
+            },
           ].map(option => (
             <button
               key={String(option.value)}
@@ -94,10 +98,10 @@ function RemoveBody({ module, onClose, onRemoved }: { module: AppModule; onClose
           variant="outline"
           className="flex-1"
           onClick={() => {
-            removeModule(module.id, erase)
+            removeModule(mod.id, erase)
             onClose()
             onRemoved?.()
-            toast(builtin ? `${module.name} removido` : 'Módulo excluído')
+            toast(builtin ? `${mod.name} removido` : 'Módulo excluído')
           }}
         >
           {builtin ? 'Remover' : 'Excluir'}

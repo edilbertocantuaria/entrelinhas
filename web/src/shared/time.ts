@@ -2,8 +2,8 @@
 
 import { parseISO } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
-import { fmt, iso } from './format'
-import { useStore } from './store'
+import { fmt, iso } from '@/shared/format'
+import { useStore } from '@/shared/store'
 
 /** Relógio do app. Com data simulada, mantém a hora real do aparelho. */
 export function appNow(demoDate: string | null) {

@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { askAI } from '@/lib/ai/client'
-import { periodInput } from '@/lib/ai/inputs'
-import { useStore } from '@/lib/store'
-import type { Summary } from '@/lib/types'
+import { askAI } from '@/apis/ai/client'
+import { periodInput } from '@/apis/ai/inputs'
+import { useStore } from '@/shared/store'
+import type { Summary } from '@/domain/types'
 
 const PROMPT = { monthly: 'resumo-mensal', quarterly: 'resumo-trimestral' } as const
 

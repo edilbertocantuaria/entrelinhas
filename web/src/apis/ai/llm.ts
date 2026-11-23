@@ -12,8 +12,8 @@
  *
  * Uma IA sem chave preenchida é pulada. Sem nenhuma chave, a rota responde 503 e o app usa o texto só com números.
  */
-import { PROVIDERS, providerById } from './providers'
-import { LLMError, type CompletionRequest, type Provider } from './types'
+import { PROVIDERS, providerById } from '@/apis/ai/providers'
+import { LLMError, type CompletionRequest, type Provider } from '@/apis/ai/types'
 
 export { LLMError }
 
@@ -21,11 +21,19 @@ const TIMEOUT_MS = 45_000
 
 const env = (name: string) => process.env[name]?.trim() ?? ''
 const hasKey = (provider: Provider) => !!env(provider.keyEnv)
-const list = (value: string) => value.split(',').map(item => item.trim()).filter(Boolean)
+const list = (value: string) =>
+  value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
 
 /** "resumo-trimestral=anthropic,estudos-insights=gemini" vira { 'resumo-trimestral': 'anthropic', ... } */
 function routes(): Record<string, string> {
-  return Object.fromEntries(list(env('LLM_ROUTES')).map(pair => pair.split('=').map(part => part.trim()) as [string, string]).filter(([key, value]) => key && value))
+  return Object.fromEntries(
+    list(env('LLM_ROUTES'))
+      .map(pair => pair.split('=').map(part => part.trim()) as [string, string])
+      .filter(([key, value]) => key && value),
+  )
 }
 
 /** Ordem de tentativa para um prompt: rota da situação, principal, reservas e, por fim, qualquer outra com chave. */

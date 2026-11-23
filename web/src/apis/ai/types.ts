@@ -1,6 +1,6 @@
 /**
  * Contrato comum das IAs. Cada provedor (OpenAI, Anthropic, Gemini...) é um adaptador
- * em lib/ai/providers que recebe o mesmo pedido e devolve só o texto da resposta.
+ * em src/apis/ai/providers que recebe o mesmo pedido e devolve só o texto da resposta.
  */
 
 export interface CompletionRequest {

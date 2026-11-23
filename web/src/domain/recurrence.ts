@@ -1,6 +1,6 @@
 import { differenceInCalendarMonths, getDaysInMonth, parseISO } from 'date-fns'
-import { daysBetween, fmt, mondayOf, shift } from './format'
-import type { Goal, RecurringTask, Repeat, Task } from './types'
+import { daysBetween, fmt, mondayOf, shift } from '@/shared/format'
+import type { Goal, RecurringTask, Repeat, Task } from '@/domain/types'
 
 export const WEEKDAYS = [
   { value: 1, short: 'seg', long: 'segunda' },
@@ -90,7 +90,8 @@ export function describe(repeat: Repeat) {
 /** Próximos dias em que a regra acontece, a partir de `from`. */
 export function nextDates(rule: RecurringTask, from: string, limit = 3) {
   const out: string[] = []
-  for (let day = from, i = 0; out.length < limit && i < 400; day = shift(day, 1), i++) if (!rule.skipped.includes(day) && occursOn(rule.repeat, day)) out.push(day)
+  for (let day = from, i = 0; out.length < limit && i < 400; day = shift(day, 1), i++)
+    if (!rule.skipped.includes(day) && occursOn(rule.repeat, day)) out.push(day)
   return out
 }
 

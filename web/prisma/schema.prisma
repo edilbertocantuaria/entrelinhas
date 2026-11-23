@@ -1,5 +1,5 @@
-// Modelo de dados do Entrelinhas (PostgreSQL).
-// Espelha lib/types.ts: cada usuário tem suas áreas, metas, registros,
+﻿// Modelo de dados do Entrelinhas (PostgreSQL).
+// Espelha src/domain/types.ts: cada usuário tem suas áreas, metas, registros,
 // tarefas, diário, resumos e retrospectivas.
 // Datas de calendário (dia sem hora) usam @db.Date.
 
@@ -23,7 +23,7 @@ model User {
   onboarded    Boolean  @default(false)
   /** primeiro dia de uso do app */
   startedAt    DateTime @default(now()) @db.Date
-  /** abertura e fechamento do dia (lib/types.ts: DayState) */
+  /** abertura e fechamento do dia (src/domain/types.ts: DayState) */
   dayOpenedOn  DateTime? @db.Date
   dayClosedOn  DateTime? @db.Date
   createdAt    DateTime @default(now())
@@ -138,7 +138,7 @@ model Goal {
   description    String     @default("")
   /** SMART: mensurável. metricType repete metric.type para permitir filtros */
   metricType     MetricType
-  /** objeto Metric de lib/types.ts, com as etapas no caso de "milestones" */
+  /** objeto Metric de src/domain/types.ts, com as etapas no caso de "milestones" */
   metric         Json
   /** SMART: alcançável */
   startingPoint  String     @default("")

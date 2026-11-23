@@ -1,8 +1,8 @@
 'use client'
 
 import { createContext, useContext } from 'react'
-import { useStore } from '@/lib/store'
-import { cn } from '@/lib/utils'
+import { useStore } from '@/shared/store'
+import { cn } from '@/shared/utils'
 import { SCENES, type IllustrationName } from './illustrations/scenes'
 
 export type { IllustrationName }
@@ -42,8 +42,17 @@ export function Illustration({ name, height = 160, level = 'extra', decorative =
   const style = { height, maxHeight: height, width: 'auto', maxWidth: '100%', aspectRatio: `${w} / ${h}` }
 
   if (overrides.includes(name)) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={`/illustrations/${name}.svg`} alt={decorative ? '' : scene.label} aria-hidden={decorative || undefined} className={cn('block shrink-0', className)} style={style} />
+    // SVG próprio da pasta public: o <Image> do Next não otimiza SVG, então o <img> simples basta
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`/illustrations/${name}.svg`}
+        alt={decorative ? '' : scene.label}
+        aria-hidden={decorative || undefined}
+        className={cn('block shrink-0', className)}
+        style={style}
+      />
+    )
   }
 
   return (
@@ -59,10 +68,7 @@ export function CornerBlob({ className }: { className?: string }) {
   if (density === 'none') return null
   return (
     <svg aria-hidden viewBox="0 0 120 120" className={cn('pointer-events-none absolute -right-8 -top-10 -z-10 size-32', className)}>
-      <path
-        d="M12 62c-3-26 14-46 38-50 16-3 26 4 40 4 14 1 22 14 22 34 0 22-8 44-28 52-16 7-28 0-42 0-16 0-28-18-30-40Z"
-        fill="var(--primary-soft)"
-      />
+      <path d="M12 62c-3-26 14-46 38-50 16-3 26 4 40 4 14 1 22 14 22 34 0 22-8 44-28 52-16 7-28 0-42 0-16 0-28-18-30-40Z" fill="var(--primary-soft)" />
       <circle cx="18" cy="100" r="2.5" fill="var(--primary)" opacity=".5" />
       <path d="M30 108v8M26 112h8" stroke="var(--area-mar)" strokeWidth="2" strokeLinecap="round" opacity=".6" />
     </svg>

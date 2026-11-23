@@ -1,4 +1,4 @@
-import type { AppData } from './types'
+import type { AppData } from '@/domain/types'
 
 /**
  * Backup em JSON ("Exportar dados" / "Importar dados" em Ajustes).
@@ -9,7 +9,21 @@ const APP = 'entrelinhas'
 const VERSION = 2
 
 /** Listas do backup: precisam ser arrays. */
-const LIST_KEYS = ['areas', 'goals', 'logs', 'tasks', 'rules', 'journal', 'summaries', 'workouts', 'weights', 'subjects', 'studySessions', 'modules', 'moduleEntries'] as const
+const LIST_KEYS = [
+  'areas',
+  'goals',
+  'logs',
+  'tasks',
+  'rules',
+  'journal',
+  'summaries',
+  'workouts',
+  'weights',
+  'subjects',
+  'studySessions',
+  'modules',
+  'moduleEntries',
+] as const
 /** Objetos do backup: precisam ser objetos simples. */
 const OBJECT_KEYS = ['retros', 'reviews', 'settings', 'day'] as const
 
@@ -48,7 +62,8 @@ export function parseBackup(text: string): ParsedBackup {
   }
   if (!isPlainObject(raw)) return { ok: false, error: 'Este arquivo não parece um backup do Entrelinhas.' }
   if (raw.app !== undefined && raw.app !== APP) return { ok: false, error: 'Este arquivo é de outro app.' }
-  if (typeof raw.version === 'number' && raw.version > VERSION) return { ok: false, error: 'Este backup veio de uma versão mais nova do app. Atualize o app e tente de novo.' }
+  if (typeof raw.version === 'number' && raw.version > VERSION)
+    return { ok: false, error: 'Este backup veio de uma versão mais nova do app. Atualize o app e tente de novo.' }
 
   const source = isPlainObject(raw.data) ? raw.data : raw
   const data: Record<string, unknown> = {}

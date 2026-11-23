@@ -1,6 +1,6 @@
 import { differenceInCalendarMonths, parseISO } from 'date-fns'
-import { brl, daysBetween, fmt, minutesLabel, mondayOf, num, num1, plural, shift } from './format'
-import type { Goal, JournalEntry, LogEntry, Metric, MetricType, Task } from './types'
+import { brl, daysBetween, fmt, minutesLabel, mondayOf, num, num1, plural, shift } from '@/shared/format'
+import type { Goal, JournalEntry, LogEntry, Metric, MetricType, Task } from '@/domain/types'
 
 export const METRIC_LABEL: Record<MetricType, { name: string; hint: string }> = {
   frequency: { name: 'Frequência', hint: 'Vezes por semana. Ex.: academia 3 a 4x.' },
@@ -13,8 +13,7 @@ export const METRIC_LABEL: Record<MetricType, { name: string; hint: string }> = 
 export const inRange = (date: string, start: string, end: string) => date >= start && date <= end
 const clamp = (value: number) => Math.max(0, Math.min(1, value))
 
-export const logsOf = (logs: LogEntry[], goalId: string) =>
-  logs.filter(log => log.goalId === goalId).sort((a, b) => a.date.localeCompare(b.date))
+export const logsOf = (logs: LogEntry[], goalId: string) => logs.filter(log => log.goalId === goalId).sort((a, b) => a.date.localeCompare(b.date))
 
 export function amount(metric: Metric, value: number) {
   if (metric.type === 'sum') return metric.currency ? brl(value) : `${num1(value)} ${metric.unit}`
@@ -176,7 +175,8 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
     case 'days': {
       const remaining = Math.max(0, m.target - progress.current)
       if (remaining <= 0) return make('done', 'Você completou o que definiu.')
-      const what = m.unit === 'horas' ? `${num1(remaining)} ${plural(Math.ceil(remaining), 'hora', 'horas')}` : `${remaining} ${plural(remaining, 'dia', 'dias')}`
+      const what =
+        m.unit === 'horas' ? `${num1(remaining)} ${plural(Math.ceil(remaining), 'hora', 'horas')}` : `${remaining} ${plural(remaining, 'dia', 'dias')}`
       return make(
         byRatio(progress.ratio, time),
         `${plural(Math.ceil(remaining), 'Falta', 'Faltam')} ${what}. ${plural(daysLeft, 'Resta', 'Restam')} ${daysLeft} ${plural(daysLeft, 'dia', 'dias')} no calendário até ${fmt(goal.deadline, "d 'de' MMMM")}.`,
@@ -221,7 +221,10 @@ export function weeklyCounts(goal: Goal, allLogs: LogEntry[], today: string, wee
   return Array.from({ length: weeks }, (_, index) => {
     const start = shift(thisWeek, -7 * (weeks - 1 - index))
     const end = shift(start, 6)
-    return { week: fmt(start, 'd/M'), count: goal.metric.type === 'frequency' ? daysBetweenDates(logs, start, end) : logs.filter(log => inRange(log.date, start, end)).length }
+    return {
+      week: fmt(start, 'd/M'),
+      count: goal.metric.type === 'frequency' ? daysBetweenDates(logs, start, end) : logs.filter(log => inRange(log.date, start, end)).length,
+    }
   })
 }
 
@@ -252,15 +255,20 @@ export interface Suggestion {
  * Tarefas que as metas recorrentes propõem para hoje.
  * Metas de soma não geram tarefa diária: só um lembrete mensal.
  */
-export function suggestTasks(goals: Goal[], logs: LogEntry[], tasks: Task[], today: string, archivedAreas: Set<string>, scheduledGoals: Set<string> = new Set()): Suggestion[] {
+export function suggestTasks(
+  goals: Goal[],
+  logs: LogEntry[],
+  tasks: Task[],
+  today: string,
+  archivedAreas: Set<string>,
+  scheduledGoals: Set<string> = new Set(),
+): Suggestion[] {
   const out: Suggestion[] = []
   for (const goal of goals) {
     if (archivedAreas.has(goal.areaId) || today > goal.deadline || today < goal.startDate) continue
     // meta com tarefa que se repete: a agenda já cuida dela
     if (scheduledGoals.has(goal.id)) continue
-    const open = tasks.some(
-      task => task.goalId === goal.id && ((task.date === today && !task.later) || (task.status === 'pending')),
-    )
+    const open = tasks.some(task => task.goalId === goal.id && ((task.date === today && !task.later) || task.status === 'pending'))
     if (open) continue
     const mine = logsOf(logs, goal.id)
     const m = goal.metric
@@ -280,8 +288,7 @@ export function suggestTasks(goals: Goal[], logs: LogEntry[], tasks: Task[], tod
       if (next) out.push({ ...base, key: `${goal.id}:${next.id}`, milestoneId: next.id, title: next.title, hint: 'Próxima etapa' })
     } else if (m.type === 'sum') {
       const month = today.slice(0, 7)
-      if (Number(today.slice(8)) >= 5 && !mine.some(log => log.date.startsWith(month)))
-        out.push({ ...base, hint: 'Lembrete do mês' })
+      if (Number(today.slice(8)) >= 5 && !mine.some(log => log.date.startsWith(month))) out.push({ ...base, hint: 'Lembrete do mês' })
     }
   }
   return out
@@ -309,11 +316,7 @@ const firstSentences = (text: string, max = 150) => {
   return stop > 40 ? cut.slice(0, stop + 1) : `${cut.slice(0, cut.lastIndexOf(' '))}…`
 }
 
-export function periodStats(
-  data: { goals: Goal[]; logs: LogEntry[]; tasks: Task[]; journal: JournalEntry[] },
-  start: string,
-  end: string,
-): PeriodStats {
+export function periodStats(data: { goals: Goal[]; logs: LogEntry[]; tasks: Task[]; journal: JournalEntry[] }, start: string, end: string): PeriodStats {
   const advanced: PeriodStats['advanced'] = []
   const stalled: Goal[] = []
   for (const goal of data.goals) {
@@ -332,7 +335,10 @@ export function periodStats(
       text = `${days} ${m.noun}`
       ratio = clamp(days / (m.min * weeks))
     } else if (m.type === 'sum') {
-      text = `+ ${amount(m, logs.reduce((sum, log) => sum + (log.value ?? 0), 0))}`
+      text = `+ ${amount(
+        m,
+        logs.reduce((sum, log) => sum + (log.value ?? 0), 0),
+      )}`
     } else if (m.type === 'value') {
       const first = logs[0].value ?? m.from
       const last = logs.at(-1)?.value ?? first

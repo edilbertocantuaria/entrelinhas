@@ -2,12 +2,12 @@
 
 import { Minus, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { brl, fmt, minutesLabel, num, parseNum } from '@/lib/format'
-import { logsOf, nextMilestone, progressOf } from '@/lib/goals'
-import { useStore } from '@/lib/store'
-import { useClock } from '@/lib/time'
-import { guessKind, isFitnessGoal, kindOf, WORKOUT_KINDS } from '@/lib/fitness'
-import type { Goal, LogEntry, Task, WorkoutKind, WorkoutSet } from '@/lib/types'
+import { brl, fmt, minutesLabel, num, parseNum } from '@/shared/format'
+import { logsOf, nextMilestone, progressOf } from '@/domain/goals'
+import { useStore } from '@/shared/store'
+import { useClock } from '@/shared/time'
+import { guessKind, isFitnessGoal, kindOf, WORKOUT_KINDS } from '@/domain/fitness'
+import type { Goal, LogEntry, Task, WorkoutKind, WorkoutSet } from '@/domain/types'
 import { useShell } from './app-shell'
 import { Button } from './ui/button'
 import { Chip, Field } from './ui/controls'
@@ -96,7 +96,11 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
 
   const milestone = m.type === 'milestones' ? (m.items.find(item => item.id === task?.milestoneId) ?? nextMilestone(goal, logs)) : undefined
   const amountValue = parseNum(amountText)
-  const invalid = (m.type === 'sum' && !(amountValue > 0)) || (m.type === 'milestones' && !milestone) || (m.type === 'days' && minutes <= 0) || (m.type === 'value' && Number.isNaN(measure))
+  const invalid =
+    (m.type === 'sum' && !(amountValue > 0)) ||
+    (m.type === 'milestones' && !milestone) ||
+    (m.type === 'days' && minutes <= 0) ||
+    (m.type === 'value' && Number.isNaN(measure))
 
   const submit = () => {
     if (invalid) return
@@ -163,11 +167,25 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
           </div>
           <div className={kindDef?.distance ? 'grid grid-cols-2 gap-3' : ''}>
             <Field label="Duração (min, opcional)" htmlFor="log-minutos">
-              <input id="log-minutos" className="field" inputMode="numeric" placeholder="45" value={activityMinutes} onChange={event => setActivityMinutes(event.target.value)} />
+              <input
+                id="log-minutos"
+                className="field"
+                inputMode="numeric"
+                placeholder="45"
+                value={activityMinutes}
+                onChange={event => setActivityMinutes(event.target.value)}
+              />
             </Field>
             {kindDef?.distance && (
               <Field label="Distância (km)" htmlFor="log-km">
-                <input id="log-km" className="field" inputMode="decimal" placeholder="3,5" value={distance} onChange={event => setDistance(event.target.value)} />
+                <input
+                  id="log-km"
+                  className="field"
+                  inputMode="decimal"
+                  placeholder="3,5"
+                  value={distance}
+                  onChange={event => setDistance(event.target.value)}
+                />
               </Field>
             )}
           </div>
@@ -186,9 +204,20 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
             <fieldset key={index} className="card flex flex-col gap-2 p-3">
               <legend className="sr-only">Exercício {index + 1}</legend>
               <div className="flex gap-1">
-                <input className="field" aria-label={`Exercício ${index + 1}`} placeholder="Exercício (ex.: agachamento)" value={row.exercise} onChange={event => updateRow(index, { exercise: event.target.value })} />
+                <input
+                  className="field"
+                  aria-label={`Exercício ${index + 1}`}
+                  placeholder="Exercício (ex.: agachamento)"
+                  value={row.exercise}
+                  onChange={event => updateRow(index, { exercise: event.target.value })}
+                />
                 {rows.length > 1 && (
-                  <button type="button" className="icon-btn" aria-label={`Remover exercício ${index + 1}`} onClick={() => setRows(rows.filter((_, i) => i !== index))}>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={`Remover exercício ${index + 1}`}
+                    onClick={() => setRows(rows.filter((_, i) => i !== index))}
+                  >
                     <Trash2 size={18} strokeWidth={1.75} />
                   </button>
                 )}
@@ -203,7 +232,12 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
                 ).map(([key, label]) => (
                   <label key={key} className="flex flex-col gap-1 text-[12px] text-muted">
                     {label}
-                    <input className="field text-center" inputMode="decimal" value={row[key]} onChange={event => updateRow(index, { [key]: event.target.value })} />
+                    <input
+                      className="field text-center"
+                      inputMode="decimal"
+                      value={row[key]}
+                      onChange={event => updateRow(index, { [key]: event.target.value })}
+                    />
                   </label>
                 ))}
               </div>
@@ -279,11 +313,23 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
             <legend className="mb-1.5 text-[13px] text-muted">Ou digite o tempo</legend>
             <div className="flex items-center gap-2">
               <label className="flex flex-1 items-center gap-2">
-                <input className="field text-center" inputMode="numeric" aria-label="Horas" value={hoursText} onChange={event => setHoursText(event.target.value.replace(/\D/g, '').slice(0, 2))} />
+                <input
+                  className="field text-center"
+                  inputMode="numeric"
+                  aria-label="Horas"
+                  value={hoursText}
+                  onChange={event => setHoursText(event.target.value.replace(/\D/g, '').slice(0, 2))}
+                />
                 <span className="text-[14px] text-muted">h</span>
               </label>
               <label className="flex flex-1 items-center gap-2">
-                <input className="field text-center" inputMode="numeric" aria-label="Minutos" value={minsText} onChange={event => setMinsText(event.target.value.replace(/\D/g, '').slice(0, 3))} />
+                <input
+                  className="field text-center"
+                  inputMode="numeric"
+                  aria-label="Minutos"
+                  value={minsText}
+                  onChange={event => setMinsText(event.target.value.replace(/\D/g, '').slice(0, 3))}
+                />
                 <span className="text-[14px] text-muted">min</span>
               </label>
             </div>

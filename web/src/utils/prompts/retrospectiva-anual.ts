@@ -46,12 +46,31 @@ Responda neste formato:
   user: entrada =>
     juntar(
       `Ano: ${entrada.ano}${entrada.comecouEm ? ` (começou a usar o app em ${entrada.comecouEm})` : ''}`,
-      bloco('Números', [`- dias com diário: ${entrada.numeros.diasComDiario}`, `- tarefas feitas: ${entrada.numeros.tarefasFeitas}`, `- metas ativas: ${entrada.numeros.metasAtivas}`]),
-      bloco('Por área', entrada.porArea.map(item => `- ${item.area}: ${item.linha}`)),
-      bloco('Metas', entrada.metas.map(item => `- ${item.meta}: ${item.progresso} (${item.situacao})`)),
-      bloco('Humor médio por mês', entrada.humorPorMes.map(item => `- ${item.mes}: ${item.media.toFixed(1).replace('.', ',')} de 5`)),
-      bloco('Módulos', (entrada.modulos ?? []).map(linha => `- ${linha}`)),
-      bloco('Entradas do diário', entrada.trechos.slice(-60).map(item => `- ${item.data}: ${cortar(item.texto.replace(/\s+/g, ' '), 400)}`)),
+      bloco('Números', [
+        `- dias com diário: ${entrada.numeros.diasComDiario}`,
+        `- tarefas feitas: ${entrada.numeros.tarefasFeitas}`,
+        `- metas ativas: ${entrada.numeros.metasAtivas}`,
+      ]),
+      bloco(
+        'Por área',
+        entrada.porArea.map(item => `- ${item.area}: ${item.linha}`),
+      ),
+      bloco(
+        'Metas',
+        entrada.metas.map(item => `- ${item.meta}: ${item.progresso} (${item.situacao})`),
+      ),
+      bloco(
+        'Humor médio por mês',
+        entrada.humorPorMes.map(item => `- ${item.mes}: ${item.media.toFixed(1).replace('.', ',')} de 5`),
+      ),
+      bloco(
+        'Módulos',
+        (entrada.modulos ?? []).map(linha => `- ${linha}`),
+      ),
+      bloco(
+        'Entradas do diário',
+        entrada.trechos.slice(-60).map(item => `- ${item.data}: ${cortar(item.texto.replace(/\s+/g, ' '), 400)}`),
+      ),
     ),
   maxTokens: 1000,
   parse: bruto => {

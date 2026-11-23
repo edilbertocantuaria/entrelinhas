@@ -3,19 +3,18 @@
 import { ChevronLeft, Cloud, CloudRain, CloudSun, Sparkles, Sun, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import type { ReactNode } from 'react'
-import { areaColor, areaIcon } from '@/lib/areas'
-import { PACE_LABEL, type PaceStatus } from '@/lib/goals'
-import { useStore } from '@/lib/store'
-import type { Area } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { createElement, type ReactNode } from 'react'
+import { areaColor, areaIcon } from '@/domain/areas'
+import { PACE_LABEL, type PaceStatus } from '@/domain/goals'
+import { useStore } from '@/shared/store'
+import type { Area } from '@/domain/types'
+import { cn } from '@/shared/utils'
 import { Illustration, useIllustrations, type IllustrationName } from './illustration'
 
 // ---------- Áreas ----------
 
 /** Ícone da área (14px) num círculo tingido com a cor da área. */
 export function AreaIcon({ area, size = 24 }: { area: Pick<Area, 'icon' | 'color'> | undefined; size?: number }) {
-  const Icon = areaIcon(area?.icon)
   const color = areaColor(area?.color)
   return (
     <span
@@ -23,7 +22,8 @@ export function AreaIcon({ area, size = 24 }: { area: Pick<Area, 'icon' | 'color
       className="inline-grid shrink-0 place-items-center rounded-full"
       style={{ width: size, height: size, color, background: `color-mix(in srgb, ${color} 20%, var(--surface))` }}
     >
-      <Icon size={Math.max(14, Math.round(size * 0.52))} strokeWidth={1.75} />
+      {/* o ícone vem de uma lista fixa (lib lucide); createElement evita "criar componente durante a renderização" */}
+      {createElement(areaIcon(area?.icon), { size: Math.max(14, Math.round(size * 0.52)), strokeWidth: 1.75 })}
     </span>
   )
 }
@@ -163,7 +163,17 @@ export function BackButton({ href, label = 'Voltar' }: { href?: string; label?: 
 }
 
 /** Título de seção com uma ilustração redonda pequena (ou ícone, sem ilustrações). */
-export function SectionTitle({ title, illustration, icon: Icon, children }: { title: string; illustration?: IllustrationName; icon?: LucideIcon; children?: ReactNode }) {
+export function SectionTitle({
+  title,
+  illustration,
+  icon: Icon,
+  children,
+}: {
+  title: string
+  illustration?: IllustrationName
+  icon?: LucideIcon
+  children?: ReactNode
+}) {
   const showArt = useIllustrations('extra')
   return (
     <div className="flex items-center gap-3">

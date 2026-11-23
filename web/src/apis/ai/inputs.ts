@@ -1,9 +1,9 @@
 import type { EntradaPeriodo } from '@/utils/prompts'
-import { fmt, minutesLabel, plural } from '../format'
-import { inRange, PACE_LABEL, paceOf, periodStats } from '../goals'
-import { aggregate, aggregateText } from '../modules'
-import { periodLabel } from '../summaries'
-import type { AppData, Summary } from '../types'
+import { fmt, minutesLabel, plural } from '@/shared/format'
+import { inRange, PACE_LABEL, paceOf, periodStats } from '@/domain/goals'
+import { aggregate, aggregateText } from '@/domain/modules'
+import { periodLabel } from '@/domain/summaries'
+import type { AppData, Summary } from '@/domain/types'
 
 /**
  * Monta os dados de um resumo para a IA. Só vai o necessário:
@@ -16,21 +16,21 @@ export function periodInput(data: AppData, summary: Pick<Summary, 'kind' | 'star
   const tasks = data.tasks.filter(task => inRange(task.date, start, end))
 
   const modulos: string[] = []
-  for (const module of data.modules.filter(item => !item.hidden)) {
-    if (module.kind === 'fitness') {
+  for (const mod of data.modules.filter(item => !item.hidden)) {
+    if (mod.kind === 'fitness') {
       const count = data.workouts.filter(item => inRange(item.date, start, end)).length
-      if (count) modulos.push(`${module.name}: ${count} ${plural(count, 'treino', 'treinos')}`)
-    } else if (module.kind === 'study') {
+      if (count) modulos.push(`${mod.name}: ${count} ${plural(count, 'treino', 'treinos')}`)
+    } else if (mod.kind === 'study') {
       const sessions = data.studySessions.filter(item => inRange(item.date, start, end))
       const minutes = sessions.reduce((sum, item) => sum + item.minutes, 0)
-      if (sessions.length) modulos.push(`${module.name}: ${minutesLabel(minutes)} em ${sessions.length} ${plural(sessions.length, 'sessão', 'sessões')}`)
+      if (sessions.length) modulos.push(`${mod.name}: ${minutesLabel(minutes)} em ${sessions.length} ${plural(sessions.length, 'sessão', 'sessões')}`)
     } else {
-      const entries = data.moduleEntries.filter(entry => entry.moduleId === module.id && inRange(entry.date, start, end))
+      const entries = data.moduleEntries.filter(entry => entry.moduleId === mod.id && inRange(entry.date, start, end))
       if (!entries.length) continue
-      const totals = module.fields
+      const totals = mod.fields
         .filter(field => field.type === 'number' || field.type === 'duration' || field.type === 'scale')
         .map(field => `${field.label.toLocaleLowerCase('pt-BR')} ${field.type === 'scale' ? 'média ' : ''}${aggregateText(field, aggregate(field, entries))}`)
-      modulos.push(`${module.name}: ${entries.length} ${plural(entries.length, 'registro', 'registros')}${totals.length ? ` (${totals.join(', ')})` : ''}`)
+      modulos.push(`${mod.name}: ${entries.length} ${plural(entries.length, 'registro', 'registros')}${totals.length ? ` (${totals.join(', ')})` : ''}`)
     }
   }
 

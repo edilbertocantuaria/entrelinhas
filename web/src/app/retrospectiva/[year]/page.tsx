@@ -53,7 +53,14 @@ export default function RetroStoryPage() {
   return (
     <div className="flex h-full flex-col bg-primary-soft">
       <div className="flex items-center gap-2 px-4 pt-3">
-        <div className="flex flex-1 gap-1" role="progressbar" aria-label="Progresso da retrospectiva" aria-valuemin={1} aria-valuemax={total} aria-valuenow={index + 1}>
+        <div
+          className="flex flex-1 gap-1"
+          role="progressbar"
+          aria-label="Progresso da retrospectiva"
+          aria-valuemin={1}
+          aria-valuemax={total}
+          aria-valuenow={index + 1}
+        >
           {cards.map((item, position) => (
             <span key={item.key} className={cn('h-1 flex-1 rounded-full', position <= index ? 'bg-primary' : 'bg-surface')} />
           ))}
@@ -97,7 +104,13 @@ export default function RetroStoryPage() {
         <p className="text-[12px] text-ink/80 tabular-nums">
           {index + 1} de {total}
         </p>
-        <button type="button" className="icon-btn text-ink disabled:opacity-30" aria-label="Próximo cartão" disabled={index === total - 1} onClick={() => go(1)}>
+        <button
+          type="button"
+          className="icon-btn text-ink disabled:opacity-30"
+          aria-label="Próximo cartão"
+          disabled={index === total - 1}
+          onClick={() => go(1)}
+        >
           <ChevronRight size={20} strokeWidth={1.75} />
         </button>
       </div>

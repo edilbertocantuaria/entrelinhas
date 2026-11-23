@@ -1,6 +1,22 @@
 'use client'
 
-import { Bell, ChevronRight, Cloud, Download, Eraser, Upload, Image as ImageIcon, LayoutGrid, Leaf, LogOut, Mail, Monitor, Moon, Settings2, Sun } from 'lucide-react'
+import {
+  Bell,
+  ChevronRight,
+  Cloud,
+  Download,
+  Eraser,
+  Upload,
+  Image as ImageIcon,
+  LayoutGrid,
+  Leaf,
+  LogOut,
+  Mail,
+  Monitor,
+  Moon,
+  Settings2,
+  Sun,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRef, useState, type ReactNode } from 'react'
 import { buildBackup, parseBackup, type ParsedBackup } from '@/domain/backup'
@@ -52,7 +68,7 @@ export default function SettingsPage() {
   const importData = useStore(state => state.importData)
   const fileInput = useRef<HTMLInputElement>(null)
   // backup lido e conferido, esperando a confirmação
-  const [pending, setPending] = useState<Extract<ParsedBackup, { ok: true }> & { fileName: string } | null>(null)
+  const [pending, setPending] = useState<(Extract<ParsedBackup, { ok: true }> & { fileName: string }) | null>(null)
   const [importError, setImportError] = useState('')
 
   const exportData = () => {
@@ -121,13 +137,31 @@ export default function SettingsPage() {
             <p className="text-[14px]">Horário de silêncio</p>
             <p className="text-[12px] text-muted">Nenhum lembrete neste intervalo.</p>
             <div className="mt-2 flex items-center gap-2 text-[13px] text-muted">
-              <input type="time" aria-label="Início do silêncio" className={timeField} value={settings.quietFrom} onChange={event => set({ quietFrom: event.target.value })} />
+              <input
+                type="time"
+                aria-label="Início do silêncio"
+                className={timeField}
+                value={settings.quietFrom}
+                onChange={event => set({ quietFrom: event.target.value })}
+              />
               às
-              <input type="time" aria-label="Fim do silêncio" className={timeField} value={settings.quietTo} onChange={event => set({ quietTo: event.target.value })} />
+              <input
+                type="time"
+                aria-label="Fim do silêncio"
+                className={timeField}
+                value={settings.quietTo}
+                onChange={event => set({ quietTo: event.target.value })}
+              />
             </div>
           </div>
           <Row title="Virada do dia" hint="Antes desse horário ainda conta como ontem." htmlFor="virada">
-            <input id="virada" type="time" className={timeField} value={settings.rollover} onChange={event => event.target.value && set({ rollover: event.target.value })} />
+            <input
+              id="virada"
+              type="time"
+              className={timeField}
+              value={settings.rollover}
+              onChange={event => event.target.value && set({ rollover: event.target.value })}
+            />
           </Row>
         </div>
       </section>
@@ -159,8 +193,22 @@ export default function SettingsPage() {
             <div className="py-3">
               <p className="text-[14px]">Quando gerar a retrospectiva</p>
               <div className="mt-2 flex gap-2">
-                <input type="date" aria-label="Data da retrospectiva" className="field min-w-0 flex-1" min={`${year}-12-01`} max={`${year}-12-31`} value={retroDate} onChange={event => event.target.value && set({ retroDate: event.target.value })} />
-                <input type="time" aria-label="Horário da retrospectiva" className={timeField} value={settings.retroTime} onChange={event => event.target.value && set({ retroTime: event.target.value })} />
+                <input
+                  type="date"
+                  aria-label="Data da retrospectiva"
+                  className="field min-w-0 flex-1"
+                  min={`${year}-12-01`}
+                  max={`${year}-12-31`}
+                  value={retroDate}
+                  onChange={event => event.target.value && set({ retroDate: event.target.value })}
+                />
+                <input
+                  type="time"
+                  aria-label="Horário da retrospectiva"
+                  className={timeField}
+                  value={settings.retroTime}
+                  onChange={event => event.target.value && set({ retroTime: event.target.value })}
+                />
               </div>
               <p className="mt-1.5 flex items-center gap-2 text-[12px] text-muted">
                 <span className="flex-1">Padrão: penúltima quinta de dezembro ({fmt(defaultRetro, "d 'de' MMM")}), às 20:00.</span>
@@ -209,7 +257,11 @@ export default function SettingsPage() {
           ]}
         />
         <p className="mt-1.5 text-[12px] text-muted">
-          {settings.illustrations === 'many' ? 'Ilustrações em todo o app.' : settings.illustrations === 'few' ? 'Só em telas vazias, boas-vindas e retrospectiva.' : 'Apenas ícones.'}
+          {settings.illustrations === 'many'
+            ? 'Ilustrações em todo o app.'
+            : settings.illustrations === 'few'
+              ? 'Só em telas vazias, boas-vindas e retrospectiva.'
+              : 'Apenas ícones.'}
         </p>
       </section>
 
@@ -224,9 +276,19 @@ export default function SettingsPage() {
                 <AreaIcon area={areas.find(area => area.id === goal.areaId)} />
                 <span className="min-w-0 flex-1 truncate text-[14px]">{goal.title}</span>
                 {goal.reminder.on && (
-                  <input type="time" aria-label={`Horário do lembrete de ${goal.title}`} className={timeField} value={goal.reminder.time} onChange={event => event.target.value && updateGoal(goal.id, { reminder: { ...goal.reminder, time: event.target.value } })} />
+                  <input
+                    type="time"
+                    aria-label={`Horário do lembrete de ${goal.title}`}
+                    className={timeField}
+                    value={goal.reminder.time}
+                    onChange={event => event.target.value && updateGoal(goal.id, { reminder: { ...goal.reminder, time: event.target.value } })}
+                  />
                 )}
-                <Switch label={`Lembrete de ${goal.title}`} checked={goal.reminder.on} onChange={on => updateGoal(goal.id, { reminder: { ...goal.reminder, on } })} />
+                <Switch
+                  label={`Lembrete de ${goal.title}`}
+                  checked={goal.reminder.on}
+                  onChange={on => updateGoal(goal.id, { reminder: { ...goal.reminder, on } })}
+                />
               </li>
             ))}
           </ul>
@@ -235,7 +297,9 @@ export default function SettingsPage() {
 
       <section className="card mt-4 p-4">
         <SectionTitle title="Backup e sincronização" illustration="settings-backup" icon={Cloud} />
-        <p className="mt-3 text-[13px] text-muted">Seus dados ficam só neste aparelho. Exporte um arquivo para guardar uma cópia ou levar para outro aparelho, e importe para trazer de volta.</p>
+        <p className="mt-3 text-[13px] text-muted">
+          Seus dados ficam só neste aparelho. Exporte um arquivo para guardar uma cópia ou levar para outro aparelho, e importe para trazer de volta.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={exportData}>
             <Download size={16} strokeWidth={1.75} aria-hidden />
@@ -314,7 +378,13 @@ export default function SettingsPage() {
             </label>
             <p className="text-[12px] text-muted">Para testar a virada do mês, os resumos e a retrospectiva (24 de dezembro de 2026).</p>
             <div className="mt-2 flex gap-2">
-              <input id="data-simulada" type="date" className="field min-w-0 flex-1" value={settings.demoDate ?? ''} onChange={event => set({ demoDate: event.target.value || null })} />
+              <input
+                id="data-simulada"
+                type="date"
+                className="field min-w-0 flex-1"
+                value={settings.demoDate ?? ''}
+                onChange={event => set({ demoDate: event.target.value || null })}
+              />
               {settings.demoDate && (
                 <Button variant="ghost" size="sm" className="h-12" onClick={() => set({ demoDate: null })}>
                   Usar data real
@@ -336,7 +406,12 @@ export default function SettingsPage() {
 
       <ClearGoalsSheet open={clearing} onClose={() => setClearing(false)} />
 
-      <Sheet open={resetting} onClose={() => setResetting(false)} title="Restaurar os dados de exemplo?" description="Tudo o que você criou neste aparelho é substituído pelo exemplo inicial, e as boas-vindas aparecem de novo.">
+      <Sheet
+        open={resetting}
+        onClose={() => setResetting(false)}
+        title="Restaurar os dados de exemplo?"
+        description="Tudo o que você criou neste aparelho é substituído pelo exemplo inicial, e as boas-vindas aparecem de novo."
+      >
         <div className="flex gap-2">
           <Button variant="ghost" className="flex-1" onClick={() => setResetting(false)}>
             Cancelar

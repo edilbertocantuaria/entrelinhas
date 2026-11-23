@@ -1,5 +1,5 @@
-import { brl, fmt, minutesLabel, mondayOf, num1, shift } from './format'
-import type { AppModule, ColorKey, FieldType, FieldValue, ModuleEntry, ModuleField } from './types'
+import { brl, fmt, minutesLabel, mondayOf, num1, shift } from '@/shared/format'
+import type { AppModule, ColorKey, FieldType, FieldValue, ModuleEntry, ModuleField } from '@/domain/types'
 
 export const MAX_MODULE_NAME = 24
 export const MAX_FIELDS = 8
@@ -16,7 +16,8 @@ export const FIELD_TYPES: { value: FieldType; label: string; hint: string }[] = 
 export const fieldTypeLabel = (type: FieldType) => FIELD_TYPES.find(item => item.value === type)?.label ?? type
 
 /** Onde fica a tela de cada módulo. */
-export const moduleHref = (module: Pick<AppModule, 'id' | 'kind'>) => (module.kind === 'fitness' ? '/fitness' : module.kind === 'study' ? '/estudos' : `/modulos/${module.id}`)
+export const moduleHref = (mod: Pick<AppModule, 'id' | 'kind'>) =>
+  mod.kind === 'fitness' ? '/fitness' : mod.kind === 'study' ? '/estudos' : `/modulos/${mod.id}`
 
 export const BUILTIN_MODULES: AppModule[] = [
   { id: 'fitness', kind: 'fitness', name: 'Fitness', icon: 'dumbbell', color: 'mar', order: 0, fields: [] },
@@ -137,8 +138,8 @@ export function valueText(field: ModuleField, value: FieldValue | undefined): st
 }
 
 /** Resumo de um registro em uma linha: "32 páginas · 40 min · Gostei: 4 de 5". Texto longo fica de fora. */
-export function entrySummary(module: AppModule, entry: ModuleEntry) {
-  return module.fields
+export function entrySummary(mod: AppModule, entry: ModuleEntry) {
+  return mod.fields
     .filter(field => field.type !== 'text')
     .map(field => valueText(field, entry.values[field.id]))
     .filter(Boolean)
@@ -146,10 +147,10 @@ export function entrySummary(module: AppModule, entry: ModuleEntry) {
 }
 
 /** Um campo de texto no topo da lista funciona como título do registro (ex.: o nome do livro). */
-const titleField = (module: AppModule) => (module.fields[0]?.type === 'text' ? module.fields[0] : undefined)
+const titleField = (mod: AppModule) => (mod.fields[0]?.type === 'text' ? mod.fields[0] : undefined)
 
-export function entryTitle(module: AppModule, entry: ModuleEntry) {
-  const field = titleField(module)
+export function entryTitle(mod: AppModule, entry: ModuleEntry) {
+  const field = titleField(mod)
   const value = field ? entry.values[field.id] : undefined
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -177,7 +178,7 @@ export function aggregateText(field: ModuleField, value: number | null) {
   return field.unit ? `${num1(value)} ${field.unit}` : num1(value)
 }
 
-export const chartFields = (module: AppModule) => module.fields.filter(field => field.type === 'number' || field.type === 'duration' || field.type === 'scale')
+export const chartFields = (mod: AppModule) => mod.fields.filter(field => field.type === 'number' || field.type === 'duration' || field.type === 'scale')
 
 export function weekEntries(entries: ModuleEntry[], today: string) {
   return entries.filter(entry => inRange(entry, mondayOf(today), today))
@@ -192,7 +193,10 @@ export function weeklyField(field: ModuleField, entries: ModuleEntry[], today: s
   const first = shift(mondayOf(today), -(weeks - 1) * 7)
   return Array.from({ length: weeks }, (_, index) => {
     const start = shift(first, index * 7)
-    const value = aggregate(field, entries.filter(entry => inRange(entry, start, shift(start, 6))))
+    const value = aggregate(
+      field,
+      entries.filter(entry => inRange(entry, start, shift(start, 6))),
+    )
     return { week: fmt(start, 'd/M'), value: value === null ? (field.type === 'scale' ? null : 0) : Math.round(value * 10) / 10 }
   })
 }
@@ -221,19 +225,26 @@ export function checkStats(field: ModuleField, entries: ModuleEntry[]) {
 }
 
 /** Anotações dos campos de texto, da mais recente para a mais antiga. */
-export function textNotes(module: AppModule, entries: ModuleEntry[]) {
-  const title = titleField(module)
-  const fields = module.fields.filter(field => field.type === 'text' && field !== title)
+export function textNotes(mod: AppModule, entries: ModuleEntry[]) {
+  const title = titleField(mod)
+  const fields = mod.fields.filter(field => field.type === 'text' && field !== title)
   return entries
-    .flatMap(entry => fields.map(field => ({ id: `${entry.id}-${field.id}`, label: field.label, text: typeof entry.values[field.id] === 'string' ? String(entry.values[field.id]).trim() : '', date: entry.date })))
+    .flatMap(entry =>
+      fields.map(field => ({
+        id: `${entry.id}-${field.id}`,
+        label: field.label,
+        text: typeof entry.values[field.id] === 'string' ? String(entry.values[field.id]).trim() : '',
+        date: entry.date,
+      })),
+    )
     .filter(note => note.text)
     .sort((a, b) => b.date.localeCompare(a.date))
 }
 
 /** Frase curta do cartão do módulo em Metas. */
-export function moduleCardText(module: AppModule, entries: ModuleEntry[], today: string) {
+export function moduleCardText(mod: AppModule, entries: ModuleEntry[], today: string) {
   const week = weekEntries(entries, today)
-  const sumField = module.fields.find(field => field.type === 'number' || field.type === 'duration')
+  const sumField = mod.fields.find(field => field.type === 'number' || field.type === 'duration')
   if (sumField && week.length) return `${aggregateText(sumField, aggregate(sumField, week))} na semana`
   return `${week.length} ${week.length === 1 ? 'registro' : 'registros'} na semana`
 }

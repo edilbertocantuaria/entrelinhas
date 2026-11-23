@@ -2,8 +2,8 @@
 
 import { Eye, EyeOff } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { cap } from '@/lib/format'
-import { useStore } from '@/lib/store'
+import { cap } from '@/shared/format'
+import { useStore } from '@/shared/store'
 import { Illustration } from './illustration'
 import { Button } from './ui/button'
 
@@ -117,7 +117,13 @@ export function Login() {
               aria-invalid={!!errors.password}
               aria-describedby={errors.password ? 'login-senha-erro' : signup ? 'login-senha-dica' : undefined}
             />
-            <button type="button" className="icon-btn absolute top-0.5 right-0.5" aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={visible} onClick={() => setVisible(!visible)}>
+            <button
+              type="button"
+              className="icon-btn absolute top-0.5 right-0.5"
+              aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+              aria-pressed={visible}
+              onClick={() => setVisible(!visible)}
+            >
               {visible ? <EyeOff size={20} strokeWidth={1.75} /> : <Eye size={20} strokeWidth={1.75} />}
             </button>
           </div>
@@ -146,7 +152,9 @@ export function Login() {
         </button>
       </p>
 
-      <p className="mt-auto pt-6 text-center text-[12px] leading-relaxed text-muted">Protótipo: a conta fica só neste aparelho. Qualquer e-mail e senha válidos entram, e a senha não é guardada.</p>
+      <p className="mt-auto pt-6 text-center text-[12px] leading-relaxed text-muted">
+        Protótipo: a conta fica só neste aparelho. Qualquer e-mail e senha válidos entram, e a senha não é guardada.
+      </p>
     </main>
   )
 }

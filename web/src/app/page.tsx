@@ -1,6 +1,20 @@
 'use client'
 
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, ListChecks, Plus, Repeat as RepeatIcon, Sun, Trash2, X } from 'lucide-react'
+import {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Ellipsis,
+  ListChecks,
+  Plus,
+  Repeat as RepeatIcon,
+  Sun,
+  Trash2,
+  X,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
@@ -97,8 +111,18 @@ function DayHeader({ date, today, part, onChange }: { date: string; today: strin
   }
   const week = Array.from({ length: 7 }, (_, index) => shift(weekStart, index))
   const showingOtherWeek = weekStart !== mondayOf(date)
-  const busy = (day: string) => tasks.some(task => task.date === day && !task.later && task.status !== 'dismissed') || (day >= today && plannedOn(rules, goals, tasks, day).length > 0)
-  const relative = date === today ? GREETING[part] : date === shift(today, 1) ? 'Amanhã' : date === shift(today, -1) ? 'Ontem' : date > today ? 'Dia planejado' : 'Dia que passou'
+  const busy = (day: string) =>
+    tasks.some(task => task.date === day && !task.later && task.status !== 'dismissed') || (day >= today && plannedOn(rules, goals, tasks, day).length > 0)
+  const relative =
+    date === today
+      ? GREETING[part]
+      : date === shift(today, 1)
+        ? 'Amanhã'
+        : date === shift(today, -1)
+          ? 'Ontem'
+          : date > today
+            ? 'Dia planejado'
+            : 'Dia que passou'
 
   const openPicker = () => {
     const input = picker.current
@@ -117,11 +141,24 @@ function DayHeader({ date, today, part, onChange }: { date: string; today: strin
           <Illustration name={`time-${part}`} height={72} />
         </div>
         <p className="text-[12px] text-muted">{relative}</p>
-        <button type="button" onClick={openPicker} className="-ml-1 flex items-center gap-1 rounded-ctl px-1 text-left" aria-label={`${longDay(date)}. Escolher outro dia`}>
+        <button
+          type="button"
+          onClick={openPicker}
+          className="-ml-1 flex items-center gap-1 rounded-ctl px-1 text-left"
+          aria-label={`${longDay(date)}. Escolher outro dia`}
+        >
           <h1 className="voice mt-0.5 text-[22px] leading-tight font-medium">{longDay(date)}</h1>
           <CalendarDays size={18} strokeWidth={1.75} aria-hidden className="shrink-0 text-muted" />
         </button>
-        <input ref={picker} type="date" tabIndex={-1} aria-hidden className="pointer-events-none absolute bottom-0 left-0 h-0 w-0 opacity-0" value={date} onChange={event => DAY_RE.test(event.target.value) && onChange(event.target.value)} />
+        <input
+          ref={picker}
+          type="date"
+          tabIndex={-1}
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-0 h-0 w-0 opacity-0"
+          value={date}
+          onChange={event => DAY_RE.test(event.target.value) && onChange(event.target.value)}
+        />
       </div>
 
       <nav aria-label="Dias da semana" className="mt-3 flex items-center gap-1">
@@ -162,13 +199,21 @@ function DayHeader({ date, today, part, onChange }: { date: string; today: strin
           </p>
         )}
         {date !== today && (
-          <button type="button" onClick={() => onChange(today)} className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-1 text-[13px] font-medium text-primary">
+          <button
+            type="button"
+            onClick={() => onChange(today)}
+            className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-1 text-[13px] font-medium text-primary"
+          >
             <Sun size={16} strokeWidth={1.75} aria-hidden />
             Voltar para hoje
           </button>
         )}
         {date === today && showingOtherWeek && (
-          <button type="button" onClick={() => setWeekStart(mondayOf(today))} className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-1 text-[13px] font-medium text-primary">
+          <button
+            type="button"
+            onClick={() => setWeekStart(mondayOf(today))}
+            className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-1 text-[13px] font-medium text-primary"
+          >
             <Sun size={16} strokeWidth={1.75} aria-hidden />
             Esta semana
           </button>
@@ -249,7 +294,10 @@ function TodayContent({ today }: { today: string }) {
           <h2 id="tarefas-titulo" className="text-[15px] font-medium">
             Tarefas
           </h2>
-          <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[12px] tabular-nums" aria-label={`${list.length} de ${maxTasks} tarefas no limite de hoje`}>
+          <span
+            className="rounded-full bg-primary-soft px-2 py-0.5 text-[12px] tabular-nums"
+            aria-label={`${list.length} de ${maxTasks} tarefas no limite de hoje`}
+          >
             {list.length} de {maxTasks}
           </span>
           <span className="flex-1" />
@@ -285,7 +333,12 @@ function TodayContent({ today }: { today: string }) {
                     className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-card py-2.5 pl-4 text-left"
                   >
                     <span className="relative grid size-6 shrink-0 place-items-center">
-                      <span className={cn('grid size-6 place-items-center rounded-full border-[1.5px] transition-colors', done ? 'border-primary bg-primary text-on-primary' : 'border-muted')}>
+                      <span
+                        className={cn(
+                          'grid size-6 place-items-center rounded-full border-[1.5px] transition-colors',
+                          done ? 'border-primary bg-primary text-on-primary' : 'border-muted',
+                        )}
+                      >
                         {done && <Check size={14} strokeWidth={2.5} aria-hidden />}
                       </span>
                       {burst === task.id && <StarBurst />}
@@ -322,7 +375,13 @@ function TodayContent({ today }: { today: string }) {
 
       {later.length > 0 && (
         <section className="mt-4">
-          <button type="button" aria-expanded={laterOpen} aria-controls="depois" onClick={() => setLaterOpen(!laterOpen)} className="flex min-h-11 w-full items-center gap-2 rounded-ctl px-1 text-left text-muted">
+          <button
+            type="button"
+            aria-expanded={laterOpen}
+            aria-controls="depois"
+            onClick={() => setLaterOpen(!laterOpen)}
+            className="flex min-h-11 w-full items-center gap-2 rounded-ctl px-1 text-left text-muted"
+          >
             <span className="text-[14px]">Depois</span>
             <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[12px] text-ink tabular-nums">{later.length}</span>
             <span className="flex-1" />
@@ -375,7 +434,13 @@ function TodayContent({ today }: { today: string }) {
         )}
       </div>
 
-      <LogSheet goalId={logTask?.goalId} task={logTask ?? undefined} open={!!logTask} onClose={() => setLogTask(null)} onLogged={() => logTask && celebrate(logTask.id)} />
+      <LogSheet
+        goalId={logTask?.goalId}
+        task={logTask ?? undefined}
+        open={!!logTask}
+        onClose={() => setLogTask(null)}
+        onLogged={() => logTask && celebrate(logTask.id)}
+      />
 
       <AddTaskSheet
         open={adding}
@@ -497,7 +562,14 @@ function MoveSheet({ task, today, onClose }: { task: Task | null; today: string;
             </Chip>
           ))}
         </div>
-        <input type="date" aria-label="Novo dia" className="field" min={today} value={value} onChange={event => DAY_RE.test(event.target.value) && setDate(event.target.value)} />
+        <input
+          type="date"
+          aria-label="Novo dia"
+          className="field"
+          min={today}
+          value={value}
+          onChange={event => DAY_RE.test(event.target.value) && setDate(event.target.value)}
+        />
         <Button
           block
           onClick={() => {
@@ -587,8 +659,21 @@ function OtherDay({ date, today }: { date: string; today: string }) {
             <ul className="card divide-y-[0.5px] divide-line">
               {real.map(task => (
                 <li key={task.id}>
-                  <button type="button" role="checkbox" aria-checked={task.status === 'done'} aria-disabled={onlyOnDay || undefined} onClick={() => toggle(task)} className="flex min-h-14 w-full items-center gap-3 rounded-card px-4 py-2.5 text-left">
-                    <span aria-hidden className={cn('grid size-6 shrink-0 place-items-center rounded-full border-[1.5px]', task.status === 'done' ? 'border-primary bg-primary text-on-primary' : 'border-muted')}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={task.status === 'done'}
+                    aria-disabled={onlyOnDay || undefined}
+                    onClick={() => toggle(task)}
+                    className="flex min-h-14 w-full items-center gap-3 rounded-card px-4 py-2.5 text-left"
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'grid size-6 shrink-0 place-items-center rounded-full border-[1.5px]',
+                        task.status === 'done' ? 'border-primary bg-primary text-on-primary' : 'border-muted',
+                      )}
+                    >
                       {task.status === 'done' && <Check size={14} strokeWidth={2.5} />}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -603,7 +688,9 @@ function OtherDay({ date, today }: { date: string; today: string }) {
           )}
           {real.some(task => task.status !== 'done') && (
             <p className="mt-2 px-1 text-[12px] text-muted">
-              {onlyOnDay ? 'Só para ver: em Ajustes, “Só marcar no dia” está ligado.' : 'Esqueceu de marcar? Toque na tarefa para registrar como feita neste dia.'}
+              {onlyOnDay
+                ? 'Só para ver: em Ajustes, “Só marcar no dia” está ligado.'
+                : 'Esqueceu de marcar? Toque na tarefa para registrar como feita neste dia.'}
             </p>
           )}
         </section>
@@ -656,7 +743,15 @@ function OtherDay({ date, today }: { date: string; today: string }) {
           <ul className="card divide-y-[0.5px] divide-line">
             {real.map(task => (
               <li key={task.id} className="flex min-h-[60px] items-center pr-1">
-                <button type="button" role="checkbox" aria-checked={false} aria-disabled={onlyOnDay || undefined} aria-label={`Concluir agora: ${task.title}`} onClick={() => toggle(task)} className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-card py-2.5 pl-4 text-left">
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={false}
+                  aria-disabled={onlyOnDay || undefined}
+                  aria-label={`Concluir agora: ${task.title}`}
+                  onClick={() => toggle(task)}
+                  className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-card py-2.5 pl-4 text-left"
+                >
                   <span aria-hidden className="size-6 shrink-0 rounded-full border-[1.5px] border-muted" />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5 text-[14px]">
@@ -673,7 +768,15 @@ function OtherDay({ date, today }: { date: string; today: string }) {
             ))}
             {planned.map(rule => (
               <li key={rule.id} className="flex min-h-[60px] items-center pr-1">
-                <button type="button" role="checkbox" aria-checked={false} aria-disabled={onlyOnDay || undefined} aria-label={`Concluir agora: ${rule.title}`} onClick={() => toggleRule(rule)} className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-card py-2.5 pl-4 text-left">
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={false}
+                  aria-disabled={onlyOnDay || undefined}
+                  aria-label={`Concluir agora: ${rule.title}`}
+                  onClick={() => toggleRule(rule)}
+                  className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-card py-2.5 pl-4 text-left"
+                >
                   <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-full border-[1.5px] border-dashed border-muted text-muted">
                     <RepeatIcon size={12} strokeWidth={2} />
                   </span>
@@ -708,7 +811,12 @@ function OtherDay({ date, today }: { date: string; today: string }) {
         onAdded={where => where === 'later' && toast(`Esse dia já tinha ${maxTasks} tarefas. A nova espera em Depois.`)}
       />
 
-      <Sheet open={!!menu} onClose={() => setMenu(null)} title={menu?.task?.title ?? menu?.rule?.title ?? ''} description={menu?.rule ? describe(menu.rule.repeat) : undefined}>
+      <Sheet
+        open={!!menu}
+        onClose={() => setMenu(null)}
+        title={menu?.task?.title ?? menu?.rule?.title ?? ''}
+        description={menu?.rule ? describe(menu.rule.repeat) : undefined}
+      >
         <div className="flex flex-col gap-2">
           {menu?.task && (
             <>
@@ -848,7 +956,11 @@ function JournalCard({ today }: { today: string }) {
               {goals.map(goal => {
                 const selected = tags.includes(goal.id)
                 return (
-                  <Chip key={goal.id} selected={selected} onClick={() => saveJournal(today, { goalIds: selected ? tags.filter(id => id !== goal.id) : [...tags, goal.id] })}>
+                  <Chip
+                    key={goal.id}
+                    selected={selected}
+                    onClick={() => saveJournal(today, { goalIds: selected ? tags.filter(id => id !== goal.id) : [...tags, goal.id] })}
+                  >
                     {goal.title}
                   </Chip>
                 )
@@ -894,7 +1006,17 @@ function AddTaskSheet({
   )
 }
 
-function AddTaskForm({ date, reserved, onClose, onAdded }: { date: string; reserved: number; onClose: () => void; onAdded: (where: 'today' | 'later') => void }) {
+function AddTaskForm({
+  date,
+  reserved,
+  onClose,
+  onAdded,
+}: {
+  date: string
+  reserved: number
+  onClose: () => void
+  onAdded: (where: 'today' | 'later') => void
+}) {
   const goals = useStore(state => state.goals)
   const addTask = useStore(state => state.addTask)
   const addRule = useStore(state => state.addRule)

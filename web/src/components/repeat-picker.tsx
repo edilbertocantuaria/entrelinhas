@@ -2,9 +2,9 @@
 
 import { Repeat as RepeatIcon } from 'lucide-react'
 import { useState } from 'react'
-import { describe, WEEKDAYS } from '@/lib/recurrence'
-import type { Repeat } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { describe, WEEKDAYS } from '@/domain/recurrence'
+import type { Repeat } from '@/domain/types'
+import { cn } from '@/shared/utils'
 import { Chip, Segmented, Stepper } from './ui/controls'
 
 type Preset = 'none' | 'daily' | 'business' | 'custom'
@@ -105,7 +105,12 @@ export function RepeatPicker({
               value={value.freq}
               onChange={event => {
                 const freq = event.target.value as Repeat['freq']
-                onChange({ ...value, freq, weekdays: freq === 'weekly' ? (value.weekdays?.length ? value.weekdays : [1]) : undefined, monthDay: freq === 'monthly' ? (value.monthDay ?? 1) : undefined })
+                onChange({
+                  ...value,
+                  freq,
+                  weekdays: freq === 'weekly' ? (value.weekdays?.length ? value.weekdays : [1]) : undefined,
+                  monthDay: freq === 'monthly' ? (value.monthDay ?? 1) : undefined,
+                })
               }}
             >
               <option value="daily">{value.interval === 1 ? 'dia' : 'dias'}</option>
@@ -125,7 +130,10 @@ export function RepeatPicker({
                     aria-pressed={on}
                     aria-label={day.long}
                     onClick={() => toggleDay(day.value)}
-                    className={cn('h-11 rounded-full border-[0.5px] text-[13px] transition-colors', on ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-muted')}
+                    className={cn(
+                      'h-11 rounded-full border-[0.5px] text-[13px] transition-colors',
+                      on ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-muted',
+                    )}
                   >
                     {day.short}
                   </button>
@@ -159,12 +167,25 @@ export function RepeatPicker({
               ]}
             />
             {value.end.type === 'date' && (
-              <input type="date" aria-label="Data em que a repetição termina" className="field" min={start} value={value.end.date} onChange={event => event.target.value && onChange({ ...value, end: { type: 'date', date: event.target.value } })} />
+              <input
+                type="date"
+                aria-label="Data em que a repetição termina"
+                className="field"
+                min={start}
+                value={value.end.date}
+                onChange={event => event.target.value && onChange({ ...value, end: { type: 'date', date: event.target.value } })}
+              />
             )}
             {value.end.type === 'count' && (
               <div className="flex items-center gap-2">
                 <span className="flex-1 text-[14px]">Quantas vezes</span>
-                <Stepper label="Número de vezes" min={1} max={365} value={value.end.count} onChange={count => onChange({ ...value, end: { type: 'count', count } })} />
+                <Stepper
+                  label="Número de vezes"
+                  min={1}
+                  max={365}
+                  value={value.end.count}
+                  onChange={count => onChange({ ...value, end: { type: 'count', count } })}
+                />
               </div>
             )}
           </div>

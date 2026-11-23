@@ -45,7 +45,10 @@ export default function OpenDayPage() {
       sections: [
         { title: 'Já estão em hoje', items: todays.filter(task => task.status === 'pending').map(toItem) },
         { title: 'Ficaram de dias anteriores', items: tasks.filter(task => !task.later && task.status === 'pending' && task.date < today).map(toItem) },
-        { title: 'Sugestões das suas metas', items: suggestions.map(item => ({ key: `s:${item.key}`, title: item.title, goalId: item.goalId, hint: item.hint })) },
+        {
+          title: 'Sugestões das suas metas',
+          items: suggestions.map(item => ({ key: `s:${item.key}`, title: item.title, goalId: item.goalId, hint: item.hint })),
+        },
         { title: 'Depois', items: tasks.filter(task => task.later && task.status === 'pending').map(toItem) },
       ].filter(section => section.items.length),
     }
@@ -55,7 +58,14 @@ export default function OpenDayPage() {
   const all = groups.sections.flatMap(section => section.items)
   // Pré-seleção: o que já estava em hoje, depois pendências e sugestões, até o limite
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(groups.sections.filter(section => section.title !== 'Depois').flatMap(section => section.items).slice(0, capacity).map(item => item.key)),
+    () =>
+      new Set(
+        groups.sections
+          .filter(section => section.title !== 'Depois')
+          .flatMap(section => section.items)
+          .slice(0, capacity)
+          .map(item => item.key),
+      ),
   )
 
   const toggle = (key: string) => {
@@ -104,8 +114,19 @@ export default function OpenDayPage() {
                 const on = selected.has(item.key)
                 return (
                   <li key={item.key}>
-                    <button type="button" role="checkbox" aria-checked={on} onClick={() => toggle(item.key)} className="flex min-h-[60px] w-full items-center gap-3 rounded-card px-4 py-2.5 text-left">
-                      <span className={cn('grid size-6 shrink-0 place-items-center rounded-[7px] border-[1.5px]', on ? 'border-primary bg-primary text-on-primary' : 'border-muted')}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      onClick={() => toggle(item.key)}
+                      className="flex min-h-[60px] w-full items-center gap-3 rounded-card px-4 py-2.5 text-left"
+                    >
+                      <span
+                        className={cn(
+                          'grid size-6 shrink-0 place-items-center rounded-[7px] border-[1.5px]',
+                          on ? 'border-primary bg-primary text-on-primary' : 'border-muted',
+                        )}
+                      >
                         {on && <Check size={14} strokeWidth={2.5} aria-hidden />}
                       </span>
                       <span className="min-w-0 flex-1">

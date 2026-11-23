@@ -11,7 +11,17 @@ import { ESTHER, EstherAvatar } from '@/components/esther'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Chip } from '@/components/ui/controls'
 import { askAI } from '@/apis/ai/client'
-import { deadlineText, describeMetric, fromProposal, goalSummary, goalToDraft, keepMilestoneIds, onlyChanged, saveDraft, type GoalDraft } from '@/domain/goal-draft'
+import {
+  deadlineText,
+  describeMetric,
+  fromProposal,
+  goalSummary,
+  goalToDraft,
+  keepMilestoneIds,
+  onlyChanged,
+  saveDraft,
+  type GoalDraft,
+} from '@/domain/goal-draft'
 import { describe } from '@/domain/recurrence'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
@@ -260,9 +270,18 @@ function GoalChat({ goal }: { goal?: Goal }) {
                   key={step.key}
                   title={done ? smart[step.key] : 'Ainda falta'}
                   aria-label={`${step.label}: ${done ? smart[step.key] : 'ainda falta'}`}
-                  className={cn('flex flex-col items-center gap-1 rounded-ctl px-0.5 py-1.5 text-[11px] leading-tight', done ? 'bg-primary-soft text-ink' : 'text-muted')}
+                  className={cn(
+                    'flex flex-col items-center gap-1 rounded-ctl px-0.5 py-1.5 text-[11px] leading-tight',
+                    done ? 'bg-primary-soft text-ink' : 'text-muted',
+                  )}
                 >
-                  <span aria-hidden className={cn('grid size-5 place-items-center rounded-full border-[1.5px]', done ? 'border-primary bg-primary text-on-primary' : 'border-line')}>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'grid size-5 place-items-center rounded-full border-[1.5px]',
+                      done ? 'border-primary bg-primary text-on-primary' : 'border-line',
+                    )}
+                  >
                     {done && <Check size={12} strokeWidth={2.5} />}
                   </span>
                   {step.label}
@@ -329,7 +348,11 @@ function GoalChat({ goal }: { goal?: Goal }) {
             <EstherAvatar size={30} />
             <p className="card flex items-center gap-1 rounded-bl-[4px] px-4 py-3.5" aria-label={`A ${ESTHER} está escrevendo`}>
               {[0, 1, 2].map(dot => (
-                <span key={dot} className="ill-twinkle size-1.5 rounded-full bg-muted" style={{ animationDelay: `${dot * 0.25}s`, animationDuration: '1.2s' }} />
+                <span
+                  key={dot}
+                  className="ill-twinkle size-1.5 rounded-full bg-muted"
+                  style={{ animationDelay: `${dot * 0.25}s`, animationDuration: '1.2s' }}
+                />
               ))}
             </p>
           </li>
@@ -338,7 +361,11 @@ function GoalChat({ goal }: { goal?: Goal }) {
         {failure && (
           <li className="card flex flex-col gap-2 p-3 text-[13px]" role="status">
             {failure === 'offline' && <p>Sem conexão agora. Sua mensagem continua aqui; tente de novo quando a internet voltar.</p>}
-            {failure === 'unavailable' && <p>A {ESTHER} não está disponível neste app agora. Dá para {editing ? 'editar a meta' : 'criar a meta'} passo a passo, do mesmo jeito.</p>}
+            {failure === 'unavailable' && (
+              <p>
+                A {ESTHER} não está disponível neste app agora. Dá para {editing ? 'editar a meta' : 'criar a meta'} passo a passo, do mesmo jeito.
+              </p>
+            )}
             {failure === 'error' && <p>Não consegui responder agora. Tente de novo em instantes.</p>}
             <div className="flex flex-wrap gap-2">
               {failure !== 'unavailable' && (
@@ -385,7 +412,12 @@ function GoalChat({ goal }: { goal?: Goal }) {
             }
           }}
         />
-        <button type="submit" disabled={!text.trim() || thinking} aria-label="Enviar" className="grid size-12 shrink-0 place-items-center rounded-full bg-primary text-on-primary disabled:opacity-40">
+        <button
+          type="submit"
+          disabled={!text.trim() || thinking}
+          aria-label="Enviar"
+          className="grid size-12 shrink-0 place-items-center rounded-full bg-primary text-on-primary disabled:opacity-40"
+        >
           <ArrowUp size={20} strokeWidth={2} />
         </button>
       </form>
@@ -430,12 +462,22 @@ function Review({
   const rows = rowsOf(draft)
   const oldRows = before ? rowsOf(before) : []
   const titleChanged = !!before && before.title !== draft.title
-  const changes = before ? rows.filter(([label, , value]) => oldRows.find(row => row[0] === label)?.[2] !== value).length + (titleChanged ? 1 : 0) + (before.areaId !== draft.areaId ? 1 : 0) : 0
+  const changes = before
+    ? rows.filter(([label, , value]) => oldRows.find(row => row[0] === label)?.[2] !== value).length +
+      (titleChanged ? 1 : 0) +
+      (before.areaId !== draft.areaId ? 1 : 0)
+    : 0
 
   return (
     <section className={cn('card w-full p-4', !current && 'opacity-60')} aria-label={`Proposta: ${draft.title}`}>
       <p className="text-[12px] text-muted">
-        {!current ? 'Versão anterior' : before ? (changes ? `Revise o ajuste: ${changes} ${changes === 1 ? 'mudança' : 'mudanças'}` : 'Nada mudou nesta versão') : 'Revise antes de criar'}
+        {!current
+          ? 'Versão anterior'
+          : before
+            ? changes
+              ? `Revise o ajuste: ${changes} ${changes === 1 ? 'mudança' : 'mudanças'}`
+              : 'Nada mudou nesta versão'
+            : 'Revise antes de criar'}
       </p>
       <h2 className="mt-0.5 text-[17px] font-medium">
         {draft.title}

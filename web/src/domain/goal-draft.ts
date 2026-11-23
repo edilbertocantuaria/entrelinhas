@@ -1,14 +1,17 @@
 import type { CampoMeta, MetaProposta } from '@/utils/prompts'
-import { fmt, shift, uid } from './format'
-import { amount } from './goals'
-import { describe } from './recurrence'
-import type { Area, Goal, Metric, RecurringTask, Repeat } from './types'
+import { fmt, shift, uid } from '@/shared/format'
+import { amount } from '@/domain/goals'
+import { describe } from '@/domain/recurrence'
+import type { Area, Goal, Metric, RecurringTask, Repeat } from '@/domain/types'
 
 /**
  * Rascunho de meta: tudo o que o passo a passo precisa para abrir já preenchido.
  * Vem do chat com a IA ("Editar campos") e é guardado na aba do navegador até ser usado.
  */
-export interface GoalDraft extends Pick<Goal, 'title' | 'areaId' | 'description' | 'metric' | 'startingPoint' | 'achievableNote' | 'why' | 'deadline' | 'taskTitle' | 'reminder'> {
+export interface GoalDraft extends Pick<
+  Goal,
+  'title' | 'areaId' | 'description' | 'metric' | 'startingPoint' | 'achievableNote' | 'why' | 'deadline' | 'taskTitle' | 'reminder'
+> {
   art?: string
   /** null = sem repetição; undefined = deixar a sugestão automática */
   repeat?: Repeat | null
@@ -45,7 +48,8 @@ export function clearDraft() {
 
 /** "3 a 4 treinos por semana", "Somar até R$ 5.000,00"... */
 export function describeMetric(metric: Metric) {
-  if (metric.type === 'frequency') return metric.min === metric.max ? `${metric.min} ${metric.noun} por semana` : `${metric.min} a ${metric.max} ${metric.noun} por semana`
+  if (metric.type === 'frequency')
+    return metric.min === metric.max ? `${metric.min} ${metric.noun} por semana` : `${metric.min} a ${metric.max} ${metric.noun} por semana`
   if (metric.type === 'sum') return `Somar até ${amount(metric, metric.target)}`
   if (metric.type === 'value') return `De ${amount(metric, metric.from)} para ${amount(metric, metric.to)}`
   if (metric.type === 'milestones') return `${metric.items.length} etapas: ${metric.items.map(item => item.title).join(', ')}`
@@ -61,8 +65,10 @@ function toMetric(m: MetaProposta['medida']): Metric {
     const min = clampInt(m.min, 1, 7, 3)
     return { type: 'frequency', min, max: clampInt(m.max, min, 7, min), noun: m.nome || 'vezes' }
   }
-  if (m.tipo === 'sum' && m.alvo && m.alvo > 0) return { type: 'sum', target: m.alvo, currency: !!m.emReais || !m.unidade, unit: m.emReais || !m.unidade ? 'R$' : m.unidade }
-  if (m.tipo === 'value' && m.de !== undefined && m.para !== undefined && m.de !== m.para) return { type: 'value', from: m.de, to: m.para, unit: m.unidade ?? '' }
+  if (m.tipo === 'sum' && m.alvo && m.alvo > 0)
+    return { type: 'sum', target: m.alvo, currency: !!m.emReais || !m.unidade, unit: m.emReais || !m.unidade ? 'R$' : m.unidade }
+  if (m.tipo === 'value' && m.de !== undefined && m.para !== undefined && m.de !== m.para)
+    return { type: 'value', from: m.de, to: m.para, unit: m.unidade ?? '' }
   if (m.tipo === 'milestones' && m.etapas?.length) return { type: 'milestones', items: m.etapas.map(title => ({ id: `m-${uid()}`, title })) }
   if (m.tipo === 'days') {
     const unit = m.contarEm === 'horas' ? 'horas' : 'dias'
@@ -75,7 +81,10 @@ function toMetric(m: MetaProposta['medida']): Metric {
 export function fromProposal(p: MetaProposta, areas: Area[], today: string): GoalDraft {
   const active = areas.filter(area => !area.archived).sort((a, b) => a.order - b.order)
   const wanted = p.area.toLocaleLowerCase('pt-BR')
-  const area = active.find(item => item.name.toLocaleLowerCase('pt-BR') === wanted) ?? active.find(item => wanted && item.name.toLocaleLowerCase('pt-BR').includes(wanted)) ?? active[0]
+  const area =
+    active.find(item => item.name.toLocaleLowerCase('pt-BR') === wanted) ??
+    active.find(item => wanted && item.name.toLocaleLowerCase('pt-BR').includes(wanted)) ??
+    active[0]
   const yearEnd = `${today.slice(0, 4)}-12-31`
   const deadline = p.prazo && p.prazo > today ? p.prazo : yearEnd > today ? yearEnd : shift(today, 90)
   const metric = toMetric(p.medida)
@@ -142,7 +151,12 @@ export function onlyChanged(proposal: GoalDraft, before: GoalDraft, listed: Camp
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
   const weekdays = (draft: GoalDraft) => (draft.repeat ? [...(draft.repeat.weekdays ?? [])].sort().join(',') + draft.repeat.freq + draft.repeat.interval : '')
   const structural: CampoMeta[] = [
-    ...(!same(proposal.metric.type === before.metric.type && proposal.metric.type === 'milestones' ? proposal.metric.items.map(item => item.title) : proposal.metric, before.metric.type === 'milestones' ? before.metric.items.map(item => item.title) : before.metric) ? (['medida'] as const) : []),
+    ...(!same(
+      proposal.metric.type === before.metric.type && proposal.metric.type === 'milestones' ? proposal.metric.items.map(item => item.title) : proposal.metric,
+      before.metric.type === 'milestones' ? before.metric.items.map(item => item.title) : before.metric,
+    )
+      ? (['medida'] as const)
+      : []),
     ...(proposal.deadline !== before.deadline ? (['prazo'] as const) : []),
     ...(weekdays(proposal) !== weekdays(before) ? (['diasDaTarefa'] as const) : []),
     ...(!same(proposal.reminder, before.reminder) ? (['lembrete'] as const) : []),
@@ -167,7 +181,11 @@ export function onlyChanged(proposal: GoalDraft, before: GoalDraft, listed: Camp
     taskTitle: has('tarefa') ? proposal.taskTitle : before.taskTitle,
     reminder: has('lembrete') ? proposal.reminder : before.reminder,
     // a agenda acompanha o novo prazo, mesmo quando os dias não mudam
-    repeat: has('diasDaTarefa') ? proposal.repeat : before.repeat && has('prazo') && before.repeat.end.type === 'date' ? { ...before.repeat, end: { type: 'date', date: proposal.deadline } } : before.repeat,
+    repeat: has('diasDaTarefa')
+      ? proposal.repeat
+      : before.repeat && has('prazo') && before.repeat.end.type === 'date'
+        ? { ...before.repeat, end: { type: 'date', date: proposal.deadline } }
+        : before.repeat,
   }
 }
 

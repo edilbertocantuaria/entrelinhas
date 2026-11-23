@@ -6,19 +6,16 @@ const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 /** R$ 1.234,56 */
 export const brl = (value: number) => currency.format(value)
 
-export const num = (value: number, digits = 0) =>
-  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)
+export const num = (value: number, digits = 0) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)
 
 /** Até uma casa decimal, sem zero sobrando: 3 ou 3,5 */
-export const num1 = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)
+export const num1 = (value: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value)
 
 export const cap = (text: string) => text.charAt(0).toLocaleUpperCase('pt-BR') + text.slice(1)
 
 export const iso = (date: Date) => format(date, 'yyyy-MM-dd')
 
-export const fmt = (date: string | Date, pattern: string) =>
-  format(typeof date === 'string' ? parseISO(date) : date, pattern, { locale: ptBR })
+export const fmt = (date: string | Date, pattern: string) => format(typeof date === 'string' ? parseISO(date) : date, pattern, { locale: ptBR })
 
 /** "Segunda-feira, 16 de novembro" */
 export const longDay = (date: string) => cap(fmt(date, "EEEE, d 'de' MMMM"))

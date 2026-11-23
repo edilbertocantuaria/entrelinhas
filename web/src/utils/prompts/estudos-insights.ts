@@ -37,9 +37,15 @@ Responda neste formato:
       `Período: ${entrada.periodo}`,
       bloco(
         'Disciplinas',
-        entrada.disciplinas.map(item => `- ${item.nome}: ${item.minutos} min em ${item.sessoes} sessões${item.acertos ? `, ${item.acertos.certas} de ${item.acertos.feitas} questões certas` : ''}`),
+        entrada.disciplinas.map(
+          item =>
+            `- ${item.nome}: ${item.minutos} min em ${item.sessoes} sessões${item.acertos ? `, ${item.acertos.certas} de ${item.acertos.feitas} questões certas` : ''}`,
+        ),
       ),
-      bloco('Anotações', entrada.anotacoes.slice(0, 40).map(item => `- ${item.data} · ${item.disciplina} · ${item.tipo}: ${cortar(item.texto, 240)}`)),
+      bloco(
+        'Anotações',
+        entrada.anotacoes.slice(0, 40).map(item => `- ${item.data} · ${item.disciplina} · ${item.tipo}: ${cortar(item.texto, 240)}`),
+      ),
     ),
   maxTokens: 500,
   parse: bruto => {

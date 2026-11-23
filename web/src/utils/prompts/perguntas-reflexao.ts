@@ -33,8 +33,14 @@ Responda neste formato:
     juntar(
       `Período: ${entrada.periodo}`,
       bloco('Resumo do período', [entrada.resumo]),
-      bloco('Avançaram', entrada.avancaram.map(meta => `- ${meta}`)),
-      bloco('Ficaram para depois', entrada.paradas.map(meta => `- ${meta}`)),
+      bloco(
+        'Avançaram',
+        entrada.avancaram.map(meta => `- ${meta}`),
+      ),
+      bloco(
+        'Ficaram para depois',
+        entrada.paradas.map(meta => `- ${meta}`),
+      ),
     ),
   maxTokens: 300,
   parse: bruto => {
