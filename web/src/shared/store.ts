@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { MAX_ACTIVE_AREAS, MAX_AREA_NAME } from '@/domain/areas'
 import { STORAGE_KEY } from '@/shared/constants'
 import { iso, uid } from '@/shared/format'
-import { finishedOn, isActiveOn, marcoReachedOn, todayTasks, type Suggestion } from '@/domain/goals'
+import { finishedOn, isActiveOn, marcoReachedOn, todayTasks, tracksTime, type Suggestion } from '@/domain/goals'
 import { createSeed, DEFAULT_LETTER } from '@/domain/seed'
 import { buildSummary, dueSummaries } from '@/domain/summaries'
 import type {
@@ -662,7 +662,7 @@ export const useStore = create<Store>()(
             const raw = mod.goal?.fieldId ? entry.values[mod.goal.fieldId] : undefined
             const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined
             // frequência em horas soma o tempo (em minutos), como as metas de dias/tempo
-            const countsTime = goal.metric.type === 'frequency' && goal.metric.count === 'horas'
+            const countsTime = goal.metric.type === 'frequency' && tracksTime(goal.metric)
             const needsValue = goal.metric.type === 'sum' || goal.metric.type === 'value' || countsTime
             if (!needsValue || value !== undefined)
               log = {

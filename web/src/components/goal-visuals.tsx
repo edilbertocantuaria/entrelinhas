@@ -4,7 +4,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, Referen
 import { areaColor } from '@/domain/areas'
 import { activityText, kindOf } from '@/domain/fitness'
 import { brl, cap, fmt, minutesLabel, num, num1 } from '@/shared/format'
-import { amount, cumulativeSeries, freqPeriod, heatmap, inHours, periodCounts, valueSeries, type Progress } from '@/domain/goals'
+import { amount, cumulativeSeries, daysAndHours, freqPeriod, heatmap, inHours, periodCounts, tracksTime, valueSeries, type Progress } from '@/domain/goals'
 import { PERIOD } from '@/domain/periods'
 import { useStore } from '@/shared/store'
 import type { Goal, LogEntry } from '@/domain/types'
@@ -99,7 +99,7 @@ export function GoalProgress({ goal, progress, color }: { goal: Goal; progress: 
     indicator = <ProgressBar value={1} color={fill} label={goal.title} />
   } else if (m.type === 'frequency' && (inHours(m) || m.max > 7)) {
     // horas, ou muitas vezes no período (ex.: 20 por mês): uma barra até o mínimo, no lugar das bolinhas
-    indicator = <ProgressBar value={progress.ratio} color={fill} label={goal.title} />
+    indicator = <ProgressBar value={Math.min(1, progress.current / m.min)} color={fill} label={goal.title} />
   } else if (m.type === 'frequency') {
     indicator = (
       <div className="flex gap-1.5" aria-hidden>
@@ -131,6 +131,12 @@ export function GoalProgress({ goal, progress, color }: { goal: Goal; progress: 
         <span>{progress.label}</span>
         {!hidePercent && !progress.concluded && m.type !== 'frequency' && <span className="tabular-nums">{Math.round(progress.ratio * 100)}%</span>}
       </p>
+      {progress.extra && !progress.concluded && (
+        <div className="mt-2">
+          <ProgressBar value={progress.extra.ratio} color={fill} label={`${goal.title}: horas`} />
+          <p className="mt-1.5 text-[12px] text-muted">{progress.extra.label}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -219,7 +225,7 @@ export function GoalChart({ goal, logs, today, height = 180 }: { goal: Goal; log
   if (m.type === 'frequency') {
     const data = periodCounts(goal, logs, today)
     const info = PERIOD[freqPeriod(m)]
-    const unit = inHours(m) ? 'horas' : m.noun
+    const unit = inHours(m) ? 'horas' : daysAndHours(m) ? (m.hours?.rule === 'per-day' ? `dias com ${num1(m.hours.min)} h ou mais` : 'dias') : m.noun
     const name = info.name.toLocaleLowerCase('pt-BR')
     return (
       <figure>
@@ -320,7 +326,7 @@ export function logText(goal: Goal, log: LogEntry) {
   if (m.type === 'value') return `${num(log.value ?? 0, 1)} ${m.unit}`
   if (m.type === 'days') return log.value ? minutesLabel(log.value) : 'Dia feito'
   if (m.type === 'milestones') return log.note ?? 'Etapa concluída'
-  if (inHours(m) && log.value) return log.note ? `${minutesLabel(log.value)} · ${log.note}` : minutesLabel(log.value)
+  if (tracksTime(m) && log.value) return log.note ? `${minutesLabel(log.value)} · ${log.note}` : minutesLabel(log.value)
   if (log.activity)
     return log.note && !log.note.startsWith(kindOf(log.activity.kind).label) ? `${activityText(log.activity)} · ${log.note}` : activityText(log.activity)
   return log.note ?? 'Presença registrada'

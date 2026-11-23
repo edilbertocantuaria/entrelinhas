@@ -64,17 +64,29 @@ function toMetric(m: MetaProposta['medida']): Metric {
   if (m.tipo === 'frequency') {
     const period = m.periodo ?? 'week'
     const hours = m.contarEm === 'horas'
-    // vezes: no máximo um por dia do período; horas: até 24 por dia
+    // vezes/dias: no máximo um por dia do período; horas: até 24 por dia
     const limit = hours ? PERIOD[period].maxDays * 24 : PERIOD[period].maxDays
     const min = clampInt(m.min, 1, limit, 3)
-    return {
-      type: 'frequency',
-      min,
-      max: clampInt(m.max, min, limit, min),
-      noun: hours ? 'horas' : m.nome || 'vezes',
-      ...(period !== 'week' ? { period } : {}),
-      ...(hours ? { count: 'horas' as const } : {}),
+    const max = clampInt(m.max, min, limit, min)
+    const periodPart = period !== 'week' ? { period } : {}
+    if (hours) return { type: 'frequency', min, max, noun: 'horas', ...periodPart, count: 'horas' }
+    if (m.contarEm === 'diasEHoras') {
+      const rule = m.horas?.modo === 'total' ? 'total' : m.horas?.modo === 'referencia' ? 'reference' : 'per-day'
+      const hoursLimit = rule === 'total' ? PERIOD[period].maxDays * 24 : 24
+      const clampHours = (value: number | undefined, low: number, fallback: number) =>
+        value === undefined || !Number.isFinite(value) || value <= 0 ? fallback : Math.min(hoursLimit, Math.max(low, Math.round(value * 10) / 10))
+      const hMin = clampHours(m.horas?.min, 0.5, rule === 'total' ? 10 : 2)
+      return {
+        type: 'frequency',
+        min,
+        max,
+        noun: 'dias',
+        ...periodPart,
+        count: 'dias-horas',
+        hours: { rule, min: hMin, max: clampHours(m.horas?.max, hMin, hMin) },
+      }
     }
+    return { type: 'frequency', min, max, noun: m.nome || 'vezes', ...periodPart }
   }
   if (m.tipo === 'sum' && m.alvo && m.alvo > 0)
     return { type: 'sum', target: m.alvo, currency: !!m.emReais || !m.unidade, unit: m.emReais || !m.unidade ? 'R$' : m.unidade }

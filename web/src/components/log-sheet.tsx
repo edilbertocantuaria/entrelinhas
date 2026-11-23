@@ -3,7 +3,7 @@
 import { Minus, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { brl, fmt, minutesLabel, num, parseNum } from '@/shared/format'
-import { inHours, logsOf, nextMilestone, progressOf } from '@/domain/goals'
+import { logsOf, nextMilestone, progressOf, tracksTime } from '@/domain/goals'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
 import { guessKind, isFitnessGoal, kindOf, WORKOUT_KINDS } from '@/domain/fitness'
@@ -53,7 +53,7 @@ export function LogSheet({ goalId, task, date, open, onClose, onLogged }: Props)
       title={task?.title ?? goal?.title ?? ''}
       description={
         goal
-          ? `${past ? `Registro de ${fmt(date, "EEEE, d 'de' MMM")}. ` : ''}${goal.metric.type === 'frequency' && inHours(goal.metric) ? DESCRIPTION.days : DESCRIPTION[goal.metric.type]}`
+          ? `${past ? `Registro de ${fmt(date, "EEEE, d 'de' MMM")}. ` : ''}${goal.metric.type === 'frequency' && tracksTime(goal.metric) ? DESCRIPTION.days : DESCRIPTION[goal.metric.type]}`
           : undefined
       }
     >
@@ -89,8 +89,16 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
   const nudge = (delta: number) => setMeasureText(num(Math.round(((Number.isNaN(measure) ? current : measure) + delta) * 10) / 10, 1))
   // tempo em horas e minutos: os atalhos preenchem, e dá para digitar qualquer valor
   // metas de dias/tempo e de frequência em horas registram tempo
-  const timed = m.type === 'days' || (m.type === 'frequency' && inHours(m))
-  const initialMinutes = m.type === 'days' ? (m.sessionMinutes ?? 30) : m.type === 'frequency' && timed ? 60 : 30
+  const timed = tracksTime(m)
+  // dias e horas: começa no mínimo de horas por dia/sessão combinado
+  const initialMinutes =
+    m.type === 'days'
+      ? (m.sessionMinutes ?? 30)
+      : m.type === 'frequency' && m.hours && m.hours.rule !== 'total'
+        ? Math.round(m.hours.min * 60)
+        : timed
+          ? 60
+          : 30
   const [hoursText, setHoursText] = useState(String(Math.floor(initialMinutes / 60)))
   const [minsText, setMinsText] = useState(String(initialMinutes % 60))
   const minutes = (Number.parseInt(hoursText, 10) || 0) * 60 + (Number.parseInt(minsText, 10) || 0)

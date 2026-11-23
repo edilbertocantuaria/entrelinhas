@@ -12,7 +12,7 @@ Arquivo principal: [`domain/goals.ts`](../src/domain/goals.ts). Cada meta tem os
 
 | Tipo | Exemplo | Progresso |
 |---|---|---|
-| `frequency` | academia 3 a 4x por semana; estudar 20 a 30 horas por mês | no período atual (semana, mês, bimestre, trimestre ou ano; `period`, padrão semana): **dias** com registro (dois treinos no mesmo dia contam 1) ou **horas** somadas (`count: 'horas'`). Períodos em [`domain/periods.ts`](../src/domain/periods.ts) |
+| `frequency` | academia 3 a 4x por semana; estudar 20 a 30 horas por mês | no período atual (semana, mês, bimestre, trimestre ou ano; `period`, padrão semana): **dias** com registro (dois treinos no mesmo dia contam 1), **horas** somadas (`count: 'horas'`) ou **dias e horas** (`count: 'dias-horas'`, com `hours.rule` à escolha: `per-day` = o dia só conta com o mínimo de horas; `total` = dias e total de horas lado a lado, atrás se qualquer um estiver; `reference` = qualquer dia conta, horas só como referência). Períodos em [`domain/periods.ts`](../src/domain/periods.ts) |
 | `sum` | guardar R$ 5.000,00 | soma dos valores até o alvo |
 | `value` | peso de 85 para 78 kg | última medição, entre o valor inicial e o alvo |
 | `milestones` | projeto em 5 etapas | etapas concluídas |

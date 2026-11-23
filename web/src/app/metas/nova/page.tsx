@@ -19,7 +19,7 @@ import { PERIOD, PERIODS } from '@/domain/periods'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
 import { describe, repeatEndFor, suggestRepeat } from '@/domain/recurrence'
-import type { FrequencyPeriod, GoalUntil, Metric, MetricType, Repeat } from '@/domain/types'
+import type { FrequencyPeriod, GoalUntil, HoursRule, Metric, MetricType, Repeat } from '@/domain/types'
 import { RepeatPicker } from '@/components/repeat-picker'
 import { cn } from '@/shared/utils'
 
@@ -40,8 +40,16 @@ interface FreqDraft {
   max: number
   noun: string
   period: FrequencyPeriod
-  count: 'vezes' | 'horas'
+  count: 'vezes' | 'horas' | 'dias-horas'
+  /** dias e horas: como o tempo entra na conta */
+  rule: HoursRule
 }
+
+const HOURS_RULES: { value: HoursRule; label: string; hint: string }[] = [
+  { value: 'per-day', label: 'Mínimo por dia', hint: 'O dia só conta quando chega a esse tempo.' },
+  { value: 'total', label: 'Total no período', hint: 'Dias e horas somadas, as duas contas lado a lado.' },
+  { value: 'reference', label: 'Só referência', hint: 'Conta qualquer dia com registro; as horas aparecem como referência.' },
+]
 
 /** atalhos de duração da sessão; "Outra" aceita qualquer valor nesse intervalo (o mesmo que a Esther usa) */
 const SESSION_PRESETS = [15, 30, 45, 60]
@@ -102,16 +110,26 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
   const [type, setType] = useState<MetricType>(dm?.type ?? 'frequency')
   const [freq, setFreq] = useState<FreqDraft>(() =>
     dm?.type === 'frequency'
-      ? { min: dm.min, max: dm.max, noun: dm.count === 'horas' ? 'vezes' : dm.noun, period: dm.period ?? 'week', count: dm.count ?? 'vezes' }
-      : { min: 3, max: 4, noun: 'vezes', period: 'week', count: 'vezes' },
+      ? {
+          min: dm.min,
+          max: dm.max,
+          noun: dm.count && dm.count !== 'vezes' ? 'vezes' : dm.noun,
+          period: dm.period ?? 'week',
+          count: dm.count ?? 'vezes',
+          rule: dm.hours?.rule ?? 'per-day',
+        }
+      : { min: 3, max: 4, noun: 'vezes', period: 'week', count: 'vezes', rule: 'per-day' },
   )
   // fora de "vezes por semana" os números são digitados (podem ser altos, e horas aceitam decimais)
   const decimalText = (n: number) => String(n).replace('.', ',')
   const [freqText, setFreqText] = useState({ min: decimalText(freq.min), max: freq.max === freq.min ? '' : decimalText(freq.max) })
-  const freqStepper = freq.period === 'week' && freq.count === 'vezes'
+  // dias e horas: o tempo (por dia, total ou referência), sempre digitado
+  const dh = dm?.type === 'frequency' ? dm.hours : undefined
+  const [hoursText, setHoursText] = useState({ min: dh ? decimalText(dh.min) : '', max: dh && dh.max !== dh.min ? decimalText(dh.max) : '' })
+  const freqStepper = freq.period === 'week' && freq.count !== 'horas'
   const changeFreq = (patch: Partial<FreqDraft>) => {
     const next = { ...freq, ...patch }
-    if (next.period === 'week' && next.count === 'vezes') {
+    if (next.period === 'week' && next.count !== 'horas') {
       next.min = Math.min(7, Math.max(1, Math.round(next.min)))
       next.max = Math.min(7, Math.max(next.min, Math.round(next.max)))
     }
@@ -130,14 +148,29 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
     if (type !== 'frequency' || freqStepper) return ''
     const { min, max } = freqNumbers()
     if (!freqText.min.trim()) return ''
-    const whole = freq.count === 'vezes'
-    if (!(min > 0) || (whole && !Number.isInteger(min))) return whole ? 'Use um número inteiro de vezes.' : 'Informe as horas.'
+    const whole = freq.count !== 'horas'
+    const word = freq.count === 'dias-horas' ? 'dias' : 'vezes'
+    if (!(min > 0) || (whole && !Number.isInteger(min))) return whole ? `Use um número inteiro de ${word}.` : 'Informe as horas.'
     if (!(max >= min)) return 'O máximo precisa ser igual ou maior que o mínimo.'
     if (max > freqLimit)
       return whole
-        ? `Contando vezes, o limite é de ${freqLimit} (um por dia do ${PERIOD[freq.period].name.toLocaleLowerCase('pt-BR')}).`
+        ? `Contando ${word}, o limite é de ${freqLimit} (um por dia do ${PERIOD[freq.period].name.toLocaleLowerCase('pt-BR')}).`
         : `O limite é de ${freqLimit} horas ${PERIOD[freq.period].per}.`
-    if (whole && !Number.isInteger(max)) return 'Use um número inteiro de vezes.'
+    if (whole && !Number.isInteger(max)) return `Use um número inteiro de ${word}.`
+    return ''
+  })()
+  // horas de "dias e horas": por dia (até 24) ou no período inteiro
+  const hoursLimit = freq.rule === 'total' ? PERIOD[freq.period].maxDays * 24 : 24
+  const hoursNumbers = () => {
+    const min = parseNum(hoursText.min)
+    return { min, max: hoursText.max.trim() ? parseNum(hoursText.max) : min }
+  }
+  const hoursError = (() => {
+    if (type !== 'frequency' || freq.count !== 'dias-horas' || !hoursText.min.trim()) return ''
+    const { min, max } = hoursNumbers()
+    if (!(min > 0)) return 'Informe as horas.'
+    if (!(max >= min)) return 'O máximo de horas precisa ser igual ou maior que o mínimo.'
+    if (max > hoursLimit) return freq.rule === 'total' ? `O limite é de ${hoursLimit} horas ${PERIOD[freq.period].per}.` : 'Um dia tem até 24 horas.'
     return ''
   })()
   const [sum, setSum] = useState(
@@ -183,15 +216,14 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
     if (type === 'frequency') {
       const { min, max } = freqNumbers()
       if (freqError || !(min > 0) || !(max >= min)) return null
-      const hours = freq.count === 'horas'
-      return {
-        type,
-        min,
-        max,
-        noun: hours ? 'horas' : freq.noun.trim() || 'vezes',
-        ...(freq.period !== 'week' ? { period: freq.period } : {}),
-        ...(hours ? { count: 'horas' as const } : {}),
+      const period = freq.period !== 'week' ? { period: freq.period } : {}
+      if (freq.count === 'horas') return { type, min, max, noun: 'horas', ...period, count: 'horas' }
+      if (freq.count === 'dias-horas') {
+        const hours = hoursNumbers()
+        if (hoursError || !(hours.min > 0) || !(hours.max >= hours.min)) return null
+        return { type, min, max, noun: 'dias', ...period, count: 'dias-horas', hours: { rule: freq.rule, min: hours.min, max: hours.max } }
       }
+      return { type, min, max, noun: freq.noun.trim() || 'vezes', ...period }
     }
     if (type === 'sum') {
       const target = parseNum(sum.target)
@@ -444,27 +476,28 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                   options={[
                     { value: 'vezes', label: 'Vezes' },
                     { value: 'horas', label: 'Horas' },
+                    { value: 'dias-horas', label: 'Dias e horas' },
                   ]}
                 />
                 {freqStepper ? (
                   <>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[14px]">Mínimo por semana</span>
+                      <span className="text-[14px]">{freq.count === 'dias-horas' ? 'Mínimo de dias por semana' : 'Mínimo por semana'}</span>
                       <Stepper label="Mínimo por semana" min={1} max={7} value={freq.min} onChange={min => changeFreq({ min, max: Math.max(min, freq.max) })} />
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[14px]">Máximo por semana</span>
+                      <span className="text-[14px]">{freq.count === 'dias-horas' ? 'Máximo de dias por semana' : 'Máximo por semana'}</span>
                       <Stepper label="Máximo por semana" min={freq.min} max={7} value={Math.max(freq.min, freq.max)} onChange={max => changeFreq({ max })} />
                     </div>
                   </>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label={`Mínimo ${PERIOD[freq.period].per}`} htmlFor="meta-freq-min">
+                    <Field label={`${freq.count === 'dias-horas' ? 'Dias' : 'Mínimo'} ${PERIOD[freq.period].per}`} htmlFor="meta-freq-min">
                       <input
                         id="meta-freq-min"
                         className="field"
                         inputMode={freq.count === 'horas' ? 'decimal' : 'numeric'}
-                        placeholder={freq.count === 'horas' ? '10' : '8'}
+                        placeholder={freq.count === 'horas' ? '10' : freq.count === 'dias-horas' ? '16' : '8'}
                         value={freqText.min}
                         onChange={event => setFreqText({ ...freqText, min: event.target.value })}
                       />
@@ -495,8 +528,68 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                     </Field>
                     <p className="text-[12px] text-muted">Conta dias com registro: duas atividades no mesmo dia valem 1.</p>
                   </>
-                ) : (
+                ) : freq.count === 'horas' ? (
                   <p className="text-[12px] text-muted">Cada registro pede o tempo dedicado, e as horas se somam no período.</p>
+                ) : (
+                  <div className="flex flex-col gap-3 border-t-[0.5px] border-line pt-3">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[13px] text-muted">Como as horas contam</span>
+                      <div className="flex flex-col gap-2" role="radiogroup" aria-label="Como as horas contam">
+                        {HOURS_RULES.map(option => {
+                          const on = freq.rule === option.value
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={on}
+                              onClick={() => changeFreq({ rule: option.value })}
+                              className={cn(
+                                'flex min-h-12 flex-col justify-center rounded-ctl border-[0.5px] px-3 py-2 text-left',
+                                on ? 'border-primary bg-primary-soft' : 'border-line bg-surface',
+                              )}
+                            >
+                              <span className="text-[14px] font-medium">{option.label}</span>
+                              <span className="text-[12px] text-muted">{option.hint}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field
+                        label={freq.rule === 'total' ? `Horas ${PERIOD[freq.period].per}` : freq.rule === 'per-day' ? 'Horas por dia' : 'Horas por sessão'}
+                        htmlFor="meta-horas-min"
+                      >
+                        <input
+                          id="meta-horas-min"
+                          className="field"
+                          inputMode="decimal"
+                          placeholder={freq.rule === 'total' ? '10' : '2'}
+                          value={hoursText.min}
+                          onChange={event => setHoursText({ ...hoursText, min: event.target.value })}
+                        />
+                      </Field>
+                      <Field label="Até (opcional)" htmlFor="meta-horas-max">
+                        <input
+                          id="meta-horas-max"
+                          className="field"
+                          inputMode="decimal"
+                          placeholder={hoursText.min || (freq.rule === 'total' ? '15' : '3')}
+                          value={hoursText.max}
+                          onChange={event => setHoursText({ ...hoursText, max: event.target.value })}
+                        />
+                      </Field>
+                    </div>
+                    {hoursError && <p className="text-[12px] text-muted">{hoursError}</p>}
+                    <p className="text-[12px] text-muted">
+                      {freq.rule === 'per-day'
+                        ? 'Cada registro pede o tempo; registros do mesmo dia se somam, e o dia conta quando chega ao mínimo.'
+                        : freq.rule === 'total'
+                          ? 'Cada registro pede o tempo. O ritmo olha os dias e as horas, e fica atrás se qualquer um dos dois ficar.'
+                          : 'Cada registro pede o tempo, mas qualquer dia com registro conta. As horas aparecem como referência.'}
+                    </p>
+                  </div>
                 )}
               </div>
             )}

@@ -37,8 +37,10 @@ export interface MetaProposta {
     para?: number
     /** milestones */
     etapas?: string[]
-    /** days e frequency: contar dias/vezes ou horas */
-    contarEm?: 'dias' | 'horas'
+    /** days: dias ou horas; frequency: vezes ("dias"), horas, ou dias e horas */
+    contarEm?: 'dias' | 'horas' | 'diasEHoras'
+    /** frequency com "diasEHoras": como o tempo entra na conta */
+    horas?: { modo: 'porDia' | 'total' | 'referencia'; min?: number; max?: number }
     minutosPorSessao?: number
   }
   pontoDePartida: string
@@ -147,7 +149,7 @@ Como montar a meta:
 - "area": exatamente um dos nomes da lista de áreas recebida.
 - "descricao": a meta em uma frase específica, com o número e o prazo. Datas por extenso ("até 31 de março de 2027"), nunca no formato aaaa-mm-dd.
 - "medida.tipo":
-  - "frequency": um combinado que se repete a cada período. Preencha "min", "max", "nome" (ex.: "treinos", "vezes") e "periodo": "week" (semana, o padrão), "month" (mês), "bimester" (bimestre), "quarter" (trimestre) ou "year" (ano). Para contar tempo em vez de vezes (ex.: "10 a 15 horas por semana", "40 horas por mês"), use "contarEm": "horas", e "min" e "max" ficam em horas. Contando vezes, "max" vai até o número de dias do período (7 na semana).
+  - "frequency": um combinado que se repete a cada período. Preencha "min", "max", "nome" (ex.: "treinos", "vezes") e "periodo": "week" (semana, o padrão), "month" (mês), "bimester" (bimestre), "quarter" (trimestre) ou "year" (ano). Para contar só tempo (ex.: "10 a 15 horas por semana", "40 horas por mês"), use "contarEm": "horas", e "min" e "max" ficam em horas. Quando a pessoa fala de dias E horas (ex.: "estudar 5 dias por semana, 2 a 3 horas por dia"), use "contarEm": "diasEHoras": "min" e "max" são dias, e "horas" traz {"modo", "min", "max"}: "porDia" (o dia só conta quando chega ao mínimo de horas), "total" (horas somadas no período, ao lado dos dias) ou "referencia" (qualquer dia conta; as horas são só referência). Se ela não disser qual, use "porDia" para horas por dia e "total" para horas na semana/mês. Contando vezes ou dias, "max" vai até o número de dias do período (7 na semana).
   - "sum": soma até um alvo. Preencha "alvo", "emReais" (true para dinheiro) e "unidade" quando não for dinheiro.
   - "value": um valor que vai de X para Y. Preencha "de", "para" e "unidade" (ex.: "kg", "min").
   - "milestones": etapas de um projeto. Preencha "etapas" com 3 a 7 etapas curtas, em ordem.
@@ -237,7 +239,11 @@ ou, ao propor (com "mudancas" só ao ajustar uma meta existente):
           de: numero(md.de),
           para: numero(md.para),
           etapas: listaTextos(md.etapas, 10, 80),
-          contarEm: md.contarEm === 'horas' ? 'horas' : 'dias',
+          contarEm: md.contarEm === 'horas' ? 'horas' : md.contarEm === 'diasEHoras' ? 'diasEHoras' : 'dias',
+          horas:
+            isObj(md.horas) && ['porDia', 'total', 'referencia'].includes(String(md.horas.modo))
+              ? { modo: md.horas.modo as 'porDia' | 'total' | 'referencia', min: numero(md.horas.min), max: numero(md.horas.max) }
+              : undefined,
           periodo: PERIODOS.find(item => item === md.periodo),
           minutosPorSessao: numero(md.minutosPorSessao),
         },

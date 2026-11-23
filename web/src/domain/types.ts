@@ -15,12 +15,31 @@ export type MetricType = 'frequency' | 'sum' | 'value' | 'milestones' | 'days'
 /** período das metas de frequência */
 export type FrequencyPeriod = 'week' | 'month' | 'bimester' | 'quarter' | 'year'
 
+/**
+ * Frequência em "dias e horas", à escolha da pessoa:
+ * - per-day: o dia só conta quando chega a `hours.min` horas (ex.: 4 a 5 dias, de 2 a 3 h por dia);
+ * - total: dias e o total de horas no período, as duas contas lado a lado (ex.: 4 a 5 dias e 10 a 15 h);
+ * - reference: conta qualquer dia com registro; as horas são só referência (ex.: sessões de 2 a 3 h).
+ */
+export type HoursRule = 'per-day' | 'total' | 'reference'
+
 export type Metric =
   /**
    * contagem por período, ex.: academia 3 a 4x por semana, estudar 20 a 30 horas por mês.
-   * Sem `period`, é por semana; sem `count`, conta dias com registro ("vezes").
+   * Sem `period`, é por semana. `count`:
+   * - vezes (padrão): dias com registro; `min`/`max` em dias;
+   * - horas: soma do tempo; `min`/`max` em horas;
+   * - dias-horas: `min`/`max` em dias, e `hours` diz como o tempo entra (ver `HoursRule`).
    */
-  | { type: 'frequency'; min: number; max: number; noun: string; period?: FrequencyPeriod; count?: 'vezes' | 'horas' }
+  | {
+      type: 'frequency'
+      min: number
+      max: number
+      noun: string
+      period?: FrequencyPeriod
+      count?: 'vezes' | 'horas' | 'dias-horas'
+      hours?: { rule: HoursRule; min: number; max: number }
+    }
   /** soma acumulada até um alvo, ex.: guardar R$ 5.000 */
   | { type: 'sum'; target: number; unit: string; currency: boolean }
   /** valor ao longo do tempo, de X para Y, ex.: peso */
