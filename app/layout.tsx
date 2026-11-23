@@ -1,13 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Metadata, Viewport } from 'next'
-import { Figtree, Marck_Script } from 'next/font/google'
+import { Borel, Figtree } from 'next/font/google'
 import { AppShell } from '@/components/app-shell'
 import { STORAGE_KEY } from '@/lib/constants'
 import './globals.css'
 
 const figtree = Figtree({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-figtree' })
-const voice = Marck_Script({ subsets: ['latin'], weight: '400', variable: '--font-voice-face' })
+const voice = Borel({ subsets: ['latin'], weight: '400', variable: '--font-voice-face' })
 
 export const metadata: Metadata = {
   title: 'Entrelinhas: metas no seu ritmo',

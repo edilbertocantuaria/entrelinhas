@@ -154,7 +154,7 @@
   }
   .voice {
     font-family: var(--font-voice-face), cursive;
-    /* Marck Script só tem o peso 400: sem negrito simulado */
+    /* a fonte de voz (Borel) só tem o peso 400: sem negrito simulado */
     font-synthesis-weight: none;
   }
   .field {

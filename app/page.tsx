@@ -145,7 +145,7 @@ function DayHeader({ date, today, part, onChange }: { date: string; today: strin
           <ChevronRight size={20} strokeWidth={1.75} />
         </button>
       </nav>
-      <div className="mt-1 flex min-h-11 items-center gap-3">
+      <div className={cn('flex items-center gap-3', (showingOtherWeek || date !== today) && 'mt-1 min-h-11')}>
         {showingOtherWeek && (
           <p className="flex-1 text-[12px] text-muted" aria-live="polite">
             Semana de {fmt(weekStart, "d 'de' MMM")} a {fmt(shift(weekStart, 6), "d 'de' MMM")}. Toque num dia para ver.
