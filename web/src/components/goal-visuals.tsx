@@ -3,8 +3,9 @@
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { areaColor } from '@/domain/areas'
 import { activityText, kindOf } from '@/domain/fitness'
-import { brl, fmt, minutesLabel, num, num1 } from '@/shared/format'
-import { amount, cumulativeSeries, heatmap, valueSeries, weeklyCounts, type Progress } from '@/domain/goals'
+import { brl, cap, fmt, minutesLabel, num, num1 } from '@/shared/format'
+import { amount, cumulativeSeries, freqPeriod, heatmap, inHours, periodCounts, valueSeries, type Progress } from '@/domain/goals'
+import { PERIOD } from '@/domain/periods'
 import { useStore } from '@/shared/store'
 import type { Goal, LogEntry } from '@/domain/types'
 import { cn } from '@/shared/utils'
@@ -96,6 +97,9 @@ export function GoalProgress({ goal, progress, color }: { goal: Goal; progress: 
   let indicator
   if (progress.concluded) {
     indicator = <ProgressBar value={1} color={fill} label={goal.title} />
+  } else if (m.type === 'frequency' && (inHours(m) || m.max > 7)) {
+    // horas, ou muitas vezes no período (ex.: 20 por mês): uma barra até o mínimo, no lugar das bolinhas
+    indicator = <ProgressBar value={progress.ratio} color={fill} label={goal.title} />
   } else if (m.type === 'frequency') {
     indicator = (
       <div className="flex gap-1.5" aria-hidden>
@@ -213,7 +217,10 @@ export function GoalChart({ goal, logs, today, height = 180 }: { goal: Goal; log
   }
 
   if (m.type === 'frequency') {
-    const data = weeklyCounts(goal, logs, today)
+    const data = periodCounts(goal, logs, today)
+    const info = PERIOD[freqPeriod(m)]
+    const unit = inHours(m) ? 'horas' : m.noun
+    const name = info.name.toLocaleLowerCase('pt-BR')
     return (
       <figure>
         <ResponsiveContainer width="100%" height={height}>
@@ -224,22 +231,22 @@ export function GoalChart({ goal, logs, today, height = 180 }: { goal: Goal; log
               tick={tick}
               tickLine={false}
               axisLine={false}
-              width={24}
-              allowDecimals={false}
+              width={28}
+              allowDecimals={inHours(m)}
               domain={[0, Math.max(m.max, ...data.map(point => point.count))]}
             />
             <Tooltip
               {...tooltipStyle}
               cursor={{ fill: 'var(--primary-soft)' }}
-              formatter={value => [`${value} ${m.noun}`, 'Semana']}
-              labelFormatter={label => `Semana de ${label}`}
+              formatter={value => [`${num1(Number(value))} ${unit}`, info.name]}
+              labelFormatter={label => (freqPeriod(m) === 'week' ? `Semana de ${label}` : `${info.name} de ${label}`)}
             />
             <ReferenceLine y={m.min} stroke="var(--text-muted)" strokeDasharray="4 4" />
             <Bar dataKey="count" fill={color} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
         <figcaption className="mt-1 text-[12px] text-muted">
-          {m.noun.charAt(0).toUpperCase() + m.noun.slice(1)} por semana. A linha tracejada é o combinado de {m.min}.
+          {cap(unit)} {info.per}. A linha tracejada é o combinado mínimo de {num1(m.min)} por {name}.
         </figcaption>
       </figure>
     )
@@ -313,6 +320,7 @@ export function logText(goal: Goal, log: LogEntry) {
   if (m.type === 'value') return `${num(log.value ?? 0, 1)} ${m.unit}`
   if (m.type === 'days') return log.value ? minutesLabel(log.value) : 'Dia feito'
   if (m.type === 'milestones') return log.note ?? 'Etapa concluída'
+  if (inHours(m) && log.value) return log.note ? `${minutesLabel(log.value)} · ${log.note}` : minutesLabel(log.value)
   if (log.activity)
     return log.note && !log.note.startsWith(kindOf(log.activity.kind).label) ? `${activityText(log.activity)} · ${log.note}` : activityText(log.activity)
   return log.note ?? 'Presença registrada'

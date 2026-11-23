@@ -3,7 +3,7 @@
 import { Minus, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { brl, fmt, minutesLabel, num, parseNum } from '@/shared/format'
-import { logsOf, nextMilestone, progressOf } from '@/domain/goals'
+import { inHours, logsOf, nextMilestone, progressOf } from '@/domain/goals'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
 import { guessKind, isFitnessGoal, kindOf, WORKOUT_KINDS } from '@/domain/fitness'
@@ -51,7 +51,11 @@ export function LogSheet({ goalId, task, date, open, onClose, onLogged }: Props)
       open={open && !!goal}
       onClose={onClose}
       title={task?.title ?? goal?.title ?? ''}
-      description={goal ? `${past ? `Registro de ${fmt(date, "EEEE, d 'de' MMM")}. ` : ''}${DESCRIPTION[goal.metric.type]}` : undefined}
+      description={
+        goal
+          ? `${past ? `Registro de ${fmt(date, "EEEE, d 'de' MMM")}. ` : ''}${goal.metric.type === 'frequency' && inHours(goal.metric) ? DESCRIPTION.days : DESCRIPTION[goal.metric.type]}`
+          : undefined
+      }
     >
       {goal && <LogForm key={`${goal.id}-${task?.id ?? ''}-${date ?? ''}`} goal={goal} task={task} date={date} onClose={onClose} onLogged={onLogged} />}
     </Sheet>
@@ -84,7 +88,9 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
   const measure = parseNum(measureText)
   const nudge = (delta: number) => setMeasureText(num(Math.round(((Number.isNaN(measure) ? current : measure) + delta) * 10) / 10, 1))
   // tempo em horas e minutos: os atalhos preenchem, e dá para digitar qualquer valor
-  const initialMinutes = m.type === 'days' ? (m.sessionMinutes ?? 30) : 30
+  // metas de dias/tempo e de frequência em horas registram tempo
+  const timed = m.type === 'days' || (m.type === 'frequency' && inHours(m))
+  const initialMinutes = m.type === 'days' ? (m.sessionMinutes ?? 30) : m.type === 'frequency' && timed ? 60 : 30
   const [hoursText, setHoursText] = useState(String(Math.floor(initialMinutes / 60)))
   const [minsText, setMinsText] = useState(String(initialMinutes % 60))
   const minutes = (Number.parseInt(hoursText, 10) || 0) * 60 + (Number.parseInt(minsText, 10) || 0)
@@ -99,7 +105,7 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
   const invalid =
     (m.type === 'sum' && !(amountValue > 0)) ||
     (m.type === 'milestones' && !milestone) ||
-    (m.type === 'days' && minutes <= 0) ||
+    (timed && minutes <= 0) ||
     (m.type === 'value' && Number.isNaN(measure))
 
   const submit = () => {
@@ -117,11 +123,14 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
             }))
         : []
       if (workout.length) data.workout = workout
-      const mins = Math.round(parseNum(activityMinutes))
+      // em horas, a duração é o próprio tempo registrado
+      const mins = timed ? minutes : Math.round(parseNum(activityMinutes))
       const km = parseNum(distance)
       // sem tipo escolhido, vale como "outro": o treino ainda aparece no módulo Fitness
       data.activity = { kind: kind ?? 'outro', minutes: mins > 0 ? mins : undefined, distanceKm: kindDef?.distance && km > 0 ? km : undefined }
-    } else if (m.type === 'sum') data.value = amountValue
+      if (timed) data.value = minutes
+    } else if (m.type === 'frequency' && timed) data.value = minutes
+    else if (m.type === 'sum') data.value = amountValue
     else if (m.type === 'value') data.value = Math.round(measure * 10) / 10
     else if (m.type === 'days') data.value = minutes
     else if (milestone) {
@@ -148,7 +157,8 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
     >
       {m.type === 'frequency' && mine.some(log => log.date === today) && (
         <p className="rounded-ctl bg-primary-soft p-3 text-[12px] leading-relaxed">
-          {today === now ? 'Você já registrou hoje.' : 'Já tem registro neste dia.'} Este entra como mais uma atividade do dia: a meta conta 1 dia, não 2.
+          {today === now ? 'Você já registrou hoje.' : 'Já tem registro neste dia.'}{' '}
+          {timed ? 'O tempo deste registro soma com o que já está lá.' : 'Este entra como mais uma atividade do dia: a meta conta 1 dia, não 2.'}
         </p>
       )}
 
@@ -165,17 +175,19 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
               ))}
             </div>
           </div>
-          <div className={kindDef?.distance ? 'grid grid-cols-2 gap-3' : ''}>
-            <Field label="Duração (min, opcional)" htmlFor="log-minutos">
-              <input
-                id="log-minutos"
-                className="field"
-                inputMode="numeric"
-                placeholder="45"
-                value={activityMinutes}
-                onChange={event => setActivityMinutes(event.target.value)}
-              />
-            </Field>
+          <div className={kindDef?.distance && !timed ? 'grid grid-cols-2 gap-3' : ''}>
+            {!timed && (
+              <Field label="Duração (min, opcional)" htmlFor="log-minutos">
+                <input
+                  id="log-minutos"
+                  className="field"
+                  inputMode="numeric"
+                  placeholder="45"
+                  value={activityMinutes}
+                  onChange={event => setActivityMinutes(event.target.value)}
+                />
+              </Field>
+            )}
             {kindDef?.distance && (
               <Field label="Distância (km)" htmlFor="log-km">
                 <input
@@ -298,10 +310,10 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
         </div>
       )}
 
-      {m.type === 'days' && (
+      {timed && (
         <>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Tempos rápidos">
-            {[...new Set([15, 30, 45, 60, 90, 120, 180, ...(m.sessionMinutes ? [m.sessionMinutes] : [])])]
+            {[...new Set([15, 30, 45, 60, 90, 120, 180, ...(m.type === 'days' && m.sessionMinutes ? [m.sessionMinutes] : [])])]
               .sort((a, b) => a - b)
               .map(value => (
                 <Chip key={value} selected={minutes === value} onClick={() => setMinutes(value)}>

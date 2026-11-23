@@ -12,7 +12,7 @@ Arquivo principal: [`domain/goals.ts`](../src/domain/goals.ts). Cada meta tem os
 
 | Tipo | Exemplo | Progresso |
 |---|---|---|
-| `frequency` | academia 3 a 4x por semana | **dias** com registro na semana atual (dois treinos no mesmo dia contam 1) |
+| `frequency` | academia 3 a 4x por semana; estudar 20 a 30 horas por mês | no período atual (semana, mês, bimestre, trimestre ou ano; `period`, padrão semana): **dias** com registro (dois treinos no mesmo dia contam 1) ou **horas** somadas (`count: 'horas'`). Períodos em [`domain/periods.ts`](../src/domain/periods.ts) |
 | `sum` | guardar R$ 5.000,00 | soma dos valores até o alvo |
 | `value` | peso de 85 para 78 kg | última medição, entre o valor inicial e o alvo |
 | `milestones` | projeto em 5 etapas | etapas concluídas |
@@ -32,12 +32,16 @@ Uma meta termina numa **data** (`deadline`) ou num **marco** (`until`), quando v
 
 Rótulos sempre neutros: **no ritmo**, **adiantado**, **um pouco atrás**, **concluída**.
 
-- **Frequência:** olha as últimas 4 semanas completas.
+- **Frequência** (`frequencyPace`): olha os últimos períodos completos (4 semanas, 3 meses, 2 bimestres ou trimestres, 1 ano).
   - Média ≥ máximo: adiantado.
-  - Combinado cumprido em ≥ 75% das semanas: no ritmo.
+  - Combinado cumprido em ≥ 75% dos períodos **ou** média ≥ 90% do mínimo: no ritmo. (Antes só valia a primeira regra, e uma média igual ao combinado podia aparecer como "um pouco atrás".)
   - Senão: um pouco atrás.
-  - Tarefas **dispensadas** reduzem o combinado daquela semana.
+  - O primeiro período, se a meta começou no meio dele, cobra só a parte proporcional e só entra na média se a meta valeu pelo menos metade dele.
+  - O período atual só conta a favor: entra quando já chegou ao mínimo.
+  - Sem período completo ainda: a primeira semana é sempre "no ritmo"; nos períodos longos, compara com o esperado até hoje.
+  - Tarefas **dispensadas** reduzem o combinado daquele período (contando vezes).
 - **Demais tipos:** compara o progresso com o tempo passado até o prazo.
+  - Na primeira semana da meta: sempre no ritmo.
   - Razão ≥ 1,1: adiantado.
   - Razão ≥ 0,8: no ritmo.
   - Abaixo disso: um pouco atrás.

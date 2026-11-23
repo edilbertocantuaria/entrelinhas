@@ -1,9 +1,10 @@
 import { differenceInCalendarMonths, parseISO } from 'date-fns'
 import { brl, cap, daysBetween, fmt, minutesLabel, mondayOf, num, num1, plural, shift } from '@/shared/format'
-import type { Goal, JournalEntry, LogEntry, Metric, MetricType, Task } from '@/domain/types'
+import { PERIOD, periodEnd, periodLength, periodStart, previousPeriod } from '@/domain/periods'
+import type { FrequencyPeriod, Goal, JournalEntry, LogEntry, Metric, MetricType, Task } from '@/domain/types'
 
 export const METRIC_LABEL: Record<MetricType, { name: string; hint: string }> = {
-  frequency: { name: 'Frequência', hint: 'Vezes por semana. Ex.: academia 3 a 4x.' },
+  frequency: { name: 'Frequência', hint: 'Vezes ou horas por semana, mês, bimestre, trimestre ou ano. Ex.: academia 3 a 4x por semana.' },
   sum: { name: 'Soma até um alvo', hint: 'Valores que se acumulam. Ex.: guardar R$ 5.000.' },
   value: { name: 'Valor ao longo do tempo', hint: 'De um número a outro. Ex.: 85 kg para 78 kg.' },
   milestones: { name: 'Etapas', hint: 'Uma lista de passos. Ex.: concluir um projeto.' },
@@ -36,11 +37,30 @@ export function nextMilestone(goal: Goal, logs: LogEntry[]) {
 
 const uniqueDays = (logs: LogEntry[]) => new Set(logs.map(log => log.date)).size
 
+type Frequency = Extract<Metric, { type: 'frequency' }>
+
+/** Período da meta de frequência (as antigas, sem período, são por semana). */
+export const freqPeriod = (m: Frequency): FrequencyPeriod => m.period ?? 'week'
+export const inHours = (m: Frequency) => m.count === 'horas'
+
 /**
- * Metas de frequência contam dias, não registros: fitdance e calistenia no mesmo dia são 1 treino na semana.
+ * Quanto a meta de frequência somou no intervalo: dias com registro, ou horas registradas.
+ * Contando vezes, valem dias, não registros: fitdance e calistenia no mesmo dia são 1 treino.
  * Os dois registros continuam guardados (e aparecem no módulo Fitness).
  */
-const daysBetweenDates = (logs: LogEntry[], start: string, end: string) => uniqueDays(logs.filter(log => inRange(log.date, start, end)))
+function freqAmount(m: Frequency, logs: LogEntry[], start: string, end: string) {
+  const inside = logs.filter(log => inRange(log.date, start, end))
+  return inHours(m) ? inside.reduce((sum, log) => sum + (log.value ?? 0), 0) / 60 : uniqueDays(inside)
+}
+
+/** "3 a 4 treinos", "20 horas" */
+export function freqRange(m: Frequency) {
+  const range = m.min === m.max ? num1(m.min) : `${num1(m.min)} a ${num1(m.max)}`
+  return `${range} ${inHours(m) ? 'horas' : m.noun}`
+}
+
+/** "3 a 4 treinos por semana", "20 a 30 horas por mês" */
+export const describeFrequency = (m: Frequency) => `${freqRange(m)} ${PERIOD[freqPeriod(m)].per}`
 
 export interface Progress {
   /** 0 a 1 */
@@ -69,10 +89,11 @@ function metricProgress(goal: Goal, allLogs: LogEntry[], today: string): Progres
   const m = goal.metric
   switch (m.type) {
     case 'frequency': {
-      const week = mondayOf(today)
-      const count = daysBetweenDates(logs, week, today)
-      const range = m.min === m.max ? `${m.min}` : `${m.min} a ${m.max}`
-      return { ratio: clamp(count / m.min), current: count, label: `${count} de ${range} nesta semana` }
+      const period = freqPeriod(m)
+      const count = freqAmount(m, logs, periodStart(today, period), today)
+      const range = m.min === m.max ? num1(m.min) : `${num1(m.min)} a ${num1(m.max)}`
+      const unit = inHours(m) ? ' horas' : ''
+      return { ratio: clamp(count / m.min), current: count, label: `${num1(count)} de ${range}${unit} ${PERIOD[period].current}` }
     }
     case 'sum': {
       const total = logs.reduce((sum, log) => sum + (log.value ?? 0), 0)
@@ -173,11 +194,80 @@ export interface Pace {
   explanation: string
 }
 
-const byRatio = (progress: number, time: number): PaceStatus => {
+/**
+ * Progresso comparado com o tempo passado. Na primeira semana da meta, sempre "no ritmo":
+ * antes, uma meta de um mês ficava "atrás" já no segundo dia sem registro.
+ */
+const byRatio = (progress: number, time: number, elapsedDays: number): PaceStatus => {
   if (progress >= 1) return 'done'
-  if (time <= 0.02) return 'ontrack'
+  if (time <= 0.02 || elapsedDays < 7) return 'ontrack'
   const ratio = progress / time
   return ratio >= 1.1 ? 'ahead' : ratio >= 0.8 ? 'ontrack' : 'behind'
+}
+
+/**
+ * Ritmo das metas de frequência, em qualquer período e contando vezes ou horas.
+ * - Olha os últimos períodos completos (4 semanas, 3 meses, 2 bimestres ou trimestres, 1 ano).
+ * - O primeiro período, se a meta começou no meio dele, cobra só a parte proporcional.
+ * - O período atual só entra a favor: quando já chegou ao mínimo.
+ * - Fica "no ritmo" quem cumpriu em 3 de cada 4 períodos OU teve média de pelo menos 90% do mínimo
+ *   (antes, média igual ao combinado podia aparecer como "atrás").
+ */
+function frequencyPace(goal: Goal, m: Frequency, logs: LogEntry[], dismissed: Task[], today: string): { status: PaceStatus; explanation: string } {
+  const period = freqPeriod(m)
+  const info = PERIOD[period]
+  const hours = inHours(m)
+  const unit = hours ? 'horas' : m.noun
+  const show = (value: number) => num1(value)
+  const current = periodStart(today, period)
+  const nowFrom = current < goal.startDate ? goal.startDate : current
+  const nowAmount = freqAmount(m, logs, nowFrom, today)
+
+  const samples: { amount: number; required: number; share: number; skipped: number }[] = []
+  for (let start = previousPeriod(current, period), i = 0; i < info.lookback; start = previousPeriod(start, period), i++) {
+    const end = periodEnd(start, period)
+    if (end < goal.startDate) break
+    const from = start < goal.startDate ? goal.startDate : start
+    const share = (daysBetween(from, end) + 1) / periodLength(start, period)
+    const skipped = hours ? 0 : dismissed.filter(task => inRange(task.date, from, end)).length
+    samples.push({ amount: freqAmount(m, logs, from, end), required: Math.max(0, m.min * share - skipped), share, skipped })
+  }
+
+  if (!samples.length) {
+    const end = periodEnd(current, period)
+    const elapsed = (daysBetween(nowFrom, today) + 1) / (daysBetween(nowFrom, end) + 1)
+    const share = (daysBetween(nowFrom, end) + 1) / periodLength(current, period)
+    const expected = m.min * share * elapsed
+    // semana: a primeira é sempre de adaptação; nos períodos longos, compara com o esperado até hoje
+    const status: PaceStatus = nowAmount >= m.max * share ? 'ahead' : period === 'week' || elapsed < 0.25 || nowAmount >= expected * 0.8 ? 'ontrack' : 'behind'
+    const sofar =
+      period === 'week' ? '' : ` Até agora: ${show(nowAmount)} ${unit}; o esperado para este ponto é cerca de ${show(Math.ceil(expected * 10) / 10)}.`
+    return { status, explanation: `${info.first} da meta. O combinado é de ${freqRange(m)} ${info.per}.${sofar}` }
+  }
+
+  const currentMet = nowAmount >= m.min
+  const judged = currentMet ? [...samples, { amount: nowAmount, required: m.min, share: 1, skipped: 0 }] : samples
+  const met = judged.filter(sample => sample.amount >= sample.required - 1e-9).length
+  // a média usa só os períodos em que a meta valeu pelo menos metade do tempo, ajustados ao período inteiro
+  const full = samples.filter(sample => sample.share >= 0.5)
+  const average = full.length ? full.reduce((sum, sample) => sum + sample.amount / sample.share, 0) / full.length : undefined
+  const status: PaceStatus =
+    average !== undefined && average >= m.max
+      ? 'ahead'
+      : met / judged.length >= 0.75 || (average !== undefined && average >= m.min * 0.9)
+        ? 'ontrack'
+        : 'behind'
+
+  const skipped = samples.reduce((sum, sample) => sum + sample.skipped, 0)
+  const parts = [
+    average !== undefined
+      ? `${info.last(full.length)}, a média foi de ${show(average)} ${unit} ${info.per}.`
+      : `${info.last(samples.length)}: ${show(samples[0].amount)} ${unit}, num período que a meta pegou só em parte.`,
+    `O combinado é de ${freqRange(m)}.`,
+    skipped ? `${skipped} ${plural(skipped, 'dispensa não entra', 'dispensas não entram')} na conta.` : '',
+    currentMet ? `${cap(info.current)} você já chegou ao mínimo.` : `${cap(info.current)}: ${show(nowAmount)} ${unit} até agora.`,
+  ]
+  return { status, explanation: parts.filter(Boolean).join(' ') }
 }
 
 /**
@@ -205,50 +295,29 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
   // daqui em diante, só metas de frequência podem estar sem data, e elas não usam o prazo
   const deadline = goal.deadline ?? today
   const span = Math.max(1, daysBetween(goal.startDate, deadline))
-  const time = clamp(daysBetween(goal.startDate, today) / span)
+  const elapsedDays = daysBetween(goal.startDate, today)
+  const time = clamp(elapsedDays / span)
+  const pace = (ratio: number) => byRatio(ratio, time, elapsedDays)
   const daysLeft = Math.max(0, daysBetween(today, deadline))
   const weeksLeft = Math.max(1, Math.ceil(daysLeft / 7))
   const dismissed = tasks.filter(task => task.goalId === goal.id && task.status === 'dismissed')
 
   switch (m.type) {
     case 'frequency': {
-      const thisWeek = mondayOf(today)
-      const firstWeek = mondayOf(goal.startDate)
-      const weeks: { count: number; skipped: number }[] = []
-      for (let i = 1; i <= 4; i++) {
-        const start = shift(thisWeek, -7 * i)
-        if (start < firstWeek) break
-        const end = shift(start, 6)
-        weeks.push({
-          count: daysBetweenDates(logs, start, end),
-          skipped: dismissed.filter(task => inRange(task.date, start, end)).length,
-        })
-      }
-      if (!weeks.length) return make('ontrack', `Primeira semana da meta. O combinado é de ${m.min} a ${m.max} ${m.noun} por semana.`)
-      const average = weeks.reduce((sum, week) => sum + week.count, 0) / weeks.length
-      const met = weeks.filter(week => week.count >= Math.max(0, m.min - week.skipped)).length
-      const skipped = weeks.reduce((sum, week) => sum + week.skipped, 0)
-      const status: PaceStatus = average >= m.max ? 'ahead' : met / weeks.length >= 0.75 ? 'ontrack' : 'behind'
-      const tail = skipped ? ` ${skipped} ${plural(skipped, 'dispensa não entra', 'dispensas não entram')} na conta.` : ''
-      return make(
-        status,
-        `Nas últimas ${weeks.length} semanas, a média foi de ${num1(average)} ${m.noun} por semana. O combinado é de ${m.min} a ${m.max}.${tail}`,
-      )
+      const { status, explanation } = frequencyPace(goal, m, logs, dismissed, today)
+      return make(status, explanation)
     }
     case 'sum': {
       const remaining = m.target - progress.current
       if (remaining <= 0) return make('done', 'Você chegou ao valor que definiu.')
       const months = Math.max(1, differenceInCalendarMonths(parseISO(deadline), parseISO(today)) + 1)
-      return make(
-        byRatio(progress.ratio, time),
-        `Faltam ${amount(m, remaining)} em ${months} ${plural(months, 'mês', 'meses')} = ${amount(m, remaining / months)}/mês.`,
-      )
+      return make(pace(progress.ratio), `Faltam ${amount(m, remaining)} em ${months} ${plural(months, 'mês', 'meses')} = ${amount(m, remaining / months)}/mês.`)
     }
     case 'value': {
       const remaining = Math.abs(progress.current - m.to)
       if (progress.ratio >= 1) return make('done', 'Você chegou ao valor que definiu.')
       return make(
-        byRatio(progress.ratio, time),
+        pace(progress.ratio),
         `Faltam ${num(remaining, 1)} ${m.unit} em ${weeksLeft} ${plural(weeksLeft, 'semana', 'semanas')} = ${num(remaining / weeksLeft, 1)} ${m.unit} por semana.`,
       )
     }
@@ -257,7 +326,7 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
       if (remaining <= 0) return make('done', 'Todas as etapas estão concluídas.')
       const next = nextMilestone(goal, allLogs)
       return make(
-        byRatio(progress.ratio, time),
+        pace(progress.ratio),
         `${plural(remaining, 'Falta', 'Faltam')} ${remaining} ${plural(remaining, 'etapa', 'etapas')} em ${weeksLeft} ${plural(weeksLeft, 'semana', 'semanas')}.${next ? ` A próxima é “${next.title}”.` : ''}`,
       )
     }
@@ -267,7 +336,7 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
       const what =
         m.unit === 'horas' ? `${num1(remaining)} ${plural(Math.ceil(remaining), 'hora', 'horas')}` : `${remaining} ${plural(remaining, 'dia', 'dias')}`
       return make(
-        byRatio(progress.ratio, time),
+        pace(progress.ratio),
         `${plural(Math.ceil(remaining), 'Falta', 'Faltam')} ${what}. ${plural(daysLeft, 'Resta', 'Restam')} ${daysLeft} ${plural(daysLeft, 'dia', 'dias')} no calendário até ${fmt(deadline, "d 'de' MMMM")}.`,
       )
     }
@@ -304,15 +373,23 @@ export function valueSeries(goal: Goal, allLogs: LogEntry[]) {
     .map(log => ({ date: log.date, label: fmt(log.date, 'd MMM'), value: log.value as number }))
 }
 
-export function weeklyCounts(goal: Goal, allLogs: LogEntry[], today: string, weeks = 10) {
+/** Quantos períodos o gráfico de frequência mostra. */
+const CHART_PERIODS: Record<FrequencyPeriod, number> = { week: 10, month: 6, bimester: 6, quarter: 4, year: 3 }
+const PERIOD_TICK: Record<FrequencyPeriod, string> = { week: 'd/M', month: 'MMM', bimester: 'MMM', quarter: 'MMM yy', year: 'yyyy' }
+
+/** Total de cada período (semanas, meses...), do mais antigo ao atual, para o gráfico de barras. */
+export function periodCounts(goal: Goal, allLogs: LogEntry[], today: string) {
   const logs = logsOf(allLogs, goal.id)
-  const thisWeek = mondayOf(today)
-  return Array.from({ length: weeks }, (_, index) => {
-    const start = shift(thisWeek, -7 * (weeks - 1 - index))
-    const end = shift(start, 6)
+  const m = goal.metric
+  const period = m.type === 'frequency' ? freqPeriod(m) : 'week'
+  const starts = [periodStart(today, period)]
+  while (starts.length < CHART_PERIODS[period]) starts.unshift(previousPeriod(starts[0], period))
+  return starts.map(start => {
+    const end = periodEnd(start, period)
     return {
-      week: fmt(start, 'd/M'),
-      count: goal.metric.type === 'frequency' ? daysBetweenDates(logs, start, end) : logs.filter(log => inRange(log.date, start, end)).length,
+      start,
+      week: fmt(start, PERIOD_TICK[period]),
+      count: m.type === 'frequency' ? Math.round(freqAmount(m, logs, start, end) * 10) / 10 : logs.filter(log => inRange(log.date, start, end)).length,
     }
   })
 }
@@ -363,10 +440,11 @@ export function suggestTasks(
     const m = goal.metric
     const base = { key: goal.id, goalId: goal.id, title: goal.taskTitle || goal.title }
     if (m.type === 'frequency') {
-      // já treinou hoje: não sugere de novo; e a semana conta dias
+      // já fez hoje: não sugere de novo; e o período conta dias (ou horas)
       if (mine.some(log => log.date === today)) continue
-      const count = daysBetweenDates(mine, mondayOf(today), today)
-      if (count < m.max) out.push({ ...base, hint: `${count} de ${m.min} a ${m.max} nesta semana` })
+      const period = freqPeriod(m)
+      const count = freqAmount(m, mine, periodStart(today, period), today)
+      if (count < m.max) out.push({ ...base, hint: `${num1(count)} de ${freqRange(m)} ${PERIOD[period].current}` })
     } else if (m.type === 'days') {
       if (!mine.some(log => log.date === today)) out.push({ ...base, hint: m.sessionMinutes ? `Sessão de ${m.sessionMinutes} min` : 'Sessão de hoje' })
     } else if (m.type === 'value') {
@@ -419,10 +497,12 @@ export function periodStats(data: { goals: Goal[]; logs: LogEntry[]; tasks: Task
     let text = ''
     let ratio = progressOf(goal, data.logs, end, data.goals).ratio
     if (m.type === 'frequency') {
-      const weeks = Math.max(1, Math.round((daysBetween(start < goal.startDate ? goal.startDate : start, end) + 1) / 7))
-      const days = uniqueDays(logs)
-      text = `${days} ${m.noun}`
-      ratio = clamp(days / (m.min * weeks))
+      // o combinado proporcional ao intervalo (ex.: 3 por semana num mês = ~13)
+      const from = start < goal.startDate ? goal.startDate : start
+      const periods = (daysBetween(from, end) + 1) / PERIOD[freqPeriod(m)].avgDays
+      const total = freqAmount(m, logs, from, end)
+      text = `${num1(total)} ${inHours(m) ? plural(total, 'hora', 'horas') : m.noun}`
+      ratio = clamp(total / Math.max(m.min * periods, 1e-9))
     } else if (m.type === 'sum') {
       text = `+ ${amount(
         m,

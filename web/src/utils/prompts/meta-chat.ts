@@ -26,6 +26,8 @@ export interface MetaProposta {
     min?: number
     max?: number
     nome?: string
+    /** frequency: período do combinado (padrão: semana) */
+    periodo?: 'week' | 'month' | 'bimester' | 'quarter' | 'year'
     /** sum */
     alvo?: number
     emReais?: boolean
@@ -35,7 +37,7 @@ export interface MetaProposta {
     para?: number
     /** milestones */
     etapas?: string[]
-    /** days */
+    /** days e frequency: contar dias/vezes ou horas */
     contarEm?: 'dias' | 'horas'
     minutosPorSessao?: number
   }
@@ -88,6 +90,7 @@ export const CAMPOS_META = [
 export type CampoMeta = (typeof CAMPOS_META)[number]
 
 const TIPOS = ['frequency', 'sum', 'value', 'milestones', 'days'] as const
+const PERIODOS = ['week', 'month', 'bimester', 'quarter', 'year'] as const
 const numero = (valor: unknown) =>
   typeof valor === 'number' && Number.isFinite(valor)
     ? valor
@@ -144,7 +147,7 @@ Como montar a meta:
 - "area": exatamente um dos nomes da lista de áreas recebida.
 - "descricao": a meta em uma frase específica, com o número e o prazo. Datas por extenso ("até 31 de março de 2027"), nunca no formato aaaa-mm-dd.
 - "medida.tipo":
-  - "frequency": vezes por semana. Preencha "min", "max" (1 a 7) e "nome" (ex.: "treinos", "vezes").
+  - "frequency": um combinado que se repete a cada período. Preencha "min", "max", "nome" (ex.: "treinos", "vezes") e "periodo": "week" (semana, o padrão), "month" (mês), "bimester" (bimestre), "quarter" (trimestre) ou "year" (ano). Para contar tempo em vez de vezes (ex.: "10 a 15 horas por semana", "40 horas por mês"), use "contarEm": "horas", e "min" e "max" ficam em horas. Contando vezes, "max" vai até o número de dias do período (7 na semana).
   - "sum": soma até um alvo. Preencha "alvo", "emReais" (true para dinheiro) e "unidade" quando não for dinheiro.
   - "value": um valor que vai de X para Y. Preencha "de", "para" e "unidade" (ex.: "kg", "min").
   - "milestones": etapas de um projeto. Preencha "etapas" com 3 a 7 etapas curtas, em ordem.
@@ -235,6 +238,7 @@ ou, ao propor (com "mudancas" só ao ajustar uma meta existente):
           para: numero(md.para),
           etapas: listaTextos(md.etapas, 10, 80),
           contarEm: md.contarEm === 'horas' ? 'horas' : 'dias',
+          periodo: PERIODOS.find(item => item === md.periodo),
           minutosPorSessao: numero(md.minutosPorSessao),
         },
         pontoDePartida: texto(m.pontoDePartida, 300) ?? '',

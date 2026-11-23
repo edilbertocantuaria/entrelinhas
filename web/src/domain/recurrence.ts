@@ -1,6 +1,7 @@
 import { differenceInCalendarMonths, getDaysInMonth, parseISO } from 'date-fns'
 import { daysBetween, fmt, mondayOf, shift } from '@/shared/format'
 import { marcoReachedOn } from '@/domain/goals'
+import { PERIOD } from '@/domain/periods'
 import type { Goal, LogEntry, RecurringTask, Repeat, Task } from '@/domain/types'
 
 export const WEEKDAYS = [
@@ -123,7 +124,12 @@ const SPREAD: Record<number, number[]> = { 1: [1], 2: [2, 4], 3: [1, 3, 5], 4: [
 export function suggestRepeat(goal: Pick<Goal, 'metric' | 'startDate' | 'deadline' | 'until'>): Repeat | null {
   const base = { start: goal.startDate, end: repeatEndFor(goal), interval: 1 }
   const m = goal.metric
-  if (m.type === 'frequency') return { ...base, freq: 'weekly', weekdays: SPREAD[Math.min(7, Math.max(1, m.min))] }
+  if (m.type === 'frequency') {
+    // horas: dias úteis, para espalhar o tempo; vezes em períodos longos viram o equivalente por semana
+    if (m.count === 'horas') return { ...base, freq: 'weekly', weekdays: BUSINESS }
+    const perWeek = Math.ceil(m.min / (PERIOD[m.period ?? 'week'].avgDays / 7))
+    return { ...base, freq: 'weekly', weekdays: SPREAD[Math.min(7, Math.max(1, perWeek))] }
+  }
   if (m.type === 'days') return { ...base, freq: 'weekly', weekdays: [1, 2, 3, 4, 5, 6] }
   if (m.type === 'value') return { ...base, freq: 'weekly', weekdays: [1] }
   return null

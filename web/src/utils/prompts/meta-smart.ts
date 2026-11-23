@@ -34,7 +34,7 @@ export const metaSmart: PromptDef<EntradaMetaSmart, SaidaMetaSmart> = {
 Tarefa: ajudar a pessoa a transformar a ideia de uma meta numa meta SMART, sem decidir por ela.
 
 Tipos de medida disponíveis no app:
-- "frequency": vezes por semana (ex.: treinar de 3 a 4 vezes por semana)
+- "frequency": vezes ou horas a cada período: semana, mês, bimestre, trimestre ou ano (ex.: treinar de 3 a 4 vezes por semana, estudar 40 horas por mês)
 - "sum": soma até um alvo (ex.: guardar R$ 5.000,00)
 - "value": um valor que muda de X para Y (ex.: peso de 85 kg para 78 kg)
 - "milestones": etapas de um projeto (ex.: 5 etapas até entregar)

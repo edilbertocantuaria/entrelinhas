@@ -661,9 +661,17 @@ export const useStore = create<Store>()(
           if (mod && goal && goal.metric.type !== 'milestones') {
             const raw = mod.goal?.fieldId ? entry.values[mod.goal.fieldId] : undefined
             const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined
-            const needsValue = goal.metric.type === 'sum' || goal.metric.type === 'value'
+            // frequência em horas soma o tempo (em minutos), como as metas de dias/tempo
+            const countsTime = goal.metric.type === 'frequency' && goal.metric.count === 'horas'
+            const needsValue = goal.metric.type === 'sum' || goal.metric.type === 'value' || countsTime
             if (!needsValue || value !== undefined)
-              log = { id: `log-${uid()}`, date: entry.date, goalId: goal.id, value: goal.metric.type === 'frequency' ? undefined : value, note: mod.name }
+              log = {
+                id: `log-${uid()}`,
+                date: entry.date,
+                goalId: goal.id,
+                value: goal.metric.type === 'frequency' && !countsTime ? undefined : value,
+                note: mod.name,
+              }
           }
           return {
             moduleEntries: [...state.moduleEntries, { ...entry, id: `reg-${uid()}`, logId: log?.id }],

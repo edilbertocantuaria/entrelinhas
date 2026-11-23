@@ -1,6 +1,7 @@
 import type { CampoMeta, MetaProposta } from '@/utils/prompts'
 import { cap, fmt, shift, uid } from '@/shared/format'
-import { amount, untilText } from '@/domain/goals'
+import { amount, describeFrequency, untilText } from '@/domain/goals'
+import { PERIOD } from '@/domain/periods'
 import { describe, repeatEndFor } from '@/domain/recurrence'
 import type { Area, Goal, GoalUntil, Metric, RecurringTask, Repeat } from '@/domain/types'
 
@@ -48,8 +49,7 @@ export function clearDraft() {
 
 /** "3 a 4 treinos por semana", "Somar até R$ 5.000,00"... */
 export function describeMetric(metric: Metric) {
-  if (metric.type === 'frequency')
-    return metric.min === metric.max ? `${metric.min} ${metric.noun} por semana` : `${metric.min} a ${metric.max} ${metric.noun} por semana`
+  if (metric.type === 'frequency') return describeFrequency(metric)
   if (metric.type === 'sum') return `Somar até ${amount(metric, metric.target)}`
   if (metric.type === 'value') return `De ${amount(metric, metric.from)} para ${amount(metric, metric.to)}`
   if (metric.type === 'milestones') return `${metric.items.length} etapas: ${metric.items.map(item => item.title).join(', ')}`
@@ -62,8 +62,19 @@ const clampInt = (value: number | undefined, min: number, max: number, fallback:
 /** Converte a medida proposta pela IA numa métrica válida do app (com valores seguros quando falta algo). */
 function toMetric(m: MetaProposta['medida']): Metric {
   if (m.tipo === 'frequency') {
-    const min = clampInt(m.min, 1, 7, 3)
-    return { type: 'frequency', min, max: clampInt(m.max, min, 7, min), noun: m.nome || 'vezes' }
+    const period = m.periodo ?? 'week'
+    const hours = m.contarEm === 'horas'
+    // vezes: no máximo um por dia do período; horas: até 24 por dia
+    const limit = hours ? PERIOD[period].maxDays * 24 : PERIOD[period].maxDays
+    const min = clampInt(m.min, 1, limit, 3)
+    return {
+      type: 'frequency',
+      min,
+      max: clampInt(m.max, min, limit, min),
+      noun: hours ? 'horas' : m.nome || 'vezes',
+      ...(period !== 'week' ? { period } : {}),
+      ...(hours ? { count: 'horas' as const } : {}),
+    }
   }
   if (m.tipo === 'sum' && m.alvo && m.alvo > 0)
     return { type: 'sum', target: m.alvo, currency: !!m.emReais || !m.unidade, unit: m.emReais || !m.unidade ? 'R$' : m.unidade }

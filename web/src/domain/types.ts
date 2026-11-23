@@ -12,9 +12,15 @@ export interface Area {
 
 export type MetricType = 'frequency' | 'sum' | 'value' | 'milestones' | 'days'
 
+/** período das metas de frequência */
+export type FrequencyPeriod = 'week' | 'month' | 'bimester' | 'quarter' | 'year'
+
 export type Metric =
-  /** contagem por semana, ex.: academia 3 a 4x */
-  | { type: 'frequency'; min: number; max: number; noun: string }
+  /**
+   * contagem por período, ex.: academia 3 a 4x por semana, estudar 20 a 30 horas por mês.
+   * Sem `period`, é por semana; sem `count`, conta dias com registro ("vezes").
+   */
+  | { type: 'frequency'; min: number; max: number; noun: string; period?: FrequencyPeriod; count?: 'vezes' | 'horas' }
   /** soma acumulada até um alvo, ex.: guardar R$ 5.000 */
   | { type: 'sum'; target: number; unit: string; currency: boolean }
   /** valor ao longo do tempo, de X para Y, ex.: peso */

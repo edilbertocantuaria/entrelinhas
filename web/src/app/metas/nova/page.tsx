@@ -14,11 +14,12 @@ import { ArtPicker, METRIC_ART } from '@/components/goal-visuals'
 import { Button } from '@/components/ui/button'
 import { Chip, Field, Segmented, Stepper, Switch } from '@/components/ui/controls'
 import { parseNum, uid } from '@/shared/format'
-import { amount, marcoCandidates, METRIC_LABEL } from '@/domain/goals'
+import { amount, describeFrequency, marcoCandidates, METRIC_LABEL } from '@/domain/goals'
+import { PERIOD, PERIODS } from '@/domain/periods'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
 import { describe, repeatEndFor, suggestRepeat } from '@/domain/recurrence'
-import type { GoalUntil, Metric, MetricType, Repeat } from '@/domain/types'
+import type { FrequencyPeriod, GoalUntil, Metric, MetricType, Repeat } from '@/domain/types'
 import { RepeatPicker } from '@/components/repeat-picker'
 import { cn } from '@/shared/utils'
 
@@ -32,6 +33,15 @@ const STEPS: { name: string; question: string; art: IllustrationName }[] = [
 ]
 
 const TYPES: MetricType[] = ['frequency', 'sum', 'value', 'milestones', 'days']
+
+/** frequência sendo montada no passo "Mensurável" */
+interface FreqDraft {
+  min: number
+  max: number
+  noun: string
+  period: FrequencyPeriod
+  count: 'vezes' | 'horas'
+}
 
 /** atalhos de duração da sessão; "Outra" aceita qualquer valor nesse intervalo (o mesmo que a Esther usa) */
 const SESSION_PRESETS = [15, 30, 45, 60]
@@ -90,7 +100,46 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
   const [areaId, setAreaId] = useState(draft?.areaId && areas.some(item => item.id === draft.areaId) ? draft.areaId : (active[0]?.id ?? ''))
   const [description, setDescription] = useState(draft?.description ?? '')
   const [type, setType] = useState<MetricType>(dm?.type ?? 'frequency')
-  const [freq, setFreq] = useState(dm?.type === 'frequency' ? { min: dm.min, max: dm.max, noun: dm.noun } : { min: 3, max: 4, noun: 'vezes' })
+  const [freq, setFreq] = useState<FreqDraft>(() =>
+    dm?.type === 'frequency'
+      ? { min: dm.min, max: dm.max, noun: dm.count === 'horas' ? 'vezes' : dm.noun, period: dm.period ?? 'week', count: dm.count ?? 'vezes' }
+      : { min: 3, max: 4, noun: 'vezes', period: 'week', count: 'vezes' },
+  )
+  // fora de "vezes por semana" os números são digitados (podem ser altos, e horas aceitam decimais)
+  const decimalText = (n: number) => String(n).replace('.', ',')
+  const [freqText, setFreqText] = useState({ min: decimalText(freq.min), max: freq.max === freq.min ? '' : decimalText(freq.max) })
+  const freqStepper = freq.period === 'week' && freq.count === 'vezes'
+  const changeFreq = (patch: Partial<FreqDraft>) => {
+    const next = { ...freq, ...patch }
+    if (next.period === 'week' && next.count === 'vezes') {
+      next.min = Math.min(7, Math.max(1, Math.round(next.min)))
+      next.max = Math.min(7, Math.max(next.min, Math.round(next.max)))
+    }
+    setFreq(next)
+    // os campos de texto partem dos números atuais quando o modo muda
+    if (patch.period || patch.count) setFreqText({ min: decimalText(next.min), max: next.max === next.min ? '' : decimalText(next.max) })
+  }
+  const freqLimit = freq.count === 'horas' ? PERIOD[freq.period].maxDays * 24 : PERIOD[freq.period].maxDays
+  const freqNumbers = () => {
+    if (freqStepper) return { min: freq.min, max: Math.max(freq.min, freq.max) }
+    const min = parseNum(freqText.min)
+    const max = freqText.max.trim() ? parseNum(freqText.max) : min
+    return { min, max }
+  }
+  const freqError = (() => {
+    if (type !== 'frequency' || freqStepper) return ''
+    const { min, max } = freqNumbers()
+    if (!freqText.min.trim()) return ''
+    const whole = freq.count === 'vezes'
+    if (!(min > 0) || (whole && !Number.isInteger(min))) return whole ? 'Use um número inteiro de vezes.' : 'Informe as horas.'
+    if (!(max >= min)) return 'O máximo precisa ser igual ou maior que o mínimo.'
+    if (max > freqLimit)
+      return whole
+        ? `Contando vezes, o limite é de ${freqLimit} (um por dia do ${PERIOD[freq.period].name.toLocaleLowerCase('pt-BR')}).`
+        : `O limite é de ${freqLimit} horas ${PERIOD[freq.period].per}.`
+    if (whole && !Number.isInteger(max)) return 'Use um número inteiro de vezes.'
+    return ''
+  })()
   const [sum, setSum] = useState(
     dm?.type === 'sum' ? { target: decimal(dm.target), currency: dm.currency, unit: dm.currency ? '' : dm.unit } : { target: '', currency: true, unit: '' },
   )
@@ -131,7 +180,19 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
   const area = areas.find(item => item.id === areaId)
 
   const metric = (): Metric | null => {
-    if (type === 'frequency') return { type, min: freq.min, max: Math.max(freq.min, freq.max), noun: freq.noun.trim() || 'vezes' }
+    if (type === 'frequency') {
+      const { min, max } = freqNumbers()
+      if (freqError || !(min > 0) || !(max >= min)) return null
+      const hours = freq.count === 'horas'
+      return {
+        type,
+        min,
+        max,
+        noun: hours ? 'horas' : freq.noun.trim() || 'vezes',
+        ...(freq.period !== 'week' ? { period: freq.period } : {}),
+        ...(hours ? { count: 'horas' as const } : {}),
+      }
+    }
     if (type === 'sum') {
       const target = parseNum(sum.target)
       return target > 0 && (sum.currency || sum.unit.trim()) ? { type, target, currency: sum.currency, unit: sum.currency ? 'R$' : sum.unit.trim() } : null
@@ -168,7 +229,7 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
 
   const metricText = () => {
     if (!built) return ''
-    if (built.type === 'frequency') return `${built.min} a ${built.max} ${built.noun} por semana`
+    if (built.type === 'frequency') return describeFrequency(built)
     if (built.type === 'sum') return `Somar até ${amount(built, built.target)}`
     if (built.type === 'value') return `De ${built.from} para ${built.to} ${built.unit}`
     if (built.type === 'milestones') return `${built.items.length} etapas`
@@ -366,29 +427,77 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
 
             {type === 'frequency' && (
               <div className="card flex flex-col gap-3 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[14px]">Mínimo por semana</span>
-                  <Stepper
-                    label="Mínimo por semana"
-                    min={1}
-                    max={7}
-                    value={freq.min}
-                    onChange={min => setFreq({ ...freq, min, max: Math.max(min, freq.max) })}
-                  />
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[13px] text-muted">A cada</span>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Período do combinado">
+                    {PERIODS.map(period => (
+                      <Chip key={period} selected={freq.period === period} onClick={() => changeFreq({ period })}>
+                        {PERIOD[period].name}
+                      </Chip>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[14px]">Máximo por semana</span>
-                  <Stepper label="Máximo por semana" min={freq.min} max={7} value={Math.max(freq.min, freq.max)} onChange={max => setFreq({ ...freq, max })} />
-                </div>
-                <Field label="Como chamar cada vez" htmlFor="meta-noun">
-                  <input
-                    id="meta-noun"
-                    className="field"
-                    placeholder="vezes, treinos, aulas"
-                    value={freq.noun}
-                    onChange={event => setFreq({ ...freq, noun: event.target.value })}
-                  />
-                </Field>
+                <Segmented
+                  label="Contar"
+                  value={freq.count}
+                  onChange={count => changeFreq({ count })}
+                  options={[
+                    { value: 'vezes', label: 'Vezes' },
+                    { value: 'horas', label: 'Horas' },
+                  ]}
+                />
+                {freqStepper ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[14px]">Mínimo por semana</span>
+                      <Stepper label="Mínimo por semana" min={1} max={7} value={freq.min} onChange={min => changeFreq({ min, max: Math.max(min, freq.max) })} />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[14px]">Máximo por semana</span>
+                      <Stepper label="Máximo por semana" min={freq.min} max={7} value={Math.max(freq.min, freq.max)} onChange={max => changeFreq({ max })} />
+                    </div>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label={`Mínimo ${PERIOD[freq.period].per}`} htmlFor="meta-freq-min">
+                      <input
+                        id="meta-freq-min"
+                        className="field"
+                        inputMode={freq.count === 'horas' ? 'decimal' : 'numeric'}
+                        placeholder={freq.count === 'horas' ? '10' : '8'}
+                        value={freqText.min}
+                        onChange={event => setFreqText({ ...freqText, min: event.target.value })}
+                      />
+                    </Field>
+                    <Field label="Máximo (opcional)" htmlFor="meta-freq-max">
+                      <input
+                        id="meta-freq-max"
+                        className="field"
+                        inputMode={freq.count === 'horas' ? 'decimal' : 'numeric'}
+                        placeholder={freqText.min || '12'}
+                        value={freqText.max}
+                        onChange={event => setFreqText({ ...freqText, max: event.target.value })}
+                      />
+                    </Field>
+                  </div>
+                )}
+                {freqError && <p className="text-[12px] text-muted">{freqError}</p>}
+                {freq.count === 'vezes' ? (
+                  <>
+                    <Field label="Como chamar cada vez" htmlFor="meta-noun">
+                      <input
+                        id="meta-noun"
+                        className="field"
+                        placeholder="vezes, treinos, aulas"
+                        value={freq.noun}
+                        onChange={event => changeFreq({ noun: event.target.value })}
+                      />
+                    </Field>
+                    <p className="text-[12px] text-muted">Conta dias com registro: duas atividades no mesmo dia valem 1.</p>
+                  </>
+                ) : (
+                  <p className="text-[12px] text-muted">Cada registro pede o tempo dedicado, e as horas se somam no período.</p>
+                )}
               </div>
             )}
 
