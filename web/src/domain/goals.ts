@@ -257,6 +257,57 @@ export interface Pace {
   status: PaceStatus
   label: string
   explanation: string
+  /** "um pouco atrás": o que fazer para voltar ao ritmo, numa frase ("Faça mais 2 treinos até domingo.") */
+  catchUp?: string
+}
+
+/** "treinos" -> "treino", "vezes" -> "vez", "dias com 2 h ou mais" -> "dia com 2 h ou mais" */
+const singular = (unit: string) => {
+  const [first, ...rest] = unit.split(' ')
+  const word = first === 'vezes' ? 'vez' : first.endsWith('s') ? first.slice(0, -1) : first
+  return [word, ...rest].join(' ')
+}
+const countOf = (count: number, unit: string) => `${num1(count)} ${count === 1 ? singular(unit) : unit}`
+
+/** "até domingo", "até hoje", "até 30 de novembro" */
+const untilDay = (end: string, today: string, period: FrequencyPeriod) =>
+  end === today ? 'até hoje' : period === 'week' ? `até ${fmt(end, 'EEEE')}` : `até ${fmt(end, "d 'de' MMMM")}`
+
+/**
+ * Para voltar ao ritmo numa conta de frequência: chegar ao mínimo no período atual
+ * (quem cumpre o período atual fica "no ritmo"). Se não cabe mais neste período, diz isso.
+ */
+type CatchUp = { action: string; when: string } | { sentence: string }
+
+function frequencyCatchUp(axis: Axis, period: FrequencyPeriod, logs: LogEntry[], nowFrom: string, today: string): CatchUp | undefined {
+  const end = periodEnd(periodStart(today, period), period)
+  const now = axis.amount(logs, nowFrom, today)
+  const when = untilDay(end, today, period)
+  if (axis.unit === 'horas') {
+    const minutes = Math.ceil(((axis.min - now) * 60) / 5) * 5
+    return minutes > 0 ? { action: `dedique mais ${minutesLabel(minutes)}`, when } : undefined
+  }
+  const need = Math.ceil(axis.min - now - 1e-9)
+  if (need <= 0) return undefined
+  // dias que ainda dá para usar: hoje (se ainda não contou) e os que faltam no período
+  const countedToday = axis.amount(logs, today, today) >= 1
+  const available = daysBetween(today, end) + (countedToday ? 0 : 1)
+  if (need > available) {
+    const info = PERIOD[period]
+    return {
+      sentence: `${cap(info.current)} cabem no máximo ${countOf(available, axis.unit)}: faça o que der. Depois, cumprir o mínimo de ${countOf(Math.ceil(axis.min), axis.unit)} ${info.per} já te deixa no ritmo.`,
+    }
+  }
+  return { action: `faça mais ${countOf(need, axis.unit)}`, when }
+}
+
+/** Junta os passos das contas numa frase: "Faça mais 3 dias e dedique mais 2 h até domingo." */
+function catchUpText(items: (CatchUp | undefined)[]) {
+  const list = items.filter((item): item is CatchUp => !!item)
+  const sentences = list.filter((item): item is { sentence: string } => 'sentence' in item).map(item => item.sentence)
+  const actions = list.filter((item): item is { action: string; when: string } => 'action' in item)
+  if (actions.length) sentences.unshift(`${cap(actions.map(item => item.action).join(' e '))} ${actions[0].when}.`)
+  return sentences.length ? sentences.join(' ') : undefined
 }
 
 /**
@@ -278,25 +329,32 @@ const byRatio = (progress: number, time: number, elapsedDays: number): PaceStatu
  * - Fica "no ritmo" quem cumpriu em 3 de cada 4 períodos OU teve média de pelo menos 90% do mínimo
  *   (antes, média igual ao combinado podia aparecer como "atrás").
  */
-function frequencyPace(goal: Goal, m: Frequency, logs: LogEntry[], dismissed: Task[], today: string): { status: PaceStatus; explanation: string } {
+type AxisResult = { status: PaceStatus; explanation: string; catchUp?: CatchUp }
+
+function frequencyPace(
+  goal: Goal,
+  m: Frequency,
+  logs: LogEntry[],
+  dismissed: Task[],
+  today: string,
+): { status: PaceStatus; explanation: string; catchUp?: string } {
   const results = freqAxes(m).map(axis => axisPace(goal, freqPeriod(m), axis, logs, dismissed, today))
-  if (results.length === 1) return results[0]
   // dias e horas (total): atrás se qualquer conta estiver atrás; adiantado só se as duas estiverem
   const statuses = results.map(result => result.status)
   const status: PaceStatus = statuses.includes('behind') ? 'behind' : statuses.every(item => item === 'ahead') ? 'ahead' : 'ontrack'
   const lower = (text: string) => text.charAt(0).toLocaleLowerCase('pt-BR') + text.slice(1)
-  return { status, explanation: results.map((result, index) => `${index === 0 ? 'Dias' : 'Horas'}: ${lower(result.explanation)}`).join(' ') }
+  return {
+    status,
+    explanation:
+      results.length === 1
+        ? results[0].explanation
+        : results.map((result, index) => `${index === 0 ? 'Dias' : 'Horas'}: ${lower(result.explanation)}`).join(' '),
+    catchUp: status === 'behind' ? catchUpText(results.map(result => result.catchUp)) : undefined,
+  }
 }
 
 /** O ritmo de uma conta (dias ou horas) da meta de frequência. */
-function axisPace(
-  goal: Goal,
-  period: FrequencyPeriod,
-  axis: Axis,
-  logs: LogEntry[],
-  dismissed: Task[],
-  today: string,
-): { status: PaceStatus; explanation: string } {
+function axisPace(goal: Goal, period: FrequencyPeriod, axis: Axis, logs: LogEntry[], dismissed: Task[], today: string): AxisResult {
   const info = PERIOD[period]
   const { unit } = axis
   const show = (value: number) => num1(value)
@@ -322,12 +380,21 @@ function axisPace(
     const expected = axis.min * share * elapsed
     // semana: a primeira é sempre de adaptação; nos períodos longos, compara com o esperado até hoje
     const status: PaceStatus =
-      nowAmount >= axis.max * share ? 'ahead' : period === 'week' || elapsed < 0.25 || nowAmount >= expected * 0.8 ? 'ontrack' : 'behind'
+      nowAmount >= axis.max * share
+        ? 'ahead'
+        : period === 'week' || elapsed < 0.25 || nowAmount >= expected * 0.8 || nowAmount >= axis.min * share
+          ? 'ontrack'
+          : 'behind'
     const sofar =
       period === 'week' ? '' : ` Até agora: ${show(nowAmount)} ${unit}; o esperado para este ponto é cerca de ${show(Math.ceil(expected * 10) / 10)}.`
-    return { status, explanation: `${info.first} da meta. O combinado é de ${range} ${info.per}.${sofar}` }
+    return {
+      status,
+      explanation: `${info.first} da meta. O combinado é de ${range} ${info.per}.${sofar}`,
+      catchUp: status === 'behind' ? frequencyCatchUp({ ...axis, min: axis.min * share }, period, logs, nowFrom, today) : undefined,
+    }
   }
 
+  // cumprir o mínimo no período atual já coloca a meta no ritmo (é o que o "para voltar ao ritmo" pede)
   const currentMet = nowAmount >= axis.min
   const judged = currentMet ? [...samples, { amount: nowAmount, required: axis.min, share: 1, skipped: 0 }] : samples
   const met = judged.filter(sample => sample.amount >= sample.required - 1e-9).length
@@ -337,7 +404,7 @@ function axisPace(
   const status: PaceStatus =
     average !== undefined && average >= axis.max
       ? 'ahead'
-      : met / judged.length >= 0.75 || (average !== undefined && average >= axis.min * 0.9)
+      : currentMet || met / judged.length >= 0.75 || (average !== undefined && average >= axis.min * 0.9)
         ? 'ontrack'
         : 'behind'
 
@@ -350,7 +417,11 @@ function axisPace(
     skipped ? `${skipped} ${plural(skipped, 'dispensa não entra', 'dispensas não entram')} na conta.` : '',
     currentMet ? `${cap(info.current)} você já chegou ao mínimo.` : `${cap(info.current)}: ${show(nowAmount)} ${unit} até agora.`,
   ]
-  return { status, explanation: parts.filter(Boolean).join(' ') }
+  return {
+    status,
+    explanation: parts.filter(Boolean).join(' '),
+    catchUp: status === 'behind' ? frequencyCatchUp(axis, period, logs, nowFrom, today) : undefined,
+  }
 }
 
 /**
@@ -363,7 +434,12 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
   const progress = metricProgress(goal, allLogs, today)
   const logs = logsOf(allLogs, goal.id)
   const m = goal.metric
-  const make = (status: PaceStatus, explanation: string): Pace => ({ status, label: PACE_LABEL[status], explanation })
+  const make = (status: PaceStatus, explanation: string, catchUp?: string): Pace => ({
+    status,
+    label: PACE_LABEL[status],
+    explanation,
+    ...(status === 'behind' && catchUp ? { catchUp } : {}),
+  })
 
   if (goal.until) {
     const reached = finishedOn(goal, goals, allLogs)
@@ -381,36 +457,50 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
   const elapsedDays = daysBetween(goal.startDate, today)
   const time = clamp(elapsedDays / span)
   const pace = (ratio: number) => byRatio(ratio, time, elapsedDays)
+  // "no ritmo" pede pelo menos 80% do progresso esperado para hoje: é essa a parte que falta
+  const expected = 0.8 * time
   const daysLeft = Math.max(0, daysBetween(today, deadline))
   const weeksLeft = Math.max(1, Math.ceil(daysLeft / 7))
   const dismissed = tasks.filter(task => task.goalId === goal.id && task.status === 'dismissed')
 
   switch (m.type) {
     case 'frequency': {
-      const { status, explanation } = frequencyPace(goal, m, logs, dismissed, today)
-      return make(status, explanation)
+      const { status, explanation, catchUp } = frequencyPace(goal, m, logs, dismissed, today)
+      return make(status, explanation, catchUp)
     }
     case 'sum': {
       const remaining = m.target - progress.current
       if (remaining <= 0) return make('done', 'Você chegou ao valor que definiu.')
       const months = Math.max(1, differenceInCalendarMonths(parseISO(deadline), parseISO(today)) + 1)
-      return make(pace(progress.ratio), `Faltam ${amount(m, remaining)} em ${months} ${plural(months, 'mês', 'meses')} = ${amount(m, remaining / months)}/mês.`)
+      const need = Math.min(remaining, m.target * expected - progress.current)
+      return make(
+        pace(progress.ratio),
+        `Faltam ${amount(m, remaining)} em ${months} ${plural(months, 'mês', 'meses')} = ${amount(m, remaining / months)}/mês.`,
+        need > 0
+          ? `${m.currency ? 'Guarde' : 'Some'} mais ${amount(m, m.currency ? Math.ceil(need) : Math.ceil(need * 10) / 10)} para voltar ao ritmo.`
+          : undefined,
+      )
     }
     case 'value': {
       const remaining = Math.abs(progress.current - m.to)
       if (progress.ratio >= 1) return make('done', 'Você chegou ao valor que definiu.')
+      // o valor que hoje já seria "no ritmo"
+      const target = m.from - expected * (m.from - m.to)
       return make(
         pace(progress.ratio),
         `Faltam ${num(remaining, 1)} ${m.unit} em ${weeksLeft} ${plural(weeksLeft, 'semana', 'semanas')} = ${num(remaining / weeksLeft, 1)} ${m.unit} por semana.`,
+        `Chegue a ${amount(m, Math.round(target * 10) / 10)} para voltar ao ritmo (a última medição foi ${amount(m, progress.current)}).`,
       )
     }
     case 'milestones': {
       const remaining = m.items.length - progress.current
       if (remaining <= 0) return make('done', 'Todas as etapas estão concluídas.')
       const next = nextMilestone(goal, allLogs)
+      const need = Math.min(remaining, Math.max(1, Math.ceil(m.items.length * expected - progress.current)))
       return make(
         pace(progress.ratio),
         `${plural(remaining, 'Falta', 'Faltam')} ${remaining} ${plural(remaining, 'etapa', 'etapas')} em ${weeksLeft} ${plural(weeksLeft, 'semana', 'semanas')}.${next ? ` A próxima é “${next.title}”.` : ''}`,
+        `Conclua mais ${countOf(need, 'etapas')}${next ? `, começando por “${next.title}”` : ''}, para voltar ao ritmo.`,
       )
     }
     case 'days': {
@@ -418,9 +508,15 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
       if (remaining <= 0) return make('done', 'Você completou o que definiu.')
       const what =
         m.unit === 'horas' ? `${num1(remaining)} ${plural(Math.ceil(remaining), 'hora', 'horas')}` : `${remaining} ${plural(remaining, 'dia', 'dias')}`
+      const need = Math.min(remaining, m.target * expected - progress.current)
+      const catchUp =
+        m.unit === 'horas'
+          ? `Dedique mais ${minutesLabel(Math.max(5, Math.ceil((need * 60) / 5) * 5))} para voltar ao ritmo.`
+          : `Faça mais ${countOf(Math.max(1, Math.ceil(need)), 'dias')} para voltar ao ritmo.`
       return make(
         pace(progress.ratio),
         `${plural(Math.ceil(remaining), 'Falta', 'Faltam')} ${what}. ${plural(daysLeft, 'Resta', 'Restam')} ${daysLeft} ${plural(daysLeft, 'dia', 'dias')} no calendário até ${fmt(deadline, "d 'de' MMMM")}.`,
+        catchUp,
       )
     }
   }

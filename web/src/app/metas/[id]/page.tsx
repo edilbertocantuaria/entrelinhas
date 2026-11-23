@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Flag, Pencil, Repeat as RepeatIcon, Trash2, X } from 'lucide-react'
+import { Check, Flag, Pencil, Repeat as RepeatIcon, Target, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
 import { RuleSheet } from '@/components/rule-sheet'
 import { TaskSheet } from '@/components/task-sheet'
@@ -217,6 +217,15 @@ export default function GoalDetailPage() {
             Ritmo
           </h3>
           <p className="mt-1 text-[14px]">{pace.explanation}</p>
+          {pace.catchUp && (
+            <div className="mt-3 flex items-start gap-2.5 rounded-ctl bg-alert-soft p-3">
+              <Target size={18} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-alert" />
+              <p className="text-[14px]">
+                <span className="block text-[12px] font-medium text-alert">Para ficar no ritmo</span>
+                {pace.catchUp}
+              </p>
+            </div>
+          )}
         </section>
 
         {m.type === 'milestones' ? (

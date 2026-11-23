@@ -166,6 +166,7 @@ export default function GoalsPage() {
                               <PacePill status={pace.status} />
                               {streak > 1 && <span className="text-[12px] text-muted">{streak} dias seguidos</span>}
                             </div>
+                            {pace.catchUp && <p className="mt-1.5 text-[12px] leading-snug text-muted">{pace.catchUp}</p>}
                           </div>
                           <Illustration name={goalArt(goal)} height={48} decorative />
                         </Link>

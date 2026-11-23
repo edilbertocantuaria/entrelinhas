@@ -45,6 +45,9 @@ Rótulos sempre neutros: **no ritmo**, **adiantado**, **um pouco atrás**, **con
   - Razão ≥ 1,1: adiantado.
   - Razão ≥ 0,8: no ritmo.
   - Abaixo disso: um pouco atrás.
+- **Para ficar no ritmo** (`Pace.catchUp`, só em "um pouco atrás"): uma frase com o próximo passo, na página da meta (em destaque no cartão Ritmo) e na lista de metas.
+  - Frequência: chegar ao mínimo no período atual ("Faça mais 2 treinos até domingo.", "Faça mais 3 dias e dedique mais 2 h até domingo."). Quem cumpre o mínimo no período atual já fica "no ritmo". Se não cabe mais no período, diz quanto ainda dá e que o próximo período recomeça a conta.
+  - Demais tipos: o que falta para chegar a 80% do progresso esperado para hoje ("Guarde mais R$ 300,00", "Chegue a 82,4 kg", "Conclua mais 1 etapa, começando por…").
 - **Explicação:** sempre traz uma frase com a conta, como "faltam R$ 1.900,00 em 2 meses = R$ 950,00/mês".
 
 ### Registro (`LogSheet`)
