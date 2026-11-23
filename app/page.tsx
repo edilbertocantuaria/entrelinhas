@@ -2,7 +2,8 @@
 
 import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis, ListChecks, Plus, Repeat as RepeatIcon, Sun, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useShell } from '@/components/app-shell'
 import { EmptyState, GoalChip, MoodBadge, MoodPicker, StarBurst } from '@/components/common'
 import { CornerBlob, Illustration, useIllustrations } from '@/components/illustration'
@@ -25,11 +26,20 @@ const GREETING = { morning: 'Bom dia', afternoon: 'Boa tarde', night: 'Boa noite
 
 /** Hoje, com a faixa da semana para ver outros dias. O dia escolhido fica na URL (?dia=aaaa-mm-dd). */
 export default function TodayPage() {
+  return (
+    <Suspense fallback={null}>
+      <TodayView />
+    </Suspense>
+  )
+}
+
+function TodayView() {
   const { today, part, now } = useClock()
   const rollover = useStore(state => state.settings.rollover)
   const { scroller } = useShell()
+  const params = useSearchParams()
   const [picked, setPicked] = useState<string | null>(() => {
-    const param = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('dia')
+    const param = params.get('dia')
     return param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : null
   })
   const date = picked ?? today

@@ -83,7 +83,15 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
   const [measureText, setMeasureText] = useState(m.type === 'value' ? num(current, 1) : '')
   const measure = parseNum(measureText)
   const nudge = (delta: number) => setMeasureText(num(Math.round(((Number.isNaN(measure) ? current : measure) + delta) * 10) / 10, 1))
-  const [minutes, setMinutes] = useState(m.type === 'days' ? m.sessionMinutes : 30)
+  // tempo em horas e minutos: os atalhos preenchem, e dá para digitar qualquer valor
+  const initialMinutes = m.type === 'days' ? m.sessionMinutes : 30
+  const [hoursText, setHoursText] = useState(String(Math.floor(initialMinutes / 60)))
+  const [minsText, setMinsText] = useState(String(initialMinutes % 60))
+  const minutes = (Number.parseInt(hoursText, 10) || 0) * 60 + (Number.parseInt(minsText, 10) || 0)
+  const setMinutes = (total: number) => {
+    setHoursText(String(Math.floor(total / 60)))
+    setMinsText(String(total % 60))
+  }
   const [note, setNote] = useState('')
 
   const milestone = m.type === 'milestones' ? (m.items.find(item => item.id === task?.milestoneId) ?? nextMilestone(goal, logs)) : undefined
@@ -257,15 +265,33 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
       )}
 
       {m.type === 'days' && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Minutos dedicados">
-          {[...new Set([15, 30, 45, 60, m.sessionMinutes])]
-            .sort((a, b) => a - b)
-            .map(value => (
-              <Chip key={value} selected={minutes === value} onClick={() => setMinutes(value)}>
-                {minutesLabel(value)}
-              </Chip>
-            ))}
-        </div>
+        <>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Tempos rápidos">
+            {[...new Set([15, 30, 45, 60, 90, 120, 180, m.sessionMinutes])]
+              .sort((a, b) => a - b)
+              .map(value => (
+                <Chip key={value} selected={minutes === value} onClick={() => setMinutes(value)}>
+                  {minutesLabel(value)}
+                </Chip>
+              ))}
+          </div>
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 text-[13px] text-muted">Ou digite o tempo</legend>
+            <div className="flex items-center gap-2">
+              <label className="flex flex-1 items-center gap-2">
+                <input className="field text-center" inputMode="numeric" aria-label="Horas" value={hoursText} onChange={event => setHoursText(event.target.value.replace(/\D/g, '').slice(0, 2))} />
+                <span className="text-[14px] text-muted">h</span>
+              </label>
+              <label className="flex flex-1 items-center gap-2">
+                <input className="field text-center" inputMode="numeric" aria-label="Minutos" value={minsText} onChange={event => setMinsText(event.target.value.replace(/\D/g, '').slice(0, 3))} />
+                <span className="text-[14px] text-muted">min</span>
+              </label>
+            </div>
+            <p className="text-[12px] text-muted" aria-live="polite">
+              {minutes > 0 ? `Vai registrar ${minutesLabel(minutes)}.` : 'Informe quanto tempo você dedicou.'}
+            </p>
+          </fieldset>
+        </>
       )}
 
       {m.type === 'milestones' &&

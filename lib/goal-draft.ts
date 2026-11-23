@@ -1,0 +1,182 @@
+import type { CampoMeta, MetaProposta } from '@/utils/prompts'
+import { fmt, shift, uid } from './format'
+import { amount } from './goals'
+import { describe } from './recurrence'
+import type { Area, Goal, Metric, RecurringTask, Repeat } from './types'
+
+/**
+ * Rascunho de meta: tudo o que o passo a passo precisa para abrir já preenchido.
+ * Vem do chat com a IA ("Editar campos") e é guardado na aba do navegador até ser usado.
+ */
+export interface GoalDraft extends Pick<Goal, 'title' | 'areaId' | 'description' | 'metric' | 'startingPoint' | 'achievableNote' | 'why' | 'deadline' | 'taskTitle' | 'reminder'> {
+  art?: string
+  /** null = sem repetição; undefined = deixar a sugestão automática */
+  repeat?: Repeat | null
+}
+
+const KEY = 'entrelinhas-rascunho-meta'
+
+export function saveDraft(draft: GoalDraft) {
+  try {
+    sessionStorage.setItem(KEY, JSON.stringify(draft))
+  } catch {
+    // sem armazenamento da aba (modo privado): o passo a passo abre em branco
+  }
+}
+
+export function readDraft(): GoalDraft | null {
+  try {
+    const raw = sessionStorage.getItem(KEY)
+    return raw ? (JSON.parse(raw) as GoalDraft) : null
+  } catch {
+    return null
+  }
+}
+
+export function clearDraft() {
+  try {
+    sessionStorage.removeItem(KEY)
+    // a meta saiu do rascunho: a conversa que o gerou também pode ir embora
+    sessionStorage.removeItem('entrelinhas-chat-meta')
+  } catch {
+    // nada a limpar
+  }
+}
+
+/** "3 a 4 treinos por semana", "Somar até R$ 5.000,00"... */
+export function describeMetric(metric: Metric) {
+  if (metric.type === 'frequency') return metric.min === metric.max ? `${metric.min} ${metric.noun} por semana` : `${metric.min} a ${metric.max} ${metric.noun} por semana`
+  if (metric.type === 'sum') return `Somar até ${amount(metric, metric.target)}`
+  if (metric.type === 'value') return `De ${amount(metric, metric.from)} para ${amount(metric, metric.to)}`
+  if (metric.type === 'milestones') return `${metric.items.length} etapas: ${metric.items.map(item => item.title).join(', ')}`
+  return `${metric.target} ${metric.unit}, em sessões de ${metric.sessionMinutes} min`
+}
+
+const clampInt = (value: number | undefined, min: number, max: number, fallback: number) =>
+  value === undefined || !Number.isFinite(value) ? fallback : Math.min(max, Math.max(min, Math.round(value)))
+
+/** Converte a medida proposta pela IA numa métrica válida do app (com valores seguros quando falta algo). */
+function toMetric(m: MetaProposta['medida']): Metric {
+  if (m.tipo === 'frequency') {
+    const min = clampInt(m.min, 1, 7, 3)
+    return { type: 'frequency', min, max: clampInt(m.max, min, 7, min), noun: m.nome || 'vezes' }
+  }
+  if (m.tipo === 'sum' && m.alvo && m.alvo > 0) return { type: 'sum', target: m.alvo, currency: !!m.emReais || !m.unidade, unit: m.emReais || !m.unidade ? 'R$' : m.unidade }
+  if (m.tipo === 'value' && m.de !== undefined && m.para !== undefined && m.de !== m.para) return { type: 'value', from: m.de, to: m.para, unit: m.unidade ?? '' }
+  if (m.tipo === 'milestones' && m.etapas?.length) return { type: 'milestones', items: m.etapas.map(title => ({ id: `m-${uid()}`, title })) }
+  if (m.tipo === 'days') {
+    const unit = m.contarEm === 'horas' ? 'horas' : 'dias'
+    return { type: 'days', target: clampInt(m.alvo, 1, 1000, unit === 'horas' ? 50 : 30), unit, sessionMinutes: clampInt(m.minutosPorSessao, 5, 240, 30) }
+  }
+  return { type: 'frequency', min: 3, max: 3, noun: 'vezes' }
+}
+
+/** Transforma a proposta da IA num rascunho válido: área existente, prazo futuro, repetição e lembrete conferidos. */
+export function fromProposal(p: MetaProposta, areas: Area[], today: string): GoalDraft {
+  const active = areas.filter(area => !area.archived).sort((a, b) => a.order - b.order)
+  const wanted = p.area.toLocaleLowerCase('pt-BR')
+  const area = active.find(item => item.name.toLocaleLowerCase('pt-BR') === wanted) ?? active.find(item => wanted && item.name.toLocaleLowerCase('pt-BR').includes(wanted)) ?? active[0]
+  const yearEnd = `${today.slice(0, 4)}-12-31`
+  const deadline = p.prazo && p.prazo > today ? p.prazo : yearEnd > today ? yearEnd : shift(today, 90)
+  const metric = toMetric(p.medida)
+  return {
+    title: p.titulo,
+    areaId: area?.id ?? '',
+    // se a IA escapar uma data aaaa-mm-dd no texto, ela vira "31 de março de 2027"
+    description: p.descricao.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, date => fmt(date, "d 'de' MMMM 'de' yyyy")),
+    metric,
+    startingPoint: p.pontoDePartida === 'A definir' ? '' : p.pontoDePartida,
+    achievableNote: p.alcancavel,
+    why: p.porQue,
+    deadline,
+    taskTitle: p.tarefa || p.titulo,
+    reminder: p.lembrete ? { on: true, time: p.lembrete } : { on: false, time: '08:00' },
+    repeat: p.diasDaTarefa.length ? { freq: 'weekly', interval: 1, weekdays: p.diasDaTarefa, start: today, end: { type: 'date', date: deadline } } : null,
+  }
+}
+
+export const deadlineText = (date: string) => fmt(date, "d 'de' MMMM 'de' yyyy")
+
+/** A meta salva no formato de rascunho (para comparar com a proposta de ajuste). */
+export function goalToDraft(goal: Goal, rule?: RecurringTask): GoalDraft {
+  return {
+    title: goal.title,
+    areaId: goal.areaId,
+    description: goal.description,
+    metric: goal.metric,
+    startingPoint: goal.startingPoint,
+    achievableNote: goal.achievableNote,
+    why: goal.why,
+    deadline: goal.deadline,
+    taskTitle: goal.taskTitle,
+    reminder: goal.reminder,
+    art: goal.art,
+    repeat: rule?.repeat ?? null,
+  }
+}
+
+/** A meta em texto, para a Esther saber o que existe antes de ajustar. */
+export function goalSummary(goal: Goal, areaName: string, rule?: RecurringTask) {
+  return [
+    `Título: ${goal.title}`,
+    `Área: ${areaName}`,
+    `Específica: ${goal.description || '(em branco)'}`,
+    `Mensurável: ${describeMetric(goal.metric)}`,
+    `Ponto de partida: ${goal.startingPoint || '(em branco)'}`,
+    `Por que é alcançável: ${goal.achievableNote || '(em branco)'}`,
+    `Por que importa: ${goal.why || '(em branco)'}`,
+    `Começou em: ${goal.startDate}; prazo: ${goal.deadline}`,
+    `Tarefa do dia: ${goal.taskTitle}${rule ? `, na agenda: ${describe(rule.repeat)}` : ', sem dias fixos'}`,
+    `Lembrete: ${goal.reminder.on ? goal.reminder.time : 'desligado'}`,
+  ].join('\n')
+}
+
+/**
+ * Ajuste da Esther: o que não mudou de verdade fica exatamente como estava na meta.
+ * - Campos estruturais (medida, prazo, dias, lembrete, área) entram quando mudaram de fato.
+ * - Os textos de "Específica" e "Alcançável" descrevem a medida e o prazo: acompanham quando eles mudam.
+ * - Título, motivo, ponto de partida e nome da tarefa só mudam se a Esther disser que mudou de propósito
+ *   (o modelo costuma reescrever com outras palavras sem a pessoa ter pedido).
+ */
+export function onlyChanged(proposal: GoalDraft, before: GoalDraft, listed: CampoMeta[]): GoalDraft {
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+  const weekdays = (draft: GoalDraft) => (draft.repeat ? [...(draft.repeat.weekdays ?? [])].sort().join(',') + draft.repeat.freq + draft.repeat.interval : '')
+  const structural: CampoMeta[] = [
+    ...(!same(proposal.metric.type === before.metric.type && proposal.metric.type === 'milestones' ? proposal.metric.items.map(item => item.title) : proposal.metric, before.metric.type === 'milestones' ? before.metric.items.map(item => item.title) : before.metric) ? (['medida'] as const) : []),
+    ...(proposal.deadline !== before.deadline ? (['prazo'] as const) : []),
+    ...(weekdays(proposal) !== weekdays(before) ? (['diasDaTarefa'] as const) : []),
+    ...(!same(proposal.reminder, before.reminder) ? (['lembrete'] as const) : []),
+    ...(proposal.areaId !== before.areaId ? (['area'] as const) : []),
+  ]
+  const changed = new Set<CampoMeta>([...structural, ...listed])
+  if (changed.has('medida') || changed.has('prazo')) {
+    changed.add('descricao')
+    changed.add('alcancavel')
+  }
+  const has = (campo: CampoMeta) => changed.has(campo)
+  return {
+    ...before,
+    title: has('titulo') ? proposal.title : before.title,
+    areaId: has('area') ? proposal.areaId : before.areaId,
+    description: has('descricao') ? proposal.description : before.description,
+    metric: has('medida') ? proposal.metric : before.metric,
+    startingPoint: has('pontoDePartida') ? proposal.startingPoint : before.startingPoint,
+    achievableNote: has('alcancavel') ? proposal.achievableNote : before.achievableNote,
+    why: has('porQue') ? proposal.why : before.why,
+    deadline: has('prazo') ? proposal.deadline : before.deadline,
+    taskTitle: has('tarefa') ? proposal.taskTitle : before.taskTitle,
+    reminder: has('lembrete') ? proposal.reminder : before.reminder,
+    // a agenda acompanha o novo prazo, mesmo quando os dias não mudam
+    repeat: has('diasDaTarefa') ? proposal.repeat : before.repeat && has('prazo') && before.repeat.end.type === 'date' ? { ...before.repeat, end: { type: 'date', date: proposal.deadline } } : before.repeat,
+  }
+}
+
+/**
+ * Ajuste aceito: as etapas com o mesmo nome mantêm o id antigo,
+ * para as que já foram concluídas continuarem marcadas.
+ */
+export function keepMilestoneIds(next: Metric, previous: Metric): Metric {
+  if (next.type !== 'milestones' || previous.type !== 'milestones') return next
+  const byTitle = new Map(previous.items.map(item => [item.title.trim().toLocaleLowerCase('pt-BR'), item.id]))
+  return { ...next, items: next.items.map(item => ({ ...item, id: byTitle.get(item.title.trim().toLocaleLowerCase('pt-BR')) ?? item.id })) }
+}

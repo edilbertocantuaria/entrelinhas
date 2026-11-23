@@ -1,6 +1,7 @@
 'use client'
 
 import { Eraser, Plus, Settings2, Target } from 'lucide-react'
+import { ESTHER, EstherAvatar } from '@/components/esther'
 import Link from 'next/link'
 import { useState } from 'react'
 import { AreaChip, AreaIcon, EmptyState, PacePill } from '@/components/common'
@@ -43,9 +44,15 @@ export default function GoalsPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="px-5 pt-6">
-        <h1 className="text-[22px] font-medium">Metas</h1>
-        <p className="text-[13px] text-muted">O que importa em {today.slice(0, 4)}, no seu ritmo.</p>
+      <header className="flex items-start gap-3 px-5 pt-6">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[22px] font-medium">Metas</h1>
+          <p className="text-[13px] text-muted">O que importa em {today.slice(0, 4)}, no seu ritmo.</p>
+        </div>
+        <Link href="/metas/ia" className={cn(buttonVariants({ variant: 'soft', size: 'sm' }), 'shrink-0 rounded-full pl-1.5')}>
+          <EstherAvatar size={30} />
+          Criar com a {ESTHER}
+        </Link>
       </header>
 
       <section aria-labelledby="modulos-titulo" className="mt-4 px-5">
@@ -111,9 +118,15 @@ export default function GoalsPage() {
           title="Comece pela sua primeira meta"
           description="Defina o que importa neste ano e acompanhe o progresso."
           action={
-            <Link href="/metas/nova" className={buttonVariants()}>
-              Criar meta
-            </Link>
+            <div className="flex flex-col items-center gap-2">
+              <Link href="/metas/ia" className={cn(buttonVariants(), 'pl-2')}>
+                <EstherAvatar size={32} />
+                Criar meta com a {ESTHER}
+              </Link>
+              <Link href="/metas/nova" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+                Criar passo a passo
+              </Link>
+            </div>
           }
         />
       ) : (

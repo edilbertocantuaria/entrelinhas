@@ -1,9 +1,11 @@
 'use client'
 
-import { ChevronLeft, Plus, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react'
+import { clearDraft, keepMilestoneIds, readDraft, type GoalDraft } from '@/lib/goal-draft'
+import { ESTHER, EstherAvatar } from '@/components/esther'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
 import { AreaEditor } from '@/components/area-editor'
 import { TopBar, useShell } from '@/components/app-shell'
 import { AreaChip, AreaIcon, BackButton } from '@/components/common'
@@ -31,8 +33,28 @@ const STEPS: { name: string; question: string; art: IllustrationName }[] = [
 
 const TYPES: MetricType[] = ['frequency', 'sum', 'value', 'milestones', 'days']
 
-/** Nova meta, passo a passo (SMART), com um cartão de resumo antes de salvar. */
+/**
+ * Nova meta, passo a passo (SMART), com um cartão de resumo antes de salvar.
+ * - ?editar=<id>: abre a meta para edição
+ * - ?rascunho=1: abre o que veio do chat com a IA
+ * - ?ano=2027: "Criar metas de 2027" na retrospectiva
+ * Os parâmetros vêm do useSearchParams (o window.location ainda mostra a página anterior
+ * durante a navegação), e o formulário recomeça quando eles mudam.
+ */
 export default function NewGoalPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewGoalRoute />
+    </Suspense>
+  )
+}
+
+function NewGoalRoute() {
+  const params = useSearchParams()
+  return <NewGoalForm key={params.toString()} params={params} />
+}
+
+function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchParams }) {
   const router = useRouter()
   const { today } = useClock()
   const { toast } = useShell()
@@ -41,31 +63,47 @@ export default function NewGoalPage() {
   const addRule = useStore(state => state.addRule)
   const active = areas.filter(area => !area.archived).sort((a, b) => a.order - b.order)
 
-  // "Criar metas de 2027" na retrospectiva chega aqui com ?ano=2027
   const [year] = useState(() => {
-    const param = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('ano')
+    const param = params.get('ano')
     return param && /^\d{4}$/.test(param) ? Number(param) : Number(today.slice(0, 4))
   })
 
+  const [mode] = useState(() => {
+    const editing = useStore.getState().goals.find(goal => goal.id === params.get('editar'))
+    // ?rascunho=1 traz o que veio da conversa com a Esther (nova meta ou ajuste de uma existente)
+    const fromChat = params.get('rascunho') ? readDraft() : null
+    const draft: GoalDraft | null = fromChat ?? editing ?? null
+    return { editing, draft, fromChat: !!fromChat }
+  })
+  const { editing, draft, fromChat } = mode
+  const dm = draft?.metric
+  const decimal = (n: number | undefined) => (n === undefined ? '' : String(n).replace('.', ','))
+
   const [step, setStep] = useState(0)
   const [editorOpen, setEditorOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [areaId, setAreaId] = useState(active[0]?.id ?? '')
-  const [description, setDescription] = useState('')
-  const [type, setType] = useState<MetricType>('frequency')
-  const [freq, setFreq] = useState({ min: 3, max: 4, noun: 'vezes' })
-  const [sum, setSum] = useState({ target: '', currency: true, unit: '' })
-  const [value, setValue] = useState({ from: '', to: '', unit: 'kg' })
-  const [items, setItems] = useState(['', '', ''])
-  const [days, setDays] = useState({ target: '30', unit: 'dias' as 'dias' | 'horas', session: 30 })
-  const [startingPoint, setStartingPoint] = useState('')
-  const [achievableNote, setAchievableNote] = useState('')
-  const [why, setWhy] = useState('')
-  const [deadline, setDeadline] = useState(`${year}-12-31`)
-  const [reminder, setReminder] = useState({ on: false, time: '08:00' })
-  const [art, setArt] = useState<IllustrationName | null>(null)
+  const [title, setTitle] = useState(draft?.title ?? '')
+  const [areaId, setAreaId] = useState(draft?.areaId && areas.some(item => item.id === draft.areaId) ? draft.areaId : (active[0]?.id ?? ''))
+  const [description, setDescription] = useState(draft?.description ?? '')
+  const [type, setType] = useState<MetricType>(dm?.type ?? 'frequency')
+  const [freq, setFreq] = useState(dm?.type === 'frequency' ? { min: dm.min, max: dm.max, noun: dm.noun } : { min: 3, max: 4, noun: 'vezes' })
+  const [sum, setSum] = useState(dm?.type === 'sum' ? { target: decimal(dm.target), currency: dm.currency, unit: dm.currency ? '' : dm.unit } : { target: '', currency: true, unit: '' })
+  const [value, setValue] = useState(dm?.type === 'value' ? { from: decimal(dm.from), to: decimal(dm.to), unit: dm.unit } : { from: '', to: '', unit: 'kg' })
+  const [items, setItems] = useState(dm?.type === 'milestones' ? dm.items.map(item => item.title) : ['', '', ''])
+  // as etapas existentes guardam o id, para os registros já feitos continuarem ligados a elas
+  const [itemIds, setItemIds] = useState<(string | undefined)[]>(dm?.type === 'milestones' ? dm.items.map(item => item.id) : [])
+  const [days, setDays] = useState(dm?.type === 'days' ? { target: String(dm.target), unit: dm.unit, session: dm.sessionMinutes } : { target: '30', unit: 'dias' as 'dias' | 'horas', session: 30 })
+  const [startingPoint, setStartingPoint] = useState(draft?.startingPoint ?? '')
+  const [achievableNote, setAchievableNote] = useState(draft?.achievableNote ?? '')
+  const [why, setWhy] = useState(draft?.why ?? '')
+  const [deadline, setDeadline] = useState(draft?.deadline ?? `${year}-12-31`)
+  const [reminder, setReminder] = useState(draft?.reminder ?? { on: false, time: '08:00' })
+  const [art, setArt] = useState<IllustrationName | null>((draft?.art as IllustrationName | undefined) ?? null)
   // undefined = automático (sugestão pelo tipo de medida); null = sem repetição
-  const [repeatChoice, setRepeatChoice] = useState<Repeat | null | undefined>(undefined)
+  const [repeatChoice, setRepeatChoice] = useState<Repeat | null | undefined>(editing ? undefined : draft?.repeat)
+  const goalLogs = useStore(state => (editing ? state.logs.filter(log => log.goalId === editing.id).length : 0))
+  const updateGoal = useStore(state => state.updateGoal)
+  const rules = useStore(state => state.rules)
+  const updateRule = useStore(state => state.updateRule)
 
   const area = areas.find(item => item.id === areaId)
 
@@ -81,18 +119,20 @@ export default function NewGoalPage() {
       return !Number.isNaN(from) && !Number.isNaN(to) && from !== to ? { type, from, to, unit: value.unit.trim() } : null
     }
     if (type === 'milestones') {
-      const list = items.map(item => item.trim()).filter(Boolean)
-      return list.length ? { type, items: list.map(text => ({ id: `m-${uid()}`, title: text })) } : null
+      const list = items.map((text, index) => ({ id: itemIds[index] ?? `m-${uid()}`, title: text.trim() })).filter(item => item.title)
+      return list.length ? { type, items: list } : null
     }
     const target = parseNum(days.target)
     return target > 0 ? { type, target, unit: days.unit, sessionMinutes: days.session } : null
   }
 
   const built = metric()
-  const startDate = today > `${year}-01-01` ? today : `${year}-01-01`
+  const startDate = editing?.startDate ?? (today > `${year}-01-01` ? today : `${year}-01-01`)
   const suggested = built ? suggestRepeat({ metric: built, startDate, deadline }) : null
   const repeat = repeatChoice === undefined ? suggested : repeatChoice
-  const valid = [title.trim().length > 0 && !!area, !!built, true, true, deadline >= today, true][step]
+  // ao editar, o prazo pode ficar no passado do jeito que estava, mas não antes do início
+  const deadlineOk = editing ? deadline >= editing.startDate : deadline >= today
+  const valid = [title.trim().length > 0 && !!area, !!built, true, true, deadlineOk, true][step]
 
   const metricText = () => {
     if (!built) return ''
@@ -105,6 +145,31 @@ export default function NewGoalPage() {
 
   const save = () => {
     if (!built || !area) return
+    if (editing) {
+      const nextTitle = title.trim()
+      // a tarefa do dia vem do ajuste da Esther, ou acompanha o título quando ainda tinha o nome antigo
+      const taskTitle = fromChat && draft?.taskTitle ? draft.taskTitle : editing.taskTitle === editing.title ? nextTitle : editing.taskTitle
+      updateGoal(editing.id, {
+        title: nextTitle,
+        areaId: area.id,
+        description: description.trim(),
+        metric: keepMilestoneIds(built, editing.metric),
+        startingPoint: startingPoint.trim(),
+        achievableNote: achievableNote.trim(),
+        why: why.trim(),
+        deadline,
+        taskTitle,
+        reminder,
+        art: art ?? editing.art,
+      })
+      const rule = rules.find(item => item.goalId === editing.id)
+      if (rule && rule.title === editing.taskTitle && taskTitle !== editing.taskTitle) updateRule(rule.id, { title: taskTitle })
+      if (fromChat) clearDraft()
+      toast('Meta atualizada')
+      router.replace(`/metas/${editing.id}`)
+      return
+    }
+    clearDraft()
     const id = addGoal({
       title: title.trim(),
       areaId: area.id,
@@ -115,11 +180,11 @@ export default function NewGoalPage() {
       why: why.trim(),
       startDate,
       deadline,
-      taskTitle: title.trim(),
+      taskTitle: draft?.taskTitle?.trim() || title.trim(),
       reminder,
       art: art ?? undefined,
     })
-    if (repeat) addRule({ title: title.trim(), goalId: id, repeat: { ...repeat, start: startDate } })
+    if (repeat) addRule({ title: draft?.taskTitle?.trim() || title.trim(), goalId: id, repeat: { ...repeat, start: startDate } })
     toast(repeat ? 'Meta criada e tarefa na agenda' : 'Meta criada')
     router.replace(`/metas/${id}`)
   }
@@ -129,10 +194,10 @@ export default function NewGoalPage() {
   return (
     <div className="flex min-h-full flex-col">
       <TopBar
-        title="Nova meta"
-        back={step > 0 ? <button type="button" className="icon-btn" aria-label="Passo anterior" onClick={() => setStep(step - 1)}><ChevronLeft size={20} strokeWidth={1.75} /></button> : <BackButton href="/metas" label="Cancelar e voltar para Metas" />}
+        title={editing ? 'Editar meta' : 'Nova meta'}
+        back={step > 0 ? <button type="button" className="icon-btn" aria-label="Passo anterior" onClick={() => setStep(step - 1)}><ChevronLeft size={20} strokeWidth={1.75} /></button> : <BackButton href={editing ? `/metas/${editing.id}` : '/metas'} label={editing ? 'Cancelar e voltar para a meta' : 'Cancelar e voltar para Metas'} />}
         right={
-          <Link href="/metas" className="icon-btn" aria-label="Cancelar">
+          <Link href={editing ? `/metas/${editing.id}` : '/metas'} className="icon-btn" aria-label="Cancelar">
             <X size={20} strokeWidth={1.75} />
           </Link>
         }
@@ -144,10 +209,26 @@ export default function NewGoalPage() {
       </div>
 
       <div className="fade-in flex-1 px-5 pt-4 pb-4" key={step}>
-        {step === 0 && (
+        {step === 0 && !editing && (
           <div className="mb-2 flex justify-center">
             <Illustration name="new-goal" height={132} />
           </div>
+        )}
+        {step === 0 && !editing && !draft && (
+          <Link href="/metas/ia" className="card mb-5 flex min-h-14 items-center gap-3 p-3">
+            <EstherAvatar size={40} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-medium">Prefere conversar com a {ESTHER}?</span>
+              <span className="block text-[12px] text-muted">Conte com suas palavras e ela monta a meta com você.</span>
+            </span>
+            <ChevronRight size={20} strokeWidth={1.75} aria-hidden className="text-muted" />
+          </Link>
+        )}
+        {step === 0 && fromChat && (
+          <p className="mb-4 flex items-center gap-2.5 rounded-ctl bg-primary-soft p-3 text-[12px] leading-relaxed">
+            <EstherAvatar size={28} />
+            {editing ? `Ajuste sugerido pela ${ESTHER}. Confira cada passo antes de salvar.` : `Rascunho da conversa com a ${ESTHER}. Confira cada passo e ajuste o que quiser antes de salvar.`}
+          </p>
         )}
         <div className="mb-5 flex items-center gap-3">
           <div className="flex-1">
@@ -190,6 +271,11 @@ export default function NewGoalPage() {
 
         {step === 1 && (
           <div className="flex flex-col gap-4">
+            {editing && goalLogs > 0 && type !== editing.metric.type && (
+              <p className="rounded-ctl bg-primary-soft p-3 text-[12px] leading-relaxed">
+                Esta meta já tem {goalLogs} {goalLogs === 1 ? 'registro' : 'registros'}. Eles continuam guardados, mas podem não fazer sentido no novo jeito de medir.
+              </p>
+            )}
             <div className="flex flex-col gap-2" role="radiogroup" aria-label="Tipo de métrica">
               {TYPES.map(option => {
                 const on = option === type
@@ -267,7 +353,15 @@ export default function NewGoalPage() {
                   <div key={index} className="flex gap-1">
                     <input className="field" aria-label={`Etapa ${index + 1}`} placeholder={`Etapa ${index + 1}`} value={item} onChange={event => setItems(items.map((text, i) => (i === index ? event.target.value : text)))} />
                     {items.length > 1 && (
-                      <button type="button" className="icon-btn" aria-label={`Remover etapa ${index + 1}`} onClick={() => setItems(items.filter((_, i) => i !== index))}>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Remover etapa ${index + 1}`}
+                        onClick={() => {
+                          setItems(items.filter((_, i) => i !== index))
+                          setItemIds(itemIds.filter((_, i) => i !== index))
+                        }}
+                      >
                         <Trash2 size={18} strokeWidth={1.75} />
                       </button>
                     )}
@@ -328,8 +422,8 @@ export default function NewGoalPage() {
 
         {step === 4 && (
           <div className="flex flex-col gap-4">
-            <Field label="Data final" htmlFor="meta-prazo" hint={deadline < today ? 'Escolha uma data a partir de hoje.' : undefined}>
-              <input id="meta-prazo" type="date" className="field" min={today} value={deadline} onChange={event => setDeadline(event.target.value)} />
+            <Field label="Data final" htmlFor="meta-prazo" hint={!deadlineOk ? (editing ? 'Escolha uma data depois do início da meta.' : 'Escolha uma data a partir de hoje.') : undefined}>
+              <input id="meta-prazo" type="date" className="field" min={editing ? editing.startDate : today} value={deadline} onChange={event => setDeadline(event.target.value)} />
             </Field>
             <div className="card flex min-h-14 items-center gap-3 px-4">
               <div className="flex-1">
@@ -339,15 +433,21 @@ export default function NewGoalPage() {
               {reminder.on && <input type="time" aria-label="Horário do lembrete" className="field w-28" value={reminder.time} onChange={event => setReminder({ ...reminder, time: event.target.value })} />}
               <Switch checked={reminder.on} onChange={on => setReminder({ ...reminder, on })} label="Ativar lembrete" />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[13px] text-muted">Tarefa na agenda</span>
-              <p className="text-[12px] text-muted">
-                {suggested
-                  ? `Sugestão para ${METRIC_LABEL[type].name.toLocaleLowerCase('pt-BR')}: a tarefa “${title.trim() || 'da meta'}” entra sozinha nesses dias, até o prazo.`
-                  : 'Esta meta não precisa de tarefa fixa, mas você pode agendar uma.'}
-              </p>
-              <RepeatPicker value={repeat} onChange={setRepeatChoice} start={startDate} suggestedEnd={deadline} />
-            </div>
+            {editing ? (
+              <p className="card p-4 text-[13px] text-muted">A tarefa na agenda e a repetição ficam na página da meta, no cartão “Na agenda”.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[13px] text-muted">Tarefa na agenda</span>
+                <p className="text-[12px] text-muted">
+                  {draft?.repeat !== undefined
+                    ? 'Sugestão da conversa com a IA. Ajuste os dias se quiser.'
+                    : suggested
+                      ? `Sugestão para ${METRIC_LABEL[type].name.toLocaleLowerCase('pt-BR')}: a tarefa “${title.trim() || 'da meta'}” entra sozinha nesses dias, até o prazo.`
+                      : 'Esta meta não precisa de tarefa fixa, mas você pode agendar uma.'}
+                </p>
+                <RepeatPicker value={repeat} onChange={setRepeatChoice} start={startDate} suggestedEnd={deadline} />
+              </div>
+            )}
             {type === 'sum' && <p className="text-[12px] text-muted">Metas de soma não criam tarefas diárias. Você registra quando houver um valor, e há um lembrete por mês.</p>}
           </div>
         )}
@@ -371,7 +471,7 @@ export default function NewGoalPage() {
                   ['Alcançável', [startingPoint.trim(), achievableNote.trim()].filter(Boolean).join(' ')],
                   ['Relevante', why.trim()],
                   ['Prazo', cap(fmt(deadline, "d 'de' MMMM 'de' yyyy"))],
-                  ['Na agenda', repeat ? describe(repeat) : 'Sem tarefa fixa'],
+                  ...(editing ? [] : [['Na agenda', repeat ? describe(repeat) : 'Sem tarefa fixa'] as const]),
                 ] as const
               ).map(([label, text]) => (
                 <div key={label}>
@@ -386,7 +486,7 @@ export default function NewGoalPage() {
 
       <div className="sticky bottom-0 border-t-[0.5px] border-line bg-bg px-5 py-3">
         <Button block disabled={!valid} onClick={() => (step === 5 ? save() : setStep(step + 1))}>
-          {step === 5 ? 'Salvar meta' : 'Continuar'}
+          {step === 5 ? (editing ? 'Salvar alterações' : 'Salvar meta') : 'Continuar'}
         </Button>
       </div>
 

@@ -324,6 +324,12 @@
     stroke-dasharray: 1;
     animation: ill-draw 4.5s ease-in-out infinite;
   }
+  /* a Esther pisca de vez em quando */
+  .esther-blink {
+    transform-box: view-box;
+    transform-origin: 20px 17.8px;
+    animation: esther-blink 5s ease-in-out infinite;
+  }
   /* a arte entra subindo de leve ao aparecer na tela */
   .ill-enter {
     animation: ill-enter 0.6s ease-out both;
@@ -445,6 +451,16 @@
   }
   100% {
     stroke-dashoffset: -1;
+  }
+}
+@keyframes esther-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
   }
 }
 @keyframes ill-enter {

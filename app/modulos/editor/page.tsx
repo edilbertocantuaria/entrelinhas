@@ -1,8 +1,8 @@
 'use client'
 
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
 import { Missing, TopBar, useShell } from '@/components/app-shell'
 import { AreaChip, BackButton } from '@/components/common'
 import { RemoveModuleSheet } from '@/components/module-ui'
@@ -20,15 +20,22 @@ type DraftField = ModuleField & { optionsText: string }
 const toDraft = (field: ModuleField): DraftField => ({ ...field, optionsText: (field.options ?? []).join(', ') })
 const newField = (): DraftField => ({ id: `c-${uid()}`, label: '', type: 'number', optionsText: '' })
 
-function readParams() {
-  if (typeof window === 'undefined') return { id: null, template: null }
-  const params = new URLSearchParams(window.location.search)
-  return { id: params.get('id'), template: params.get('modelo') }
+/**
+ * Cria (em branco ou a partir de um modelo: ?modelo=) ou edita um módulo (?id=).
+ * Os parâmetros vêm do useSearchParams: durante a navegação, o window.location ainda é o da página anterior.
+ */
+export default function ModuleEditorPage() {
+  return (
+    <Suspense fallback={null}>
+      <ModuleEditorRoute />
+    </Suspense>
+  )
 }
 
-/** Cria (em branco ou a partir de um modelo) ou edita um módulo. */
-export default function ModuleEditorPage() {
-  const [{ id, template }] = useState(readParams)
+function ModuleEditorRoute() {
+  const params = useSearchParams()
+  const id = params.get('id')
+  const template = params.get('modelo')
   const module = useStore(state => state.modules.find(item => item.id === id))
   if (id && !module) return <Missing title="Módulo não encontrado" description="Ele pode ter sido excluído." href="/modulos" action="Ver módulos" />
   return <Editor key={id ?? template ?? 'novo'} module={module} templateKey={template} />

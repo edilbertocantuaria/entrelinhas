@@ -1,7 +1,10 @@
 'use client'
 
 import { Check, Pencil, Repeat as RepeatIcon, Trash2, X } from 'lucide-react'
+import Link from 'next/link'
 import { RuleSheet } from '@/components/rule-sheet'
+import { ESTHER, EstherAvatar } from '@/components/esther'
+import { buttonVariants } from '@/components/ui/button'
 import { defaultRepeat, describe, nextDates, suggestRepeat } from '@/lib/recurrence'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -72,9 +75,14 @@ export default function GoalDetailPage() {
         title="Meta"
         back={<BackButton href="/metas" label="Voltar para Metas" />}
         right={
-          <button type="button" className="icon-btn" aria-label="Excluir meta" onClick={() => setConfirming(true)}>
-            <Trash2 size={20} strokeWidth={1.75} />
-          </button>
+          <>
+            <Link href={`/metas/nova?editar=${goal.id}`} className="icon-btn" aria-label="Editar meta">
+              <Pencil size={20} strokeWidth={1.75} />
+            </Link>
+            <button type="button" className="icon-btn" aria-label="Excluir meta" onClick={() => setConfirming(true)}>
+              <Trash2 size={20} strokeWidth={1.75} />
+            </button>
+          </>
         }
       />
 
@@ -92,6 +100,10 @@ export default function GoalDetailPage() {
             <PacePill status={pace.status} />
             {streak > 1 && <span className="text-[12px] text-muted">{streak} dias seguidos</span>}
           </div>
+          <Link href={`/metas/ia?editar=${goal.id}`} className={cn(buttonVariants({ variant: 'soft', size: 'sm' }), 'mt-3 rounded-full pl-1.5')}>
+            <EstherAvatar size={30} />
+            Ajustar com a {ESTHER}
+          </Link>
         </header>
 
         <section className="card p-4" aria-label="Progresso">

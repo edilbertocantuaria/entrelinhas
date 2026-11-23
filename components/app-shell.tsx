@@ -30,7 +30,7 @@ const TABS = [
 ]
 
 /** Fluxos em tela cheia, sem a barra de abas. */
-const FULLSCREEN = ['/abertura', '/fechamento', '/metas/nova', '/retrospectiva']
+const FULLSCREEN = ['/abertura', '/fechamento', '/metas/nova', '/metas/ia', '/retrospectiva']
 
 export function AppShell({ children, overrides }: { children: ReactNode; overrides: string[] }) {
   const [frame, setFrame] = useState<HTMLElement | null>(null)

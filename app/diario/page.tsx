@@ -2,8 +2,8 @@
 
 import { BookOpen, ChevronRight, Mail, PenLine, Pin, Search, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useMemo, useState } from 'react'
 import { EmptyState, GoalChip, MoodBadge, MoodPicker } from '@/components/common'
 import { Illustration, type IllustrationName } from '@/components/illustration'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -21,8 +21,18 @@ type View = 'entries' | 'summaries'
 const THUMB: Record<SummaryKind, IllustrationName> = { monthly: 'summary-monthly', quarterly: 'summary-quarterly', annual: 'summary-annual' }
 
 export default function JournalPage() {
+  return (
+    <Suspense fallback={null}>
+      <JournalView />
+    </Suspense>
+  )
+}
+
+/** "/diario?resumos" abre direto na aba Resumos (ex.: "Voltar para Resumos" no resumo). */
+function JournalView() {
   const { today } = useClock()
-  const [view, setView] = useState<View>(() => (typeof window !== 'undefined' && window.location.search.includes('resumos') ? 'summaries' : 'entries'))
+  const params = useSearchParams()
+  const [view, setView] = useState<View>(() => (params.has('resumos') ? 'summaries' : 'entries'))
   const [editing, setEditing] = useState<string | null>(null)
 
   return (
