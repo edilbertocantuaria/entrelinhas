@@ -2,7 +2,7 @@
 
 Como o app se comporta. As regras ficam em `src/domain/`, em funções puras; as telas só as chamam.
 
-O princípio de tudo: **ritmo possível, sem culpa**. O que não avançou "ficou para depois"; pausas e dispensas não contam contra a pessoa; nada usa vermelho nem linguagem de falha.
+O princípio de tudo: **ritmo possível, sem culpa**. O que não avançou "ficou para depois"; pausas e dispensas não contam contra a pessoa; nada usa linguagem de falha. O único vermelho é o selo "um pouco atrás" do ritmo; "concluída" é verde.
 
 ## Metas
 
@@ -17,6 +17,16 @@ Arquivo principal: [`domain/goals.ts`](../src/domain/goals.ts). Cada meta tem os
 | `value` | peso de 85 para 78 kg | última medição, entre o valor inicial e o alvo |
 | `milestones` | projeto em 5 etapas | etapas concluídas |
 | `days` | estudar em 60 dias (ou 50 horas) | dias com registro (ou horas somadas) |
+
+### Até quando a meta vale: data ou marco (`until`)
+
+Uma meta termina numa **data** (`deadline`) ou num **marco** (`until`), quando vale "até algo acontecer":
+
+- **Acontecimento** (`{ type: 'event', text }`): ex.: "até passar no concurso". A pessoa toca em **Marco atingido** na página da meta, e a data fica em `reachedOn`. Dá para desfazer.
+- **Outra meta** (`{ type: 'goal', goalId }`): ex.: academia 3x por semana até concluir "Chegar a 78 kg". A meta termina sozinha no dia em que a outra chega a 100% (`finishedOn`). Metas de frequência não servem de marco, porque não terminam sozinhas, e um marco nunca pode voltar à própria meta (`marcoCandidates`).
+- **Data opcional:** com marco, `deadline` é só uma estimativa para o ritmo; sem ela, metas que não são de frequência mostram o progresso sem comparar com o tempo.
+- **Ao chegar ao marco** (`isActiveOn`), a meta fica **concluída**: progresso cheio, ritmo "concluída" e registro desativado. As tarefas pendentes dela saem da agenda (Hoje, outros dias e Depois, em `ensureOccurrences`); as feitas ficam no histórico. Param as sugestões e as ocorrências da repetição, que não é apagada: ao desfazer o marco, ela volta. A repetição de uma meta com marco não tem data final (`repeatEndFor`).
+- **Meta usada como marco excluída:** quem dependia dela passa a ter o marco em texto ("concluir “…”"), já atingido se ela tinha terminado.
 
 ### Ritmo (`paceOf`)
 
@@ -82,7 +92,7 @@ Arquivo: [`domain/recurrence.ts`](../src/domain/recurrence.ts). A regra (`Recurr
 - **Sugestão ao criar meta** (`suggestRepeat`):
   - 3x por semana vira seg, qua e sex (`SPREAD`); dias vira seg a sáb; valor vira toda segunda.
   - Soma e etapas não têm tarefa fixa.
-  - A repetição termina no prazo da meta.
+  - A repetição termina no prazo da meta; numa meta com marco, não tem fim e para quando o marco acontece.
 - **Sem dia arbitrário:** os atalhos do seletor (`RepeatPicker`) não usam o dia de hoje. "Personalizado" começa em segunda-feira.
 
 ## Resumos e retrospectiva

@@ -13,6 +13,11 @@
   --on-primary: #ffffff;
   --stage: #e3f0f6;
   --bezel: #0b2a3f;
+  /* ritmo: concluída (verde) e atrasada (vermelho) */
+  --success: #2e6b2b;
+  --success-soft: #dcefd8;
+  --alert: #b3261e;
+  --alert-soft: #fbe1dd;
 
   --area-verde: #4f8a4c;
   --area-mar: #0e97aa;
@@ -39,6 +44,10 @@
   --on-primary: #07202d;
   --stage: #041721;
   --bezel: #1b445a;
+  --success: #a6e0a1;
+  --success-soft: #1c4a2b;
+  --alert: #ffb4a9;
+  --alert-soft: #5c2420;
 
   --area-verde: #7dbb79;
   --area-mar: #34c0d0;
@@ -63,6 +72,10 @@
   --color-primary: var(--primary);
   --color-primary-soft: var(--primary-soft);
   --color-on-primary: var(--on-primary);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-alert: var(--alert);
+  --color-alert-soft: var(--alert-soft);
   --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   --font-voice: var(--font-voice-face), cursive;
   --radius-card: 12px;

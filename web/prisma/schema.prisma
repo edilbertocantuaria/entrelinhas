@@ -147,7 +147,10 @@ model Goal {
   why            String     @default("")
   /** SMART: prazo */
   startDate      DateTime   @db.Date
-  deadline       DateTime   @db.Date
+  /** obrigatório sem marco; com marco, é só a data estimada (opcional) */
+  deadline       DateTime?  @db.Date
+  /** "até [um marco]": objeto GoalUntil de src/domain/types.ts (acontecimento em texto ou outra meta) */
+  until          Json?
   /** título da tarefa gerada pela meta */
   taskTitle      String
   /** ilustração escolhida (ex.: goal-heart); nulo = a do tipo de medida */

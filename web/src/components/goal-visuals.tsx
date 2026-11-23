@@ -94,7 +94,9 @@ export function GoalProgress({ goal, progress, color }: { goal: Goal; progress: 
   const fill = color ?? 'var(--primary)'
 
   let indicator
-  if (m.type === 'frequency') {
+  if (progress.concluded) {
+    indicator = <ProgressBar value={1} color={fill} label={goal.title} />
+  } else if (m.type === 'frequency') {
     indicator = (
       <div className="flex gap-1.5" aria-hidden>
         {Array.from({ length: m.max }, (_, index) => (
@@ -123,7 +125,7 @@ export function GoalProgress({ goal, progress, color }: { goal: Goal; progress: 
       {indicator}
       <p className="mt-1.5 flex justify-between gap-2 text-[12px] text-muted">
         <span>{progress.label}</span>
-        {!hidePercent && m.type !== 'frequency' && <span className="tabular-nums">{Math.round(progress.ratio * 100)}%</span>}
+        {!hidePercent && !progress.concluded && m.type !== 'frequency' && <span className="tabular-nums">{Math.round(progress.ratio * 100)}%</span>}
       </p>
     </div>
   )

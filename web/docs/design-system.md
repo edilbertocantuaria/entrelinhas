@@ -18,7 +18,7 @@ Definidas como variáveis CSS em [`src/app/globals.css`](../src/app/globals.css)
 | `--on-primary` | `text-on-primary` | branco | `#07202D` | texto sobre `primary` |
 
 - **Cores das áreas:** 10 cores fixas, cada uma com versão clara e escura: verde, mar, tijolo, celeste, periwinkle, azul-cinza, âmbar, lavanda, musgo, areia. São as variáveis `--area-{chave}`, acessadas por `areaColor(chave)` em [`domain/areas.ts`](../src/domain/areas.ts). O ícone da área aparece num círculo com 20% da cor (`AreaIcon`).
-- **Sem vermelho:** atraso, falha, exclusão e "um pouco atrás" usam tons neutros (`text-muted`, borda), nunca vermelho.
+- **Cores do ritmo** (`PacePill`): "concluída" em verde (`success` / `success-soft`), "um pouco atrás" em vermelho (`alert` / `alert-soft`), "no ritmo" e "adiantado" no azul da marca (`primary-soft`). O vermelho fica **só** no selo de atraso: falha, exclusão e tarefas não feitas continuam em tons neutros (`text-muted`, borda).
 - **Tema:** claro, escuro ou do sistema, pela classe `.dark` no `<html>`. Um script aplica o tema antes da primeira pintura, para a tela não piscar.
 
 ## Tipografia

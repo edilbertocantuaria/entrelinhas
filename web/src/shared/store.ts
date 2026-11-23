@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { MAX_ACTIVE_AREAS, MAX_AREA_NAME } from '@/domain/areas'
 import { STORAGE_KEY } from '@/shared/constants'
 import { iso, uid } from '@/shared/format'
-import { todayTasks, type Suggestion } from '@/domain/goals'
+import { finishedOn, isActiveOn, marcoReachedOn, todayTasks, type Suggestion } from '@/domain/goals'
 import { createSeed, DEFAULT_LETTER } from '@/domain/seed'
 import { buildSummary, dueSummaries } from '@/domain/summaries'
 import type {
@@ -64,6 +64,11 @@ interface Actions {
   completeTask: (id: string, log: Partial<LogEntry> | null, today: string) => void
   uncompleteTask: (id: string) => void
   moveTask: (id: string, date: string) => void
+  /**
+   * Renomeia a tarefa. Com `upcoming`, o nome vale também para as próximas da mesma meta:
+   * a repetição, as pendentes com o nome antigo e a tarefa que a meta sugere.
+   */
+  renameTask: (id: string, title: string, upcoming: boolean) => void
   discardTask: (id: string) => void
   dismissTask: (id: string, reason?: string) => void
   sendToLater: (id: string) => void
@@ -240,7 +245,15 @@ export const useStore = create<Store>()(
 
       deleteGoal: id =>
         set(state => ({
-          goals: state.goals.filter(goal => goal.id !== id),
+          goals: state.goals
+            .filter(goal => goal.id !== id)
+            // quem tinha esta meta como marco passa a ter o marco em texto (já atingido, se ela tinha terminado)
+            .map(goal => {
+              if (goal.until?.type !== 'goal' || goal.until.goalId !== id) return goal
+              const removed = state.goals.find(item => item.id === id)
+              const reachedOn = removed ? finishedOn(removed, state.goals, state.logs) : undefined
+              return { ...goal, until: { type: 'event' as const, text: `concluir “${removed?.title ?? 'a meta ligada'}”`, reachedOn } }
+            }),
           logs: state.logs.filter(log => log.goalId !== id),
           tasks: state.tasks
             .filter(task => !(task.goalId === id && task.status === 'pending'))
@@ -311,6 +324,25 @@ export const useStore = create<Store>()(
         })),
 
       moveTask: (id, date) => set(state => ({ tasks: state.tasks.map(task => (task.id === id ? { ...task, date, later: false } : task)) })),
+
+      renameTask: (id, title, upcoming) =>
+        set(state => {
+          const task = state.tasks.find(item => item.id === id)
+          const clean = title.trim()
+          if (!task || !clean || clean === task.title) return state
+          const old = task.title
+          // etapas têm o nome da etapa: só a própria tarefa muda
+          const goalId = upcoming && !task.milestoneId ? task.goalId : undefined
+          const rule = goalId ? state.rules.find(item => item.id === task.ruleId || item.goalId === goalId) : undefined
+          const follows = (item: Task) =>
+            item.id === id ||
+            (item.status === 'pending' && !item.milestoneId && item.title === old && ((rule && item.ruleId === rule.id) || (goalId && item.goalId === goalId)))
+          return {
+            tasks: state.tasks.map(item => (follows(item) ? { ...item, title: clean } : item)),
+            rules: rule ? state.rules.map(item => (item.id === rule.id ? { ...item, title: clean } : item)) : state.rules,
+            goals: goalId ? state.goals.map(goal => (goal.id === goalId && goal.taskTitle === old ? { ...goal, taskTitle: clean } : goal)) : state.goals,
+          }
+        }),
 
       // Descartada: sai da lista e fica no histórico como "não feita".
       discardTask: id => set(state => ({ tasks: state.tasks.map(task => (task.id === id ? { ...task, status: 'not_done' as const } : task)) })),
@@ -389,17 +421,31 @@ export const useStore = create<Store>()(
       ensureOccurrences: today =>
         set(state => {
           let changed = false
+          // meta concluída pelo marco: as pendentes saem da agenda (Hoje, outros dias e Depois); as feitas ficam no histórico
+          const concluded = new Set(
+            state.goals
+              .filter(goal => {
+                const reached = marcoReachedOn(goal, state.goals, state.logs)
+                return !!reached && reached <= today
+              })
+              .map(goal => goal.id),
+          )
+          let tasks = state.tasks.filter(task => {
+            const drop = task.status === 'pending' && !!task.goalId && concluded.has(task.goalId)
+            if (drop) changed = true
+            return !drop
+          })
           // ocorrências de dias passados que ficaram pendentes não se acumulam
-          let tasks = state.tasks.map(task => {
+          tasks = tasks.map(task => {
             if (!task.ruleId || task.status !== 'pending' || task.later || task.date >= today) return task
             changed = true
             return { ...task, status: 'not_done' as const }
           })
           const archived = new Set(state.areas.filter(area => area.archived).map(area => area.id))
           let count = todayTasks(tasks, today).length
-          for (const rule of rulesOn(state.rules, state.goals, today)) {
+          for (const rule of rulesOn(state.rules, state.goals, state.logs, today)) {
             const goal = state.goals.find(item => item.id === rule.goalId)
-            if (goal && (archived.has(goal.areaId) || today > goal.deadline)) continue
+            if (goal && (archived.has(goal.areaId) || !isActiveOn(goal, state.goals, state.logs, today))) continue
             if (tasks.some(task => task.ruleId === rule.id && task.occurrence === today)) continue
             // uma tarefa da mesma meta já marcada para hoje vale como a ocorrência
             const same = rule.goalId ? tasks.find(task => task.goalId === rule.goalId && task.date === today && !task.ruleId) : undefined

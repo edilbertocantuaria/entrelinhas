@@ -22,7 +22,14 @@ export type Metric =
   /** etapas de um projeto */
   | { type: 'milestones'; items: { id: string; title: string }[] }
   /** dias feitos ou tempo dedicado */
-  | { type: 'days'; target: number; unit: 'dias' | 'horas'; sessionMinutes: number }
+  | { type: 'days'; target: number; unit: 'dias' | 'horas'; /** opcional: sem ela, cada dia vale o tempo que der */ sessionMinutes?: number }
+
+/**
+ * Meta que vale "até [um marco]", em vez de até uma data:
+ * - event: um acontecimento descrito em texto ("passar no concurso"), marcado à mão quando acontece;
+ * - goal: outra meta; esta termina sozinha quando aquela for concluída.
+ */
+export type GoalUntil = { type: 'event'; text: string; reachedOn?: string } | { type: 'goal'; goalId: string }
 
 export interface Goal {
   id: string
@@ -39,7 +46,13 @@ export interface Goal {
   why: string
   /** Prazo */
   startDate: string
-  deadline: string
+  /**
+   * Data final. Sem marco, é obrigatória e encerra a meta.
+   * Com marco (`until`), é opcional e serve só de estimativa para o ritmo.
+   */
+  deadline?: string
+  /** a meta vale até este marco acontecer */
+  until?: GoalUntil
   /** título da tarefa gerada pela meta */
   taskTitle: string
   reminder: { on: boolean; time: string }

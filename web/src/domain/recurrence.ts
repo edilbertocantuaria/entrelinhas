@@ -1,6 +1,7 @@
 import { differenceInCalendarMonths, getDaysInMonth, parseISO } from 'date-fns'
 import { daysBetween, fmt, mondayOf, shift } from '@/shared/format'
-import type { Goal, RecurringTask, Repeat, Task } from '@/domain/types'
+import { marcoReachedOn } from '@/domain/goals'
+import type { Goal, LogEntry, RecurringTask, Repeat, Task } from '@/domain/types'
 
 export const WEEKDAYS = [
   { value: 1, short: 'seg', long: 'segunda' },
@@ -47,17 +48,27 @@ export function occursOn(repeat: Repeat, date: string) {
   return true
 }
 
-/** Regras ativas (com meta existente, se tiver) que acontecem no dia e não foram puladas. */
-export function rulesOn(rules: RecurringTask[], goals: Goal[], date: string) {
-  return rules.filter(rule => (!rule.goalId || goals.some(goal => goal.id === rule.goalId)) && !rule.skipped.includes(date) && occursOn(rule.repeat, date))
+/**
+ * Regras ativas que acontecem no dia e não foram puladas. Com meta, ela precisa existir
+ * e não pode ter chegado ao marco (a repetição de uma meta com marco não tem data para acabar).
+ */
+export function rulesOn(rules: RecurringTask[], goals: Goal[], logs: LogEntry[], date: string) {
+  return rules.filter(rule => {
+    if (rule.skipped.includes(date) || !occursOn(rule.repeat, date)) return false
+    if (!rule.goalId) return true
+    const goal = goals.find(item => item.id === rule.goalId)
+    if (!goal) return false
+    const reached = marcoReachedOn(goal, goals, logs)
+    return !reached || date < reached
+  })
 }
 
 /**
  * Ocorrências planejadas para um dia que ainda não viraram tarefa.
  * Uma tarefa da mesma meta no mesmo dia já conta como a ocorrência.
  */
-export function plannedOn(rules: RecurringTask[], goals: Goal[], tasks: Task[], date: string) {
-  return rulesOn(rules, goals, date).filter(
+export function plannedOn(rules: RecurringTask[], goals: Goal[], logs: LogEntry[], tasks: Task[], date: string) {
+  return rulesOn(rules, goals, logs, date).filter(
     rule => !tasks.some(task => (task.ruleId === rule.id && task.occurrence === date) || (rule.goalId && task.goalId === rule.goalId && task.date === date)),
   )
 }
@@ -95,6 +106,13 @@ export function nextDates(rule: RecurringTask, from: string, limit = 3) {
   return out
 }
 
+/**
+ * Até quando a tarefa da meta se repete: no prazo, ou sem fim quando a meta vale até um marco
+ * (a data dela é só estimativa; a agenda para sozinha quando o marco acontece).
+ */
+export const repeatEndFor = (goal: Pick<Goal, 'deadline' | 'until'>): Repeat['end'] =>
+  goal.deadline && !goal.until ? { type: 'date', date: goal.deadline } : { type: 'never' }
+
 /** Dias da semana sugeridos para "N vezes por semana", espalhados para dar descanso. */
 const SPREAD: Record<number, number[]> = { 1: [1], 2: [2, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: BUSINESS, 6: [1, 2, 3, 4, 5, 6], 7: [0, 1, 2, 3, 4, 5, 6] }
 
@@ -102,8 +120,8 @@ const SPREAD: Record<number, number[]> = { 1: [1], 2: [2, 4], 3: [1, 3, 5], 4: [
  * Repetição sugerida para a tarefa de uma meta nova. Nula quando a meta não pede tarefa fixa
  * (etapas de projeto e metas de soma, que têm só um lembrete mensal).
  */
-export function suggestRepeat(goal: Pick<Goal, 'metric' | 'startDate' | 'deadline'>): Repeat | null {
-  const base = { start: goal.startDate, end: { type: 'date' as const, date: goal.deadline }, interval: 1 }
+export function suggestRepeat(goal: Pick<Goal, 'metric' | 'startDate' | 'deadline' | 'until'>): Repeat | null {
+  const base = { start: goal.startDate, end: repeatEndFor(goal), interval: 1 }
   const m = goal.metric
   if (m.type === 'frequency') return { ...base, freq: 'weekly', weekdays: SPREAD[Math.min(7, Math.max(1, m.min))] }
   if (m.type === 'days') return { ...base, freq: 'weekly', weekdays: [1, 2, 3, 4, 5, 6] }

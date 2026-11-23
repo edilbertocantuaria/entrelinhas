@@ -1,6 +1,6 @@
 # Entrelinhas · front-end
 
-App pessoal de metas anuais, tarefas do dia e diário, com resumos do mês e retrospectiva do ano. Tom calmo, sem pressão: nada de vermelho para o que ficou para depois.
+App pessoal de metas anuais, tarefas do dia e diário, com resumos do mês e retrospectiva do ano. Tom calmo, sem pressão: o que ficou para depois não é tratado como falha (o vermelho aparece só no selo de ritmo atrasado).
 
 É um protótipo funcional (MVP): roda inteiro no navegador, guarda os dados no próprio aparelho e usa IA só no servidor (rota `/api/ia`). Interface em português do Brasil, pensada para celular (390 px), instalável como app (PWA).
 

@@ -1,5 +1,5 @@
 import { differenceInCalendarMonths, parseISO } from 'date-fns'
-import { brl, daysBetween, fmt, minutesLabel, mondayOf, num, num1, plural, shift } from '@/shared/format'
+import { brl, cap, daysBetween, fmt, minutesLabel, mondayOf, num, num1, plural, shift } from '@/shared/format'
 import type { Goal, JournalEntry, LogEntry, Metric, MetricType, Task } from '@/domain/types'
 
 export const METRIC_LABEL: Record<MetricType, { name: string; hint: string }> = {
@@ -47,9 +47,24 @@ export interface Progress {
   ratio: number
   label: string
   current: number
+  /** meta encerrada pelo marco: o indicador aparece cheio, seja qual for a medida */
+  concluded?: boolean
 }
 
-export function progressOf(goal: Goal, allLogs: LogEntry[], today: string): Progress {
+/**
+ * Progresso da meta no dia. Meta com marco que já aconteceu está concluída: 100%,
+ * com a data do marco no texto. `goals` é preciso para o marco que é outra meta.
+ */
+export function progressOf(goal: Goal, allLogs: LogEntry[], today: string, goals: Goal[] = []): Progress {
+  const base = metricProgress(goal, allLogs, today)
+  if (!goal.until) return base
+  const reached = finishedOn(goal, goals, allLogs)
+  if (!reached || reached > today) return base
+  return { ratio: 1, current: base.current, label: `Concluída: marco atingido em ${fmt(reached, "d 'de' MMM 'de' yyyy")}`, concluded: true }
+}
+
+/** Progresso só pela medida (sem olhar o marco). */
+function metricProgress(goal: Goal, allLogs: LogEntry[], today: string): Progress {
   const logs = logsOf(allLogs, goal.id).filter(log => log.date <= today)
   const m = goal.metric
   switch (m.type) {
@@ -88,6 +103,62 @@ export function progressOf(goal: Goal, allLogs: LogEntry[], today: string): Prog
   }
 }
 
+// ---------- Até quando a meta vale ----------
+
+/** Dia em que a medida chegou a 100%. Metas de frequência não terminam sozinhas. */
+export function completedOn(goal: Goal, allLogs: LogEntry[]): string | undefined {
+  if (goal.metric.type === 'frequency') return undefined
+  const dates = [...new Set(logsOf(allLogs, goal.id).map(log => log.date))]
+  return dates.find(date => metricProgress(goal, allLogs, date).ratio >= 1)
+}
+
+/**
+ * Dia em que a meta terminou. Com marco: quando ele aconteceu (marcado à mão, ou a meta ligada
+ * foi concluída). Sem marco: quando a medida chegou a 100%.
+ */
+export function finishedOn(goal: Goal, goals: Goal[], allLogs: LogEntry[], seen: Set<string> = new Set()): string | undefined {
+  const until = goal.until
+  if (!until) return completedOn(goal, allLogs)
+  if (until.type === 'event') return until.reachedOn
+  // uma meta ligada a outra que volta a ela mesma nunca termina sozinha
+  if (seen.has(goal.id)) return undefined
+  const linked = goals.find(item => item.id === until.goalId)
+  return linked ? finishedOn(linked, goals, allLogs, new Set(seen).add(goal.id)) : undefined
+}
+
+/** Dia em que o marco da meta aconteceu (só para metas com marco). */
+export const marcoReachedOn = (goal: Goal, goals: Goal[], allLogs: LogEntry[]) => (goal.until ? finishedOn(goal, goals, allLogs) : undefined)
+
+/** A meta vale neste dia? Já começou e não passou do prazo nem do marco. */
+export function isActiveOn(goal: Goal, goals: Goal[], allLogs: LogEntry[], date: string) {
+  if (date < goal.startDate) return false
+  if (goal.until) {
+    const reached = finishedOn(goal, goals, allLogs)
+    return !reached || date < reached
+  }
+  return !goal.deadline || date <= goal.deadline
+}
+
+/** O marco em texto, para "Até ...": "passar no concurso", "concluir “Chegar a 78 kg”". */
+export function untilText(goal: Pick<Goal, 'until'>, goals: Goal[]) {
+  const until = goal.until
+  if (!until) return ''
+  if (until.type === 'event') return until.text
+  const linked = goals.find(item => item.id === until.goalId)
+  return linked ? `concluir “${linked.title}”` : 'concluir a meta ligada'
+}
+
+/** Metas que podem servir de marco para `goalId`: têm um fim (não são de frequência) e não voltam a ela. */
+export function marcoCandidates(goals: Goal[], goalId?: string) {
+  const leadsBack = (goal: Goal, seen = new Set<string>()): boolean => {
+    if (!goalId || goal.until?.type !== 'goal' || seen.has(goal.id)) return false
+    if (goal.until.goalId === goalId) return true
+    const next = goals.find(item => item.id === (goal.until as { goalId: string }).goalId)
+    return next ? leadsBack(next, new Set(seen).add(goal.id)) : false
+  }
+  return goals.filter(goal => goal.id !== goalId && (goal.until || goal.metric.type !== 'frequency') && !leadsBack(goal))
+}
+
 export type PaceStatus = 'ontrack' | 'ahead' | 'behind' | 'done'
 export const PACE_LABEL: Record<PaceStatus, string> = {
   ontrack: 'no ritmo',
@@ -109,17 +180,35 @@ const byRatio = (progress: number, time: number): PaceStatus => {
   return ratio >= 1.1 ? 'ahead' : ratio >= 0.8 ? 'ontrack' : 'behind'
 }
 
-/** Ritmo da meta. Tarefas dispensadas nunca contam contra o ritmo. */
-export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: string): Pace {
-  const progress = progressOf(goal, allLogs, today)
+/**
+ * Ritmo da meta. Tarefas dispensadas nunca contam contra o ritmo.
+ * Metas com marco: encerram quando ele acontece; sem data estimada, o ritmo de quem
+ * não é de frequência não tem relógio para comparar.
+ */
+export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: string, goals: Goal[]): Pace {
+  // o marco é tratado logo abaixo; a conta do ritmo usa só a medida
+  const progress = metricProgress(goal, allLogs, today)
   const logs = logsOf(allLogs, goal.id)
   const m = goal.metric
-  const span = Math.max(1, daysBetween(goal.startDate, goal.deadline))
+  const make = (status: PaceStatus, explanation: string): Pace => ({ status, label: PACE_LABEL[status], explanation })
+
+  if (goal.until) {
+    const reached = finishedOn(goal, goals, allLogs)
+    if (reached && reached <= today)
+      return make('done', `O marco chegou em ${fmt(reached, "d 'de' MMMM 'de' yyyy")}: ${untilText(goal, goals)}. A meta está encerrada.`)
+  }
+  if (!goal.deadline && m.type !== 'frequency') {
+    const marco = untilText(goal, goals)
+    return make('ontrack', `${cap(progress.label)}. Sem data marcada: a meta segue até ${marco || 'o marco acontecer'}.`)
+  }
+
+  // daqui em diante, só metas de frequência podem estar sem data, e elas não usam o prazo
+  const deadline = goal.deadline ?? today
+  const span = Math.max(1, daysBetween(goal.startDate, deadline))
   const time = clamp(daysBetween(goal.startDate, today) / span)
-  const daysLeft = Math.max(0, daysBetween(today, goal.deadline))
+  const daysLeft = Math.max(0, daysBetween(today, deadline))
   const weeksLeft = Math.max(1, Math.ceil(daysLeft / 7))
   const dismissed = tasks.filter(task => task.goalId === goal.id && task.status === 'dismissed')
-  const make = (status: PaceStatus, explanation: string): Pace => ({ status, label: PACE_LABEL[status], explanation })
 
   switch (m.type) {
     case 'frequency': {
@@ -149,7 +238,7 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
     case 'sum': {
       const remaining = m.target - progress.current
       if (remaining <= 0) return make('done', 'Você chegou ao valor que definiu.')
-      const months = Math.max(1, differenceInCalendarMonths(parseISO(goal.deadline), parseISO(today)) + 1)
+      const months = Math.max(1, differenceInCalendarMonths(parseISO(deadline), parseISO(today)) + 1)
       return make(
         byRatio(progress.ratio, time),
         `Faltam ${amount(m, remaining)} em ${months} ${plural(months, 'mês', 'meses')} = ${amount(m, remaining / months)}/mês.`,
@@ -179,7 +268,7 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
         m.unit === 'horas' ? `${num1(remaining)} ${plural(Math.ceil(remaining), 'hora', 'horas')}` : `${remaining} ${plural(remaining, 'dia', 'dias')}`
       return make(
         byRatio(progress.ratio, time),
-        `${plural(Math.ceil(remaining), 'Falta', 'Faltam')} ${what}. ${plural(daysLeft, 'Resta', 'Restam')} ${daysLeft} ${plural(daysLeft, 'dia', 'dias')} no calendário até ${fmt(goal.deadline, "d 'de' MMMM")}.`,
+        `${plural(Math.ceil(remaining), 'Falta', 'Faltam')} ${what}. ${plural(daysLeft, 'Resta', 'Restam')} ${daysLeft} ${plural(daysLeft, 'dia', 'dias')} no calendário até ${fmt(deadline, "d 'de' MMMM")}.`,
       )
     }
   }
@@ -265,7 +354,7 @@ export function suggestTasks(
 ): Suggestion[] {
   const out: Suggestion[] = []
   for (const goal of goals) {
-    if (archivedAreas.has(goal.areaId) || today > goal.deadline || today < goal.startDate) continue
+    if (archivedAreas.has(goal.areaId) || !isActiveOn(goal, goals, logs, today)) continue
     // meta com tarefa que se repete: a agenda já cuida dela
     if (scheduledGoals.has(goal.id)) continue
     const open = tasks.some(task => task.goalId === goal.id && ((task.date === today && !task.later) || task.status === 'pending'))
@@ -279,7 +368,7 @@ export function suggestTasks(
       const count = daysBetweenDates(mine, mondayOf(today), today)
       if (count < m.max) out.push({ ...base, hint: `${count} de ${m.min} a ${m.max} nesta semana` })
     } else if (m.type === 'days') {
-      if (!mine.some(log => log.date === today)) out.push({ ...base, hint: `Sessão de ${m.sessionMinutes} min` })
+      if (!mine.some(log => log.date === today)) out.push({ ...base, hint: m.sessionMinutes ? `Sessão de ${m.sessionMinutes} min` : 'Sessão de hoje' })
     } else if (m.type === 'value') {
       const last = mine.at(-1)?.date
       if (!last || daysBetween(last, today) >= 7) out.push({ ...base, hint: 'Medição da semana' })
@@ -328,7 +417,7 @@ export function periodStats(data: { goals: Goal[]; logs: LogEntry[]; tasks: Task
     }
     const m = goal.metric
     let text = ''
-    let ratio = progressOf(goal, data.logs, end).ratio
+    let ratio = progressOf(goal, data.logs, end, data.goals).ratio
     if (m.type === 'frequency') {
       const weeks = Math.max(1, Math.round((daysBetween(start < goal.startDate ? goal.startDate : start, end) + 1) / 7))
       const days = uniqueDays(logs)

@@ -1,8 +1,8 @@
 import type { CampoMeta, MetaProposta } from '@/utils/prompts'
-import { fmt, shift, uid } from '@/shared/format'
-import { amount } from '@/domain/goals'
-import { describe } from '@/domain/recurrence'
-import type { Area, Goal, Metric, RecurringTask, Repeat } from '@/domain/types'
+import { cap, fmt, shift, uid } from '@/shared/format'
+import { amount, untilText } from '@/domain/goals'
+import { describe, repeatEndFor } from '@/domain/recurrence'
+import type { Area, Goal, GoalUntil, Metric, RecurringTask, Repeat } from '@/domain/types'
 
 /**
  * Rascunho de meta: tudo o que o passo a passo precisa para abrir já preenchido.
@@ -10,7 +10,7 @@ import type { Area, Goal, Metric, RecurringTask, Repeat } from '@/domain/types'
  */
 export interface GoalDraft extends Pick<
   Goal,
-  'title' | 'areaId' | 'description' | 'metric' | 'startingPoint' | 'achievableNote' | 'why' | 'deadline' | 'taskTitle' | 'reminder'
+  'title' | 'areaId' | 'description' | 'metric' | 'startingPoint' | 'achievableNote' | 'why' | 'deadline' | 'until' | 'taskTitle' | 'reminder'
 > {
   art?: string
   /** null = sem repetição; undefined = deixar a sugestão automática */
@@ -53,7 +53,7 @@ export function describeMetric(metric: Metric) {
   if (metric.type === 'sum') return `Somar até ${amount(metric, metric.target)}`
   if (metric.type === 'value') return `De ${amount(metric, metric.from)} para ${amount(metric, metric.to)}`
   if (metric.type === 'milestones') return `${metric.items.length} etapas: ${metric.items.map(item => item.title).join(', ')}`
-  return `${metric.target} ${metric.unit}, em sessões de ${metric.sessionMinutes} min`
+  return metric.sessionMinutes ? `${metric.target} ${metric.unit}, em sessões de ${metric.sessionMinutes} min` : `${metric.target} ${metric.unit}`
 }
 
 const clampInt = (value: number | undefined, min: number, max: number, fallback: number) =>
@@ -72,7 +72,12 @@ function toMetric(m: MetaProposta['medida']): Metric {
   if (m.tipo === 'milestones' && m.etapas?.length) return { type: 'milestones', items: m.etapas.map(title => ({ id: `m-${uid()}`, title })) }
   if (m.tipo === 'days') {
     const unit = m.contarEm === 'horas' ? 'horas' : 'dias'
-    return { type: 'days', target: clampInt(m.alvo, 1, 1000, unit === 'horas' ? 50 : 30), unit, sessionMinutes: clampInt(m.minutosPorSessao, 5, 240, 30) }
+    return {
+      type: 'days',
+      target: clampInt(m.alvo, 1, 1000, unit === 'horas' ? 50 : 30),
+      unit,
+      sessionMinutes: m.minutosPorSessao ? clampInt(m.minutosPorSessao, 5, 240, 30) : undefined,
+    }
   }
   return { type: 'frequency', min: 3, max: 3, noun: 'vezes' }
 }
@@ -86,7 +91,10 @@ export function fromProposal(p: MetaProposta, areas: Area[], today: string): Goa
     active.find(item => wanted && item.name.toLocaleLowerCase('pt-BR').includes(wanted)) ??
     active[0]
   const yearEnd = `${today.slice(0, 4)}-12-31`
-  const deadline = p.prazo && p.prazo > today ? p.prazo : yearEnd > today ? yearEnd : shift(today, 90)
+  const marco = p.ate.trim()
+  // com marco, a data é opcional: só entra se a pessoa disse uma
+  const deadline = p.prazo && p.prazo > today ? p.prazo : marco ? undefined : yearEnd > today ? yearEnd : shift(today, 90)
+  const until = marco ? { type: 'event' as const, text: marco } : undefined
   const metric = toMetric(p.medida)
   return {
     title: p.titulo,
@@ -98,13 +106,24 @@ export function fromProposal(p: MetaProposta, areas: Area[], today: string): Goa
     achievableNote: p.alcancavel,
     why: p.porQue,
     deadline,
+    until,
     taskTitle: p.tarefa || p.titulo,
     reminder: p.lembrete ? { on: true, time: p.lembrete } : { on: false, time: '08:00' },
-    repeat: p.diasDaTarefa.length ? { freq: 'weekly', interval: 1, weekdays: p.diasDaTarefa, start: today, end: { type: 'date', date: deadline } } : null,
+    repeat: p.diasDaTarefa.length ? { freq: 'weekly', interval: 1, weekdays: p.diasDaTarefa, start: today, end: repeatEndFor({ deadline, until }) } : null,
   }
 }
 
 export const deadlineText = (date: string) => fmt(date, "d 'de' MMMM 'de' yyyy")
+
+/**
+ * "Até quando", em texto: a data, ou o marco (com a data estimada, se houver).
+ * Ex.: "31 de dezembro de 2026", "Até passar no concurso (estimativa: 30 de junho de 2027)".
+ */
+export function untilLabel(goal: Pick<Goal, 'deadline' | 'until'>, goals: Goal[]) {
+  if (!goal.until) return goal.deadline ? cap(deadlineText(goal.deadline)) : ''
+  const marco = `Até ${untilText(goal, goals)}`
+  return goal.deadline ? `${marco} (estimativa: ${deadlineText(goal.deadline)})` : marco
+}
 
 /** A meta salva no formato de rascunho (para comparar com a proposta de ajuste). */
 export function goalToDraft(goal: Goal, rule?: RecurringTask): GoalDraft {
@@ -117,6 +136,7 @@ export function goalToDraft(goal: Goal, rule?: RecurringTask): GoalDraft {
     achievableNote: goal.achievableNote,
     why: goal.why,
     deadline: goal.deadline,
+    until: goal.until,
     taskTitle: goal.taskTitle,
     reminder: goal.reminder,
     art: goal.art,
@@ -125,7 +145,10 @@ export function goalToDraft(goal: Goal, rule?: RecurringTask): GoalDraft {
 }
 
 /** A meta em texto, para a Esther saber o que existe antes de ajustar. */
-export function goalSummary(goal: Goal, areaName: string, rule?: RecurringTask) {
+export function goalSummary(goal: Goal, areaName: string, goals: Goal[], rule?: RecurringTask) {
+  const until = goal.until
+    ? `vale até ${untilText(goal, goals)}${goal.deadline ? `, data estimada ${goal.deadline}` : ', sem data'}`
+    : `prazo: ${goal.deadline}`
   return [
     `Título: ${goal.title}`,
     `Área: ${areaName}`,
@@ -134,7 +157,7 @@ export function goalSummary(goal: Goal, areaName: string, rule?: RecurringTask) 
     `Ponto de partida: ${goal.startingPoint || '(em branco)'}`,
     `Por que é alcançável: ${goal.achievableNote || '(em branco)'}`,
     `Por que importa: ${goal.why || '(em branco)'}`,
-    `Começou em: ${goal.startDate}; prazo: ${goal.deadline}`,
+    `Começou em: ${goal.startDate}; ${until}`,
     `Tarefa do dia: ${goal.taskTitle}${rule ? `, na agenda: ${describe(rule.repeat)}` : ', sem dias fixos'}`,
     `Lembrete: ${goal.reminder.on ? goal.reminder.time : 'desligado'}`,
   ].join('\n')
@@ -157,7 +180,7 @@ export function onlyChanged(proposal: GoalDraft, before: GoalDraft, listed: Camp
     )
       ? (['medida'] as const)
       : []),
-    ...(proposal.deadline !== before.deadline ? (['prazo'] as const) : []),
+    ...(proposal.deadline !== before.deadline || !same(proposal.until, before.until) ? (['prazo'] as const) : []),
     ...(weekdays(proposal) !== weekdays(before) ? (['diasDaTarefa'] as const) : []),
     ...(!same(proposal.reminder, before.reminder) ? (['lembrete'] as const) : []),
     ...(proposal.areaId !== before.areaId ? (['area'] as const) : []),
@@ -178,15 +201,22 @@ export function onlyChanged(proposal: GoalDraft, before: GoalDraft, listed: Camp
     achievableNote: has('alcancavel') ? proposal.achievableNote : before.achievableNote,
     why: has('porQue') ? proposal.why : before.why,
     deadline: has('prazo') ? proposal.deadline : before.deadline,
+    until: has('prazo') ? keepReached(proposal.until, before.until) : before.until,
     taskTitle: has('tarefa') ? proposal.taskTitle : before.taskTitle,
     reminder: has('lembrete') ? proposal.reminder : before.reminder,
-    // a agenda acompanha o novo prazo, mesmo quando os dias não mudam
+    // a agenda acompanha o novo prazo (ou o marco), mesmo quando os dias não mudam
     repeat: has('diasDaTarefa')
       ? proposal.repeat
-      : before.repeat && has('prazo') && before.repeat.end.type === 'date'
-        ? { ...before.repeat, end: { type: 'date', date: proposal.deadline } }
+      : before.repeat && has('prazo') && before.repeat.end.type !== 'count'
+        ? { ...before.repeat, end: repeatEndFor(proposal) }
         : before.repeat,
   }
+}
+
+/** O marco em texto não perde a data em que foi atingido só porque a Esther reescreveu a meta. */
+function keepReached(next: GoalUntil | undefined, previous: GoalUntil | undefined): GoalUntil | undefined {
+  if (next?.type !== 'event' || previous?.type !== 'event' || next.reachedOn || !previous.reachedOn) return next
+  return next.text.trim().toLocaleLowerCase('pt-BR') === previous.text.trim().toLocaleLowerCase('pt-BR') ? { ...next, reachedOn: previous.reachedOn } : next
 }
 
 /**

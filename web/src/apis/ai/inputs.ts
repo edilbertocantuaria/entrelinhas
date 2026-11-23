@@ -50,7 +50,7 @@ export function periodInput(data: AppData, summary: Pick<Summary, 'kind' | 'star
       meta: item.goal.title,
       area: areaName(item.goal.areaId),
       progresso: item.text,
-      ritmo: PACE_LABEL[paceOf(item.goal, data.logs, data.tasks, end).status],
+      ritmo: PACE_LABEL[paceOf(item.goal, data.logs, data.tasks, end, data.goals).status],
     })),
     paradas: stats.stalled.map(goal => ({ meta: goal.title, area: areaName(goal.areaId) })),
     modulos,

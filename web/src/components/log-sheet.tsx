@@ -84,7 +84,7 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
   const measure = parseNum(measureText)
   const nudge = (delta: number) => setMeasureText(num(Math.round(((Number.isNaN(measure) ? current : measure) + delta) * 10) / 10, 1))
   // tempo em horas e minutos: os atalhos preenchem, e dá para digitar qualquer valor
-  const initialMinutes = m.type === 'days' ? m.sessionMinutes : 30
+  const initialMinutes = m.type === 'days' ? (m.sessionMinutes ?? 30) : 30
   const [hoursText, setHoursText] = useState(String(Math.floor(initialMinutes / 60)))
   const [minsText, setMinsText] = useState(String(initialMinutes % 60))
   const minutes = (Number.parseInt(hoursText, 10) || 0) * 60 + (Number.parseInt(minsText, 10) || 0)
@@ -301,7 +301,7 @@ function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: T
       {m.type === 'days' && (
         <>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Tempos rápidos">
-            {[...new Set([15, 30, 45, 60, 90, 120, 180, m.sessionMinutes])]
+            {[...new Set([15, 30, 45, 60, 90, 120, 180, ...(m.sessionMinutes ? [m.sessionMinutes] : [])])]
               .sort((a, b) => a - b)
               .map(value => (
                 <Chip key={value} selected={minutes === value} onClick={() => setMinutes(value)}>

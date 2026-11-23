@@ -151,8 +151,8 @@ export default function GoalsPage() {
                 </div>
                 <ul className="flex flex-col gap-3">
                   {items.map(goal => {
-                    const progress = progressOf(goal, logs, today)
-                    const pace = paceOf(goal, logs, tasks, today)
+                    const progress = progressOf(goal, logs, today, goals)
+                    const pace = paceOf(goal, logs, tasks, today, goals)
                     const streak = goal.metric.type === 'days' && !hideStreaks ? streakOf(goal, logs, today) : 0
                     return (
                       <li key={goal.id}>

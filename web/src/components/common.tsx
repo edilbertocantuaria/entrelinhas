@@ -53,13 +53,17 @@ export function GoalChip({ goalId, className }: { goalId: string; className?: st
 
 // ---------- Ritmo ----------
 
-/** Sempre em tons neutros: nada de vermelho para "um pouco atrás". */
+/** Concluída em verde, "um pouco atrás" em vermelho; no ritmo e adiantado no tom da marca. */
 export function PacePill({ status }: { status: PaceStatus }) {
   return (
     <span
       className={cn(
         'inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px]',
-        status === 'behind' ? 'border-[0.5px] border-line text-muted' : 'bg-primary-soft text-ink',
+        status === 'done'
+          ? 'bg-success-soft font-medium text-success'
+          : status === 'behind'
+            ? 'bg-alert-soft font-medium text-alert'
+            : 'bg-primary-soft text-ink',
       )}
     >
       {PACE_LABEL[status]}

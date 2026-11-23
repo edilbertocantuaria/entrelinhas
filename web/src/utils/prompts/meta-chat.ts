@@ -42,8 +42,10 @@ export interface MetaProposta {
   pontoDePartida: string
   alcancavel: string
   porQue: string
-  /** "aaaa-mm-dd" */
+  /** "aaaa-mm-dd"; com marco, pode vir vazio (sem data) */
   prazo: string
+  /** marco que encerra a meta ("passar no concurso"); vazio quando ela termina numa data */
+  ate: string
   tarefa: string
   /** dias da semana em que a tarefa entra na agenda (0 = domingo); vazio = sem repetição */
   diasDaTarefa: number[]
@@ -108,7 +110,7 @@ O roteiro SMART (investigue nesta ordem, pulando o que a pessoa já respondeu):
 2. Mensurável: como saber que está avançando? Vezes por semana, horas, valor a juntar, de quanto para quanto, ou etapas.
 3. Alcançável: como está hoje e quanto cabe na rotina real dela (tempo, energia, dinheiro)? Investigue o ponto de partida antes de definir o número.
 4. Relevante: por que isso importa agora? O que muda na vida dela quando conseguir? Use as palavras dela.
-5. Prazo: até quando? Uma data que combine com o ritmo.
+5. Prazo: até quando? Uma data que combine com o ritmo, ou um marco: algumas metas valem até algo acontecer, e não até uma data ("estudar 3 vezes por semana até passar no concurso", "academia até chegar aos 78 kg"). Nesse caso, a data é opcional.
 
 Como conduzir:
 - Uma pergunta por mensagem (no máximo duas, se forem curtíssimas e ligadas). Nada de questionário.
@@ -117,7 +119,8 @@ Como conduzir:
 - Escute tudo o que a pessoa disser, mesmo fora da ordem, e marque o ponto na hora:
   - falou o motivo ("pra ter estabilidade", "quero mais disposição") → Relevante firmado;
   - falou como está hoje ("estudo umas 2 vezes quando dá") e escolheu um ritmo → Alcançável firmado;
-  - falou uma data ou um evento com data ("a prova é em abril") → Prazo firmado.
+  - falou uma data ou um evento com data ("a prova é em abril") → Prazo firmado;
+  - disse que vale até algo acontecer ("até passar", "até conseguir o emprego") → Prazo firmado com esse marco, sem precisar de data.
 - Não pergunte o mesmo ponto mais de duas vezes. Se ainda estiver vago, siga com a melhor leitura e deixe claro que dá para ajustar na revisão.
 - Se a resposta for vaga, aprofunde com gentileza em vez de seguir. Se a pessoa disser que não sabe, ofereça um caminho e pergunte se faz sentido.
 - Não invente o que a pessoa não disse. Números e prazos saem das respostas dela; quando você sugerir um, deixe claro que é sugestão e confirme.
@@ -145,11 +148,12 @@ Como montar a meta:
   - "sum": soma até um alvo. Preencha "alvo", "emReais" (true para dinheiro) e "unidade" quando não for dinheiro.
   - "value": um valor que vai de X para Y. Preencha "de", "para" e "unidade" (ex.: "kg", "min").
   - "milestones": etapas de um projeto. Preencha "etapas" com 3 a 7 etapas curtas, em ordem.
-  - "days": dias feitos ou horas dedicadas. Preencha "alvo", "contarEm" ("dias" ou "horas") e "minutosPorSessao".
+  - "days": dias feitos ou horas dedicadas. Preencha "alvo" e "contarEm" ("dias" ou "horas"). "minutosPorSessao" é opcional: só quando a pessoa falou a duração de cada sessão.
 - "pontoDePartida": como está hoje, com as palavras da pessoa. Se ela não disse, use "A definir".
 - "alcancavel": uma ou duas frases sobre o que torna a meta possível.
 - "porQue": por que importa, com as palavras da pessoa.
-- "prazo": data "aaaa-mm-dd", depois de hoje. Sem prazo dito, use 31 de dezembro do ano atual.
+- "prazo": data "aaaa-mm-dd", depois de hoje. Sem prazo dito, use 31 de dezembro do ano atual, a menos que a meta tenha marco: aí, sem data dita, use "".
+- "ate": o marco que encerra a meta, quando ela vale até algo acontecer, em até 8 palavras, começando por verbo e sem o "até" (ex.: "passar no concurso", "conseguir o novo emprego"). Quando a meta termina numa data, use "". Na "descricao", diga o marco ("até passar no concurso").
 - "tarefa": o título da tarefa do dia, começando por verbo, em até 5 palavras. Ex.: "Treino na academia".
 - "diasDaTarefa": dias da semana em que a tarefa entra na agenda, com 0 = domingo e 1 = segunda. Para "3 vezes por semana", algo como [1, 3, 5]. Para etapas de projeto ou soma de dinheiro, use [].
 - "lembrete": "HH:mm" se a pessoa pediu lembrete ou disse um horário; senão "".
@@ -163,7 +167,7 @@ O que devolver:
 Responda neste formato:
 {"resposta": "...", "smart": {"especifica": "", "mensuravel": "", "alcancavel": "", "relevante": "", "prazo": ""}, "sugestoes": ["..."], "meta": null}
 ou, ao propor (com "mudancas" só ao ajustar uma meta existente):
-{"resposta": "...", "smart": {...}, "sugestoes": [], "mudancas": ["medida", "diasDaTarefa"], "meta": {"titulo": "...", "area": "...", "descricao": "...", "medida": {"tipo": "frequency", "min": 3, "max": 4, "nome": "treinos"}, "pontoDePartida": "...", "alcancavel": "...", "porQue": "...", "prazo": "aaaa-mm-dd", "tarefa": "...", "diasDaTarefa": [1, 3, 5], "lembrete": ""}}`,
+{"resposta": "...", "smart": {...}, "sugestoes": [], "mudancas": ["medida", "diasDaTarefa"], "meta": {"titulo": "...", "area": "...", "descricao": "...", "medida": {"tipo": "frequency", "min": 3, "max": 4, "nome": "treinos"}, "pontoDePartida": "...", "alcancavel": "...", "porQue": "...", "prazo": "aaaa-mm-dd", "ate": "", "tarefa": "...", "diasDaTarefa": [1, 3, 5], "lembrete": ""}}`,
   user: entrada =>
     juntar(
       `Hoje: ${entrada.hoje}`,
@@ -237,6 +241,7 @@ ou, ao propor (com "mudancas" só ao ajustar uma meta existente):
         alcancavel: texto(m.alcancavel, 400) ?? '',
         porQue: texto(m.porQue, 400) ?? '',
         prazo: typeof m.prazo === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.prazo) ? m.prazo : '',
+        ate: (texto(m.ate, 80) ?? '').replace(/^até\s+/i, ''),
         tarefa: texto(m.tarefa, 60) ?? titulo,
         diasDaTarefa: [...new Set(dias)].sort(),
         lembrete: typeof m.lembrete === 'string' && /^\d{2}:\d{2}$/.test(m.lembrete) ? m.lembrete : '',

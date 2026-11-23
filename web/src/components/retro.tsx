@@ -49,8 +49,8 @@ export function useRetroCards(year: number): RetroCard[] | null {
       .map(goal => ({
         goal,
         ratio: stats.advanced.find(item => item.goal.id === goal.id)?.ratio ?? 0,
-        progress: progressOf(goal, logs, end),
-        pace: paceOf(goal, logs, tasks, end),
+        progress: progressOf(goal, logs, end, goals),
+        pace: paceOf(goal, logs, tasks, end, goals),
       }))
       .sort((a, b) => b.ratio - a.ratio)
     const byMonth = new Map<string, number[]>()

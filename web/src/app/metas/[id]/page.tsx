@@ -1,11 +1,13 @@
 'use client'
 
-import { Check, Pencil, Repeat as RepeatIcon, Trash2, X } from 'lucide-react'
+import { Check, Flag, Pencil, Repeat as RepeatIcon, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
 import { RuleSheet } from '@/components/rule-sheet'
+import { TaskSheet } from '@/components/task-sheet'
 import { ESTHER, EstherAvatar } from '@/components/esther'
 import { buttonVariants } from '@/components/ui/button'
-import { defaultRepeat, describe, nextDates, suggestRepeat } from '@/domain/recurrence'
+import { defaultRepeat, describe, nextDates, repeatEndFor, suggestRepeat } from '@/domain/recurrence'
+import { untilLabel } from '@/domain/goal-draft'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Missing, TopBar, useShell } from '@/components/app-shell'
@@ -17,8 +19,8 @@ import { LogSheet } from '@/components/log-sheet'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/controls'
 import { Sheet } from '@/components/ui/sheet'
-import { cap, fmt, shift, shortDay } from '@/shared/format'
-import { logsOf, METRIC_LABEL, milestoneDates, paceOf, progressOf, streakOf } from '@/domain/goals'
+import { fmt, shift, shortDay } from '@/shared/format'
+import { logsOf, marcoReachedOn, METRIC_LABEL, milestoneDates, paceOf, progressOf, streakOf, untilText } from '@/domain/goals'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
 import type { Task } from '@/domain/types'
@@ -46,13 +48,21 @@ export default function GoalDetailPage() {
   const [allLogs, setAllLogs] = useState(false)
   const [picking, setPicking] = useState(false)
   const [scheduling, setScheduling] = useState(false)
+  const [marking, setMarking] = useState(false)
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const editingTask = useStore(state => state.tasks.find(task => task.id === editingTaskId) ?? null)
+  const setEditingTask = (task: Task | null) => setEditingTaskId(task?.id ?? null)
+  const goals = useStore(state => state.goals)
   const rule = useStore(state => state.rules.find(item => item.goalId === id))
 
   if (!goal) return <Missing title="Meta não encontrada" description="Ela pode ter sido excluída." href="/metas" action="Ver metas" />
 
   const m = goal.metric
-  const progress = progressOf(goal, logs, today)
-  const pace = paceOf(goal, logs, tasks, today)
+  const progress = progressOf(goal, logs, today, goals)
+  const pace = paceOf(goal, logs, tasks, today, goals)
+  const until = goal.until
+  const reached = marcoReachedOn(goal, goals, logs)
+  const linkedGoal = until?.type === 'goal' ? goals.find(item => item.id === until.goalId) : undefined
   const history = [...logsOf(logs, goal.id)].reverse()
   const linked = tasks
     .filter(task => task.goalId === goal.id)
@@ -61,9 +71,16 @@ export default function GoalDetailPage() {
   const done = milestoneDates(goal, logs)
   const streak = m.type === 'days' && !hideStreaks ? streakOf(goal, logs, today) : 0
   const upcoming = rule ? nextDates(rule, shift(today, 1), 3) : []
-  const draftRepeat = suggestRepeat({ metric: m, startDate: today, deadline: goal.deadline }) ?? {
+  const draftRepeat = suggestRepeat({ metric: m, startDate: today, deadline: goal.deadline, until }) ?? {
     ...defaultRepeat(today),
-    end: { type: 'date' as const, date: goal.deadline },
+    end: repeatEndFor(goal),
+  }
+
+  const setReached = (on: boolean) => {
+    if (until?.type !== 'event') return
+    updateGoal(goal.id, { until: { type: 'event', text: until.text, ...(on ? { reachedOn: today } : {}) } })
+    setMarking(false)
+    toast(on ? 'Meta concluída. As tarefas dela saíram da agenda.' : 'A meta voltou a valer')
   }
 
   const toggleMilestone = (milestoneId: string, title: string) => {
@@ -114,10 +131,56 @@ export default function GoalDetailPage() {
 
         <section className="card p-4" aria-label="Progresso">
           <GoalProgress goal={goal} progress={progress} />
-          <Button block className="mt-4" onClick={() => setLogging(true)} disabled={pace.status === 'done' && m.type === 'milestones'}>
-            {m.type === 'milestones' ? 'Concluir próxima etapa' : 'Registrar'}
+          <Button block className="mt-4" onClick={() => setLogging(true)} disabled={progress.concluded || (pace.status === 'done' && m.type === 'milestones')}>
+            {progress.concluded ? 'Meta concluída' : m.type === 'milestones' ? 'Concluir próxima etapa' : 'Registrar'}
           </Button>
         </section>
+
+        {until && (
+          <section className="card flex items-start gap-3 p-4" aria-labelledby="marco-meta">
+            <span
+              aria-hidden
+              className={cn('grid size-10 shrink-0 place-items-center rounded-full', reached ? 'bg-primary text-on-primary' : 'bg-primary-soft text-primary')}
+            >
+              {reached ? <Check size={20} strokeWidth={2} /> : <Flag size={20} strokeWidth={1.75} />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 id="marco-meta" className="text-[15px] font-medium">
+                Marco
+              </h3>
+              <p className="text-[13px]">
+                Até{' '}
+                {until.type === 'goal' && linkedGoal ? (
+                  <Link href={`/metas/${linkedGoal.id}`} className="text-primary underline-offset-2 hover:underline">
+                    concluir “{linkedGoal.title}”
+                  </Link>
+                ) : (
+                  untilText(goal, goals)
+                )}
+              </p>
+              <p className="mt-0.5 text-[12px] text-muted">
+                {reached
+                  ? `Atingido em ${fmt(reached, "d 'de' MMMM 'de' yyyy")}. As tarefas e sugestões desta meta pararam.`
+                  : until.type === 'goal'
+                    ? 'Esta meta termina sozinha quando a outra for concluída.'
+                    : goal.deadline
+                      ? `Data estimada: ${fmt(goal.deadline, "d 'de' MMMM 'de' yyyy")}.`
+                      : 'Sem data marcada. A meta segue até o marco acontecer.'}
+              </p>
+              {until.type === 'event' &&
+                (reached ? (
+                  <Button variant="ghost" size="sm" className="-ml-3 mt-1" onClick={() => setReached(false)}>
+                    Desfazer
+                  </Button>
+                ) : (
+                  <Button variant="soft" size="sm" className="mt-2" onClick={() => setMarking(true)}>
+                    <Flag size={16} strokeWidth={1.75} aria-hidden />
+                    Marco atingido
+                  </Button>
+                ))}
+            </div>
+          </section>
+        )}
 
         <section className="card flex items-start gap-3 p-4" aria-labelledby="agenda-meta">
           <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
@@ -127,7 +190,9 @@ export default function GoalDetailPage() {
             <h3 id="agenda-meta" className="text-[15px] font-medium">
               Na agenda
             </h3>
-            {rule ? (
+            {progress.concluded ? (
+              <p className="text-[13px] text-muted">A meta foi concluída: as tarefas dela saíram da agenda. As já feitas continuam no histórico.</p>
+            ) : rule ? (
               <>
                 <p className="text-[13px]">
                   {rule.title}: {describe(rule.repeat).toLocaleLowerCase('pt-BR')}
@@ -139,9 +204,11 @@ export default function GoalDetailPage() {
             ) : (
               <p className="text-[13px] text-muted">Sem tarefa fixa. As sugestões aparecem na abertura do dia.</p>
             )}
-            <Button variant="ghost" size="sm" className="-ml-3 mt-1" onClick={() => setScheduling(true)}>
-              {rule ? 'Editar repetição' : 'Agendar tarefa'}
-            </Button>
+            {!progress.concluded && (
+              <Button variant="ghost" size="sm" className="-ml-3 mt-1" onClick={() => setScheduling(true)}>
+                {rule ? 'Editar repetição' : 'Agendar tarefa'}
+              </Button>
+            )}
           </div>
         </section>
 
@@ -205,7 +272,7 @@ export default function GoalDetailPage() {
                 ['Mensurável', METRIC_LABEL[m.type].name],
                 ['Alcançável', [goal.startingPoint, goal.achievableNote].filter(Boolean).join(' ')],
                 ['Relevante', goal.why],
-                ['Prazo', cap(fmt(goal.deadline, "d 'de' MMMM 'de' yyyy"))],
+                ['Prazo', untilLabel(goal, goals)],
               ] as const
             )
               .filter(([, value]) => value)
@@ -225,11 +292,19 @@ export default function GoalDetailPage() {
             </h3>
             <ul className="card divide-y-[0.5px] divide-line">
               {linked.map(task => (
-                <li key={task.id} className="flex min-h-12 items-center gap-3 px-4 py-2">
-                  <span className="min-w-0 flex-1 truncate text-[14px]">{task.title}</span>
-                  <span className="shrink-0 text-[12px] text-muted">
-                    {task.later && task.status === 'pending' ? 'em Depois' : `${shortDay(task.date)} · ${TASK_STATE[task.status]}`}
-                  </span>
+                <li key={task.id}>
+                  <button
+                    type="button"
+                    className="flex min-h-12 w-full items-center gap-3 py-2 pr-2 pl-4 text-left"
+                    aria-label={`Editar tarefa: ${task.title}`}
+                    onClick={() => setEditingTask(task)}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[14px]">{task.title}</span>
+                    <span className="shrink-0 text-[12px] text-muted">
+                      {task.later && task.status === 'pending' ? 'em Depois' : `${shortDay(task.date)} · ${TASK_STATE[task.status]}`}
+                    </span>
+                    <Pencil size={16} strokeWidth={1.75} aria-hidden className="shrink-0 text-muted" />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -296,8 +371,26 @@ export default function GoalDetailPage() {
         onClose={() => setScheduling(false)}
         rule={rule}
         draft={{ title: goal.taskTitle || goal.title, goalId: goal.id, repeat: { ...draftRepeat, start: today > goal.startDate ? today : goal.startDate } }}
-        suggestedEnd={goal.deadline}
+        suggestedEnd={until ? undefined : goal.deadline}
       />
+
+      <TaskSheet task={editingTask} today={today} onClose={() => setEditingTask(null)} />
+
+      <Sheet
+        open={marking}
+        onClose={() => setMarking(false)}
+        title="O marco aconteceu?"
+        description={`“${untilText(goal, goals)}”. A meta fica concluída a partir de hoje: as tarefas pendentes saem da agenda e as sugestões param. As tarefas feitas e os registros continuam no histórico, e dá para desfazer.`}
+      >
+        <div className="flex gap-2">
+          <Button variant="ghost" className="flex-1" onClick={() => setMarking(false)}>
+            Ainda não
+          </Button>
+          <Button className="flex-1" onClick={() => setReached(true)}>
+            Sim, aconteceu
+          </Button>
+        </div>
+      </Sheet>
 
       <Sheet open={picking} onClose={() => setPicking(false)} title="Ícone da meta">
         <ArtPicker

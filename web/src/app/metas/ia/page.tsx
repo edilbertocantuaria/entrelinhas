@@ -12,7 +12,6 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Chip } from '@/components/ui/controls'
 import { askAI } from '@/apis/ai/client'
 import {
-  deadlineText,
   describeMetric,
   fromProposal,
   goalSummary,
@@ -20,8 +19,10 @@ import {
   keepMilestoneIds,
   onlyChanged,
   saveDraft,
+  untilLabel,
   type GoalDraft,
 } from '@/domain/goal-draft'
+import { untilText } from '@/domain/goals'
 import { describe } from '@/domain/recurrence'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
@@ -62,6 +63,16 @@ const EXAMPLES = {
 /** A pessoa dando sinal verde para a proposta. */
 const GO_AHEAD = /\b(pode (montar|criar|ajustar|propor|fazer|mandar)|monta|montar a meta|fechado|pode sim|manda ver|bora|est[áa] bom assim|pode ser assim)\b/i
 const GO_AHEAD_CHIP = 'Pode montar'
+
+/**
+ * A Esther só conhece o marco em texto. Se ela devolveu o mesmo marco de uma meta ligada
+ * ("concluir “Chegar a 78 kg”"), a ligação com a outra meta continua.
+ */
+function keepLinkedMarco(proposal: GoalDraft, before: GoalDraft | undefined, goals: Goal[]): GoalDraft {
+  if (before?.until?.type !== 'goal' || proposal.until?.type !== 'event') return proposal
+  const same = (text: string) => text.trim().toLocaleLowerCase('pt-BR').replace(/[“”"]/g, '')
+  return same(proposal.until.text) === same(untilText(before, goals)) ? { ...proposal, until: before.until } : proposal
+}
 
 const nextId = () => `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
@@ -112,6 +123,7 @@ function GoalChat({ goal }: { goal?: Goal }) {
   const { today } = useClock()
   const { toast, scroller } = useShell()
   const areas = useStore(state => state.areas)
+  const goals = useStore(state => state.goals)
   const rule = useStore(state => (goal ? state.rules.find(item => item.goalId === goal.id) : undefined))
   const addGoal = useStore(state => state.addGoal)
   const updateGoal = useStore(state => state.updateGoal)
@@ -156,7 +168,7 @@ function GoalChat({ goal }: { goal?: Goal }) {
           areas: active.map(area => area.name),
           conversa: conversation.map(({ autor, texto }) => ({ autor, texto })),
           smart: known,
-          metaAtual: goal ? goalSummary(goal, areas.find(area => area.id === goal.areaId)?.name ?? '', rule) : undefined,
+          metaAtual: goal ? goalSummary(goal, areas.find(area => area.id === goal.areaId)?.name ?? '', goals, rule) : undefined,
           proporAgora,
         })
       // "pode montar", "fechado", "pode ajustar"...: a proposta precisa vir agora (o modelo às vezes ignora)
@@ -165,7 +177,7 @@ function GoalChat({ goal }: { goal?: Goal }) {
       if (goAhead && !result.meta) result = await ask(true)
       // o que já estava firmado não se perde se a Esther deixar de repetir
       const merged = known ? (Object.fromEntries(SMART_STEPS.map(({ key: k }) => [k, result.smart[k] || known[k]])) as unknown as SmartProgresso) : result.smart
-      const proposal = result.meta ? fromProposal(result.meta, areas, today) : undefined
+      const proposal = result.meta ? keepLinkedMarco(fromProposal(result.meta, areas, today), before, goals) : undefined
       // no ajuste, o que a Esther não disse ter mudado fica exatamente como estava
       const draft = proposal && before ? onlyChanged(proposal, before, result.mudancas) : proposal
       setMessages([...conversation, { id: nextId(), autor: 'ia', texto: result.resposta, draft, smart: merged, sugestoes: result.sugestoes }])
@@ -195,6 +207,7 @@ function GoalChat({ goal }: { goal?: Goal }) {
       why: draft.why,
       startDate: today,
       deadline: draft.deadline,
+      until: draft.until,
       taskTitle: draft.taskTitle,
       reminder: draft.reminder,
     })
@@ -216,6 +229,7 @@ function GoalChat({ goal }: { goal?: Goal }) {
       achievableNote: draft.achievableNote,
       why: draft.why,
       deadline: draft.deadline,
+      until: draft.until,
       taskTitle: draft.taskTitle,
       reminder: draft.reminder,
     })
@@ -426,13 +440,13 @@ function GoalChat({ goal }: { goal?: Goal }) {
 }
 
 /** Cada parte da meta com o nome SMART, como texto para mostrar e comparar. */
-function rowsOf(draft: GoalDraft): [string, string, string][] {
+function rowsOf(draft: GoalDraft, goals: Goal[]): [string, string, string][] {
   return [
     ['Específica', 'o que exatamente', draft.description],
     ['Mensurável', 'como medir', describeMetric(draft.metric)],
     ['Alcançável', 'de onde você parte', [draft.startingPoint, draft.achievableNote].filter(Boolean).join(' ')],
     ['Relevante', 'por que importa', draft.why],
-    ['Prazo', 'até quando', deadlineText(draft.deadline)],
+    ['Prazo', 'até quando', untilLabel(draft, goals)],
     ['No dia a dia', 'tarefa e agenda', `${draft.taskTitle}${draft.repeat ? `: ${describe(draft.repeat).toLocaleLowerCase('pt-BR')}` : ', sem dias fixos'}`],
     ['Lembrete', '', draft.reminder.on ? `Às ${draft.reminder.time}` : 'Sem lembrete'],
   ]
@@ -459,8 +473,9 @@ function Review({
 }) {
   const area = useStore(state => state.areas.find(item => item.id === draft.areaId))
   const oldArea = useStore(state => (before ? state.areas.find(item => item.id === before.areaId) : undefined))
-  const rows = rowsOf(draft)
-  const oldRows = before ? rowsOf(before) : []
+  const goals = useStore(state => state.goals)
+  const rows = rowsOf(draft, goals)
+  const oldRows = before ? rowsOf(before, goals) : []
   const titleChanged = !!before && before.title !== draft.title
   const changes = before
     ? rows.filter(([label, , value]) => oldRows.find(row => row[0] === label)?.[2] !== value).length +

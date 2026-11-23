@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react'
-import { clearDraft, keepMilestoneIds, readDraft, type GoalDraft } from '@/domain/goal-draft'
+import { clearDraft, keepMilestoneIds, readDraft, untilLabel, type GoalDraft } from '@/domain/goal-draft'
 import { ESTHER, EstherAvatar } from '@/components/esther'
 import Link from 'next/link'
 import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from 'next/navigation'
@@ -13,12 +13,12 @@ import { Illustration, type IllustrationName } from '@/components/illustration'
 import { ArtPicker, METRIC_ART } from '@/components/goal-visuals'
 import { Button } from '@/components/ui/button'
 import { Chip, Field, Segmented, Stepper, Switch } from '@/components/ui/controls'
-import { cap, fmt, parseNum, uid } from '@/shared/format'
-import { amount, METRIC_LABEL } from '@/domain/goals'
+import { parseNum, uid } from '@/shared/format'
+import { amount, marcoCandidates, METRIC_LABEL } from '@/domain/goals'
 import { useStore } from '@/shared/store'
 import { useClock } from '@/shared/time'
-import { describe, suggestRepeat } from '@/domain/recurrence'
-import type { Metric, MetricType, Repeat } from '@/domain/types'
+import { describe, repeatEndFor, suggestRepeat } from '@/domain/recurrence'
+import type { GoalUntil, Metric, MetricType, Repeat } from '@/domain/types'
 import { RepeatPicker } from '@/components/repeat-picker'
 import { cn } from '@/shared/utils'
 
@@ -32,6 +32,11 @@ const STEPS: { name: string; question: string; art: IllustrationName }[] = [
 ]
 
 const TYPES: MetricType[] = ['frequency', 'sum', 'value', 'milestones', 'days']
+
+/** atalhos de duração da sessão; "Outra" aceita qualquer valor nesse intervalo (o mesmo que a Esther usa) */
+const SESSION_PRESETS = [15, 30, 45, 60]
+const MIN_SESSION = 5
+const MAX_SESSION = 240
 
 /**
  * Nova meta, passo a passo (SMART), com um cartão de resumo antes de salvar.
@@ -95,13 +100,25 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
   const [itemIds, setItemIds] = useState<(string | undefined)[]>(dm?.type === 'milestones' ? dm.items.map(item => item.id) : [])
   const [days, setDays] = useState(
     dm?.type === 'days'
-      ? { target: String(dm.target), unit: dm.unit, session: dm.sessionMinutes }
-      : { target: '30', unit: 'dias' as 'dias' | 'horas', session: 30 },
+      ? { target: String(dm.target), unit: dm.unit, session: dm.sessionMinutes ?? null }
+      : { target: '30', unit: 'dias' as 'dias' | 'horas', session: null as number | null },
   )
+  // duração da sessão (opcional) fora dos atalhos: a pessoa digita os minutos
+  const [customSession, setCustomSession] = useState(() => (days.session === null || SESSION_PRESETS.includes(days.session) ? null : String(days.session)))
+  const sessionMinutes = customSession === null ? (days.session ?? undefined) : Number(customSession)
+  const sessionOk = sessionMinutes === undefined || (Number.isInteger(sessionMinutes) && sessionMinutes >= MIN_SESSION && sessionMinutes <= MAX_SESSION)
   const [startingPoint, setStartingPoint] = useState(draft?.startingPoint ?? '')
   const [achievableNote, setAchievableNote] = useState(draft?.achievableNote ?? '')
   const [why, setWhy] = useState(draft?.why ?? '')
   const [deadline, setDeadline] = useState(draft?.deadline ?? `${year}-12-31`)
+  // "até [um marco]": um acontecimento em texto ou outra meta; com marco, a data vira estimativa opcional
+  const [endKind, setEndKind] = useState<'date' | 'marco'>(draft?.until ? 'marco' : 'date')
+  const [marcoKind, setMarcoKind] = useState<'event' | 'goal'>(draft?.until?.type ?? 'event')
+  const [marcoText, setMarcoText] = useState(draft?.until?.type === 'event' ? draft.until.text : '')
+  const [marcoGoalId, setMarcoGoalId] = useState(draft?.until?.type === 'goal' ? draft.until.goalId : '')
+  const [estimate, setEstimate] = useState(!!draft?.until && !!draft.deadline)
+  const goals = useStore(state => state.goals)
+  const candidates = marcoCandidates(goals, editing?.id)
   const [reminder, setReminder] = useState(draft?.reminder ?? { on: false, time: '08:00' })
   const [art, setArt] = useState<IllustrationName | null>((draft?.art as IllustrationName | undefined) ?? null)
   // undefined = automático (sugestão pelo tipo de medida); null = sem repetição
@@ -129,16 +146,25 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
       return list.length ? { type, items: list } : null
     }
     const target = parseNum(days.target)
-    return target > 0 ? { type, target, unit: days.unit, sessionMinutes: days.session } : null
+    return target > 0 && sessionOk ? { type, target, unit: days.unit, ...(sessionMinutes ? { sessionMinutes } : {}) } : null
   }
 
   const built = metric()
   const startDate = editing?.startDate ?? (today > `${year}-01-01` ? today : `${year}-01-01`)
-  const suggested = built ? suggestRepeat({ metric: built, startDate, deadline }) : null
+  const previousReached = editing?.until?.type === 'event' ? editing.until.reachedOn : undefined
+  const until: GoalUntil | undefined =
+    endKind === 'date'
+      ? undefined
+      : marcoKind === 'event'
+        ? { type: 'event', text: marcoText.trim(), ...(previousReached ? { reachedOn: previousReached } : {}) }
+        : { type: 'goal', goalId: marcoGoalId }
+  const finalDeadline = endKind === 'date' || estimate ? deadline : undefined
+  const suggested = built ? suggestRepeat({ metric: built, startDate, deadline: finalDeadline, until }) : null
   const repeat = repeatChoice === undefined ? suggested : repeatChoice
   // ao editar, o prazo pode ficar no passado do jeito que estava, mas não antes do início
-  const deadlineOk = editing ? deadline >= editing.startDate : deadline >= today
-  const valid = [title.trim().length > 0 && !!area, !!built, true, true, deadlineOk, true][step]
+  const deadlineOk = !finalDeadline || (editing ? finalDeadline >= editing.startDate : finalDeadline >= today)
+  const marcoOk = !until || (until.type === 'event' ? until.text.length > 0 : candidates.some(goal => goal.id === until.goalId))
+  const valid = [title.trim().length > 0 && !!area, !!built, true, true, deadlineOk && marcoOk, true][step]
 
   const metricText = () => {
     if (!built) return ''
@@ -146,7 +172,7 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
     if (built.type === 'sum') return `Somar até ${amount(built, built.target)}`
     if (built.type === 'value') return `De ${built.from} para ${built.to} ${built.unit}`
     if (built.type === 'milestones') return `${built.items.length} etapas`
-    return `${built.target} ${built.unit}, em sessões de ${built.sessionMinutes} min`
+    return built.sessionMinutes ? `${built.target} ${built.unit}, em sessões de ${built.sessionMinutes} min` : `${built.target} ${built.unit}`
   }
 
   const save = () => {
@@ -163,13 +189,22 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
         startingPoint: startingPoint.trim(),
         achievableNote: achievableNote.trim(),
         why: why.trim(),
-        deadline,
+        deadline: finalDeadline,
+        until,
         taskTitle,
         reminder,
         art: art ?? editing.art,
       })
       const rule = rules.find(item => item.goalId === editing.id)
-      if (rule && rule.title === editing.taskTitle && taskTitle !== editing.taskTitle) updateRule(rule.id, { title: taskTitle })
+      if (rule) {
+        const patch: { title?: string; repeat?: Repeat } = {}
+        if (rule.title === editing.taskTitle && taskTitle !== editing.taskTitle) patch.title = taskTitle
+        // a agenda que acompanhava o fim da meta (data ou marco) continua acompanhando
+        const oldEnd = JSON.stringify(repeatEndFor(editing))
+        const newEnd = repeatEndFor({ deadline: finalDeadline, until })
+        if (JSON.stringify(rule.repeat.end) === oldEnd && oldEnd !== JSON.stringify(newEnd)) patch.repeat = { ...rule.repeat, end: newEnd }
+        if (patch.title || patch.repeat) updateRule(rule.id, patch)
+      }
       if (fromChat) clearDraft()
       toast('Meta atualizada')
       router.replace(`/metas/${editing.id}`)
@@ -185,7 +220,8 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
       achievableNote: achievableNote.trim(),
       why: why.trim(),
       startDate,
-      deadline,
+      deadline: finalDeadline,
+      until,
       taskTitle: draft?.taskTitle?.trim() || title.trim(),
       reminder,
       art: art ?? undefined,
@@ -479,14 +515,53 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                   />
                 </Field>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[13px] text-muted">Duração de cada sessão</span>
+                  <span className="text-[13px] text-muted">Duração de cada sessão (opcional)</span>
                   <div className="flex flex-wrap gap-2">
-                    {[15, 30, 45, 60].map(minutes => (
-                      <Chip key={minutes} selected={days.session === minutes} onClick={() => setDays({ ...days, session: minutes })}>
+                    <Chip
+                      selected={customSession === null && days.session === null}
+                      onClick={() => {
+                        setDays({ ...days, session: null })
+                        setCustomSession(null)
+                      }}
+                    >
+                      Sem duração
+                    </Chip>
+                    {SESSION_PRESETS.map(minutes => (
+                      <Chip
+                        key={minutes}
+                        selected={customSession === null && days.session === minutes}
+                        onClick={() => {
+                          setDays({ ...days, session: minutes })
+                          setCustomSession(null)
+                        }}
+                      >
                         {minutes} min
                       </Chip>
                     ))}
+                    <Chip
+                      selected={customSession !== null}
+                      onClick={() => customSession === null && setCustomSession(days.session ? String(days.session) : '')}
+                    >
+                      Outra
+                    </Chip>
                   </div>
+                  {customSession !== null && (
+                    <Field
+                      label="Minutos por sessão"
+                      htmlFor="meta-sessao"
+                      hint={sessionOk ? undefined : `Use um número inteiro de ${MIN_SESSION} a ${MAX_SESSION} minutos.`}
+                    >
+                      <input
+                        id="meta-sessao"
+                        className="field"
+                        inputMode="numeric"
+                        placeholder="90"
+                        autoFocus
+                        value={customSession}
+                        onChange={event => setCustomSession(event.target.value.replace(/\D/g, ''))}
+                      />
+                    </Field>
+                  )}
                 </div>
               </div>
             )}
@@ -532,20 +607,83 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
 
         {step === 4 && (
           <div className="flex flex-col gap-4">
-            <Field
-              label="Data final"
-              htmlFor="meta-prazo"
-              hint={!deadlineOk ? (editing ? 'Escolha uma data depois do início da meta.' : 'Escolha uma data a partir de hoje.') : undefined}
-            >
-              <input
-                id="meta-prazo"
-                type="date"
-                className="field"
-                min={editing ? editing.startDate : today}
-                value={deadline}
-                onChange={event => setDeadline(event.target.value)}
-              />
-            </Field>
+            <Segmented
+              label="A meta termina"
+              value={endKind}
+              onChange={setEndKind}
+              options={[
+                { value: 'date', label: 'Numa data' },
+                { value: 'marco', label: 'Num marco' },
+              ]}
+            />
+            {endKind === 'marco' && (
+              <div className="card flex flex-col gap-3 p-4">
+                <p className="text-[12px] text-muted">A meta vale até o marco acontecer. As tarefas e o ritmo param nesse dia.</p>
+                <Segmented
+                  label="O marco é"
+                  value={marcoKind}
+                  onChange={setMarcoKind}
+                  options={[
+                    { value: 'event', label: 'Um acontecimento' },
+                    { value: 'goal', label: 'Outra meta' },
+                  ]}
+                />
+                {marcoKind === 'event' ? (
+                  <Field
+                    label="Até…"
+                    htmlFor="meta-marco"
+                    hint={marcoText.trim() ? 'Quando acontecer, toque em “Marco atingido” na página da meta.' : 'Descreva o marco.'}
+                  >
+                    <input
+                      id="meta-marco"
+                      className="field"
+                      placeholder="passar no concurso"
+                      value={marcoText}
+                      onChange={event => setMarcoText(event.target.value.replace(/^até\s+/i, ''))}
+                    />
+                  </Field>
+                ) : candidates.length === 0 ? (
+                  <p className="text-[13px] text-muted">
+                    Nenhuma outra meta pode servir de marco ainda. Metas de frequência não terminam sozinhas: use um acontecimento em texto.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[13px] text-muted">Até concluir a meta</span>
+                    <div className="flex flex-col gap-2" role="radiogroup" aria-label="Meta que serve de marco">
+                      {candidates.map(goal => (
+                        <Chip key={goal.id} selected={goal.id === marcoGoalId} onClick={() => setMarcoGoalId(goal.id)} className="justify-start">
+                          {goal.title}
+                        </Chip>
+                      ))}
+                    </div>
+                    <p className="text-[12px] text-muted">Esta meta termina sozinha quando a escolhida for concluída.</p>
+                  </div>
+                )}
+                <div className="flex min-h-11 items-center gap-3">
+                  <div className="flex-1">
+                    <p className="text-[14px]">Data estimada</p>
+                    <p className="text-[12px] text-muted">Opcional. Serve só para calcular o ritmo.</p>
+                  </div>
+                  <Switch checked={estimate} onChange={setEstimate} label="Usar data estimada" />
+                </div>
+              </div>
+            )}
+            {(endKind === 'date' || estimate) && (
+              <Field
+                label={endKind === 'date' ? 'Data final' : 'Data estimada'}
+                htmlFor="meta-prazo"
+                hint={!deadlineOk ? (editing ? 'Escolha uma data depois do início da meta.' : 'Escolha uma data a partir de hoje.') : undefined}
+              >
+                <input
+                  id="meta-prazo"
+                  type="date"
+                  className="field"
+                  min={editing ? editing.startDate : today}
+                  value={deadline}
+                  onChange={event => setDeadline(event.target.value)}
+                />
+              </Field>
+            )}
             <div className="card flex min-h-14 items-center gap-3 px-4">
               <div className="flex-1">
                 <p className="text-[14px]">Lembrete</p>
@@ -571,10 +709,10 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                   {draft?.repeat !== undefined
                     ? 'Sugestão da conversa com a IA. Ajuste os dias se quiser.'
                     : suggested
-                      ? `Sugestão para ${METRIC_LABEL[type].name.toLocaleLowerCase('pt-BR')}: a tarefa “${title.trim() || 'da meta'}” entra sozinha nesses dias, até o prazo.`
+                      ? `Sugestão para ${METRIC_LABEL[type].name.toLocaleLowerCase('pt-BR')}: a tarefa “${title.trim() || 'da meta'}” entra sozinha nesses dias, até ${until ? 'o marco' : 'o prazo'}.`
                       : 'Esta meta não precisa de tarefa fixa, mas você pode agendar uma.'}
                 </p>
-                <RepeatPicker value={repeat} onChange={setRepeatChoice} start={startDate} suggestedEnd={deadline} />
+                <RepeatPicker value={repeat} onChange={setRepeatChoice} start={startDate} suggestedEnd={until ? undefined : finalDeadline} />
               </div>
             )}
             {type === 'sum' && (
@@ -601,7 +739,7 @@ function NewGoalForm({ params }: { params: URLSearchParams | ReadonlyURLSearchPa
                   ['Mensurável', metricText()],
                   ['Alcançável', [startingPoint.trim(), achievableNote.trim()].filter(Boolean).join(' ')],
                   ['Relevante', why.trim()],
-                  ['Prazo', cap(fmt(deadline, "d 'de' MMMM 'de' yyyy"))],
+                  ['Prazo', untilLabel({ deadline: finalDeadline, until }, goals)],
                   ...(editing ? [] : [['Na agenda', repeat ? describe(repeat) : 'Sem tarefa fixa'] as const]),
                 ] as const
               ).map(([label, text]) => (

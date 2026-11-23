@@ -24,6 +24,7 @@ import { CornerBlob, Illustration, useIllustrations } from '@/components/illustr
 import { LogSheet } from '@/components/log-sheet'
 import { RepeatPicker } from '@/components/repeat-picker'
 import { RuleSheet } from '@/components/rule-sheet'
+import { MoveSheet } from '@/components/task-sheet'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Chip, Field, ScrollRow } from '@/components/ui/controls'
 import { Sheet } from '@/components/ui/sheet'
@@ -90,6 +91,7 @@ function DayHeader({ date, today, part, onChange }: { date: string; today: strin
   const tasks = useStore(state => state.tasks)
   const rules = useStore(state => state.rules)
   const goals = useStore(state => state.goals)
+  const logs = useStore(state => state.logs)
   const picker = useRef<HTMLInputElement>(null)
   const [fade, setFade] = useState(1)
 
@@ -112,7 +114,8 @@ function DayHeader({ date, today, part, onChange }: { date: string; today: strin
   const week = Array.from({ length: 7 }, (_, index) => shift(weekStart, index))
   const showingOtherWeek = weekStart !== mondayOf(date)
   const busy = (day: string) =>
-    tasks.some(task => task.date === day && !task.later && task.status !== 'dismissed') || (day >= today && plannedOn(rules, goals, tasks, day).length > 0)
+    tasks.some(task => task.date === day && !task.later && task.status !== 'dismissed') ||
+    (day >= today && plannedOn(rules, goals, logs, tasks, day).length > 0)
   const relative =
     date === today
       ? GREETING[part]
@@ -534,59 +537,6 @@ function TodayContent({ today }: { today: string }) {
   )
 }
 
-/** Escolher outro dia para uma tarefa. */
-function MoveSheet({ task, today, onClose }: { task: Task | null; today: string; onClose: () => void }) {
-  const moveTask = useStore(state => state.moveTask)
-  const { toast } = useShell()
-  const [date, setDate] = useState('')
-  const value = date || (task ? shift(task.date < today ? today : task.date, 1) : today)
-  return (
-    <Sheet
-      open={!!task}
-      onClose={() => {
-        setDate('')
-        onClose()
-      }}
-      title="Mover para outro dia"
-      description={task?.title}
-    >
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: 'Amanhã', value: shift(today, 1) },
-            { label: 'Em 2 dias', value: shift(today, 2) },
-            { label: 'Próxima segunda', value: shift(mondayOf(today), 7) },
-          ].map(option => (
-            <Chip key={option.label} selected={value === option.value} onClick={() => setDate(option.value)}>
-              {option.label}
-            </Chip>
-          ))}
-        </div>
-        <input
-          type="date"
-          aria-label="Novo dia"
-          className="field"
-          min={today}
-          value={value}
-          onChange={event => DAY_RE.test(event.target.value) && setDate(event.target.value)}
-        />
-        <Button
-          block
-          onClick={() => {
-            if (!task) return
-            moveTask(task.id, value)
-            toast(`Movida para ${fmt(value, "EEEE, d 'de' MMM")}`)
-            setDate('')
-            onClose()
-          }}
-        >
-          Mover
-        </Button>
-      </div>
-    </Sheet>
-  )
-}
-
 const STATUS_LABEL: Record<Task['status'], string> = { pending: 'pendente', done: 'feita', dismissed: 'dispensada', not_done: 'não feita' }
 
 /** Um dia que não é hoje: o plano (futuro) ou o que aconteceu (passado). */
@@ -595,6 +545,7 @@ function OtherDay({ date, today }: { date: string; today: string }) {
   const tasks = useStore(state => state.tasks)
   const rules = useStore(state => state.rules)
   const goals = useStore(state => state.goals)
+  const logs = useStore(state => state.logs)
   const maxTasks = useStore(state => state.settings.maxTasks)
   const entry = useStore(state => state.journal.find(item => item.date === date))
   const deleteTask = useStore(state => state.deleteTask)
@@ -641,7 +592,7 @@ function OtherDay({ date, today }: { date: string; today: string }) {
 
   const future = date > today
   const real = tasks.filter(task => task.date === date && !task.later && (future ? task.status === 'pending' : true))
-  const planned = future ? plannedOn(rules, goals, tasks, date) : []
+  const planned = future ? plannedOn(rules, goals, logs, tasks, date) : []
   const count = real.length + planned.length
   const full = count >= maxTasks
   const showArt = useIllustrations('core')

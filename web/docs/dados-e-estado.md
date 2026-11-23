@@ -20,7 +20,7 @@ Tudo fica no **navegador do aparelho**, em `localStorage`, na chave `entrelinhas
 |---|---|
 | `session` | conta logada (`name`, `email`) ou `null` |
 | `areas` | áreas da vida (nome, ícone, cor, ordem, arquivada) |
-| `goals` | metas (SMART, medida, prazo, tarefa do dia, lembrete, ícone) |
+| `goals` | metas (SMART, medida, prazo ou marco, tarefa do dia, lembrete, ícone) |
 | `logs` | registros das metas (valor, nota, exercícios, atividade, etapa, tarefa de origem) |
 | `tasks` | tarefas do dia (situação, Depois, repetição de origem) |
 | `rules` | tarefas que se repetem (regra de repetição, dias pulados) |
