@@ -86,6 +86,9 @@ export default function SettingsPage() {
           <Row title="Máximo de tarefas por dia" hint="O que passar disso espera em Depois.">
             <Stepper label="Máximo de tarefas por dia" min={1} max={10} value={settings.maxTasks} onChange={maxTasks => set({ maxTasks })} />
           </Row>
+          <Row title="Só marcar no dia" hint="Tarefas de outros dias ficam só para ver: nada de concluir antes nem marcar depois.">
+            <Switch label="Só marcar tarefas no próprio dia" checked={!!settings.onlyOnDay} onChange={onlyOnDay => set({ onlyOnDay })} />
+          </Row>
           <Row title="Esconder sequências" hint="Sem contagem de dias seguidos.">
             <Switch label="Esconder sequências" checked={settings.hideStreaks} onChange={hideStreaks => set({ hideStreaks })} />
           </Row>

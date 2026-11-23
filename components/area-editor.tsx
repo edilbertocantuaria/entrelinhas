@@ -63,7 +63,7 @@ function EditorForm({ area, onClose, onSaved }: { area?: Area; onClose: () => vo
       }}
     >
       <div className="card flex items-center justify-between px-4 py-3">
-        <span className="text-[12px] text-muted">Prévia</span>
+        <span className="text-[12px] text-muted">Ficará assim:</span>
         <AreaChip area={{ name: name.trim() || 'Nome da área', icon, color }} />
       </div>
 

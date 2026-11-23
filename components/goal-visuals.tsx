@@ -2,6 +2,7 @@
 
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { areaColor } from '@/lib/areas'
+import { activityText, kindOf } from '@/lib/fitness'
 import { brl, fmt, minutesLabel, num, num1 } from '@/lib/format'
 import { amount, cumulativeSeries, heatmap, valueSeries, weeklyCounts, type Progress } from '@/lib/goals'
 import { useStore } from '@/lib/store'
@@ -254,6 +255,7 @@ export function logText(goal: Goal, log: LogEntry) {
   if (m.type === 'value') return `${num(log.value ?? 0, 1)} ${m.unit}`
   if (m.type === 'days') return log.value ? minutesLabel(log.value) : 'Dia feito'
   if (m.type === 'milestones') return log.note ?? 'Etapa concluída'
+  if (log.activity) return log.note && !log.note.startsWith(kindOf(log.activity.kind).label) ? `${activityText(log.activity)} · ${log.note}` : activityText(log.activity)
   return log.note ?? 'Presença registrada'
 }
 

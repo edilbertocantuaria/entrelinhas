@@ -1,7 +1,7 @@
 import { parseISO } from 'date-fns'
 import { shift } from './format'
 import { BUILTIN_MODULES } from './modules'
-import type { AppData, AppModule, ModuleEntry, Area, BodyWeight, Goal, JournalEntry, LogEntry, Settings, StudySession, Subject, Summary, Task, Workout, WorkoutSet } from './types'
+import type { AppData, AppModule, ModuleEntry, RecurringTask, Area, BodyWeight, Goal, JournalEntry, LogEntry, Settings, StudySession, Subject, Summary, Task, Workout, WorkoutSet } from './types'
 
 export const DEFAULT_AREAS: Area[] = [
   { id: 'saude', name: 'Saúde', icon: 'heart-pulse', color: 'verde', order: 0, archived: false },
@@ -14,6 +14,7 @@ export const DEFAULT_AREAS: Area[] = [
 
 export const DEFAULT_SETTINGS: Settings = {
   maxTasks: 5,
+  onlyOnDay: false,
   hideStreaks: false,
   hidePercent: false,
   quietFrom: '22:00',
@@ -379,6 +380,15 @@ function buildStudy(logs: LogEntry[]): StudySession[] {
   return sessions.sort((a, b) => a.date.localeCompare(b.date))
 }
 
+// ---------- Tarefas que se repetem ----------
+
+const RULES: RecurringTask[] = [
+  { id: 'rep-academia', title: 'Treino na academia', goalId: 'academia', skipped: [], repeat: { freq: 'weekly', interval: 1, weekdays: [1, 3, 5], start: '2026-08-31', end: { type: 'date', date: '2026-12-31' } } },
+  { id: 'rep-logica', title: 'Raciocínio Lógico: 30 min', goalId: 'logica', skipped: [], repeat: { freq: 'weekly', interval: 1, weekdays: [1, 2, 3, 4, 5, 6], start: '2026-10-01', end: { type: 'date', date: '2026-12-31' } } },
+  { id: 'rep-peso', title: 'Registrar o peso', goalId: 'peso', skipped: [], repeat: { freq: 'weekly', interval: 1, weekdays: [1], start: '2026-07-06', end: { type: 'date', date: '2026-12-31' } } },
+  { id: 'rep-luz', title: 'Pagar a conta de luz', skipped: [], repeat: { freq: 'monthly', interval: 1, monthDay: 10, start: '2026-11-10', end: { type: 'never' } } },
+]
+
 // ---------- Módulo criado pela pessoa: Leitura ----------
 
 const READING: AppModule = {
@@ -424,6 +434,7 @@ export function createSeed(today: string): AppData {
     goals: GOALS,
     logs,
     tasks: buildTasks(today, logs),
+    rules: RULES,
     journal: JOURNAL,
     summaries: SUMMARIES,
     retros: {

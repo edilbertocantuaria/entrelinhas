@@ -10,6 +10,7 @@ import { Illustration } from '@/components/illustration'
 import { Button } from '@/components/ui/button'
 import { longDay } from '@/lib/format'
 import { suggestTasks, todayTasks } from '@/lib/goals'
+import { scheduledGoals } from '@/lib/recurrence'
 import { useStore } from '@/lib/store'
 import { useClock } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -30,12 +31,13 @@ export default function OpenDayPage() {
   const goals = useStore(state => state.goals)
   const logs = useStore(state => state.logs)
   const areas = useStore(state => state.areas)
+  const rules = useStore(state => state.rules)
   const maxTasks = useStore(state => state.settings.maxTasks)
   const openDay = useStore(state => state.openDay)
 
   const groups = useMemo(() => {
     const todays = todayTasks(tasks, today)
-    const suggestions = suggestTasks(goals, logs, tasks, today, new Set(areas.filter(area => area.archived).map(area => area.id)))
+    const suggestions = suggestTasks(goals, logs, tasks, today, new Set(areas.filter(area => area.archived).map(area => area.id)), scheduledGoals(rules))
     const toItem = (task: (typeof tasks)[number]): Item => ({ key: `t:${task.id}`, title: task.title, goalId: task.goalId })
     return {
       done: todays.filter(task => task.status === 'done').length,
@@ -47,7 +49,7 @@ export default function OpenDayPage() {
         { title: 'Depois', items: tasks.filter(task => task.later && task.status === 'pending').map(toItem) },
       ].filter(section => section.items.length),
     }
-  }, [tasks, goals, logs, areas, today])
+  }, [tasks, goals, logs, areas, today, rules])
 
   const capacity = Math.max(0, maxTasks - groups.done)
   const all = groups.sections.flatMap(section => section.items)

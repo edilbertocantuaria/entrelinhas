@@ -15,7 +15,9 @@ import { cap, fmt, parseNum, uid } from '@/lib/format'
 import { amount, METRIC_LABEL } from '@/lib/goals'
 import { useStore } from '@/lib/store'
 import { useClock } from '@/lib/time'
-import type { Metric, MetricType } from '@/lib/types'
+import { describe, suggestRepeat } from '@/lib/recurrence'
+import type { Metric, MetricType, Repeat } from '@/lib/types'
+import { RepeatPicker } from '@/components/repeat-picker'
 import { cn } from '@/lib/utils'
 
 const STEPS: { name: string; question: string; art: IllustrationName }[] = [
@@ -36,6 +38,7 @@ export default function NewGoalPage() {
   const { toast } = useShell()
   const areas = useStore(state => state.areas)
   const addGoal = useStore(state => state.addGoal)
+  const addRule = useStore(state => state.addRule)
   const active = areas.filter(area => !area.archived).sort((a, b) => a.order - b.order)
 
   // "Criar metas de 2027" na retrospectiva chega aqui com ?ano=2027
@@ -61,6 +64,8 @@ export default function NewGoalPage() {
   const [deadline, setDeadline] = useState(`${year}-12-31`)
   const [reminder, setReminder] = useState({ on: false, time: '08:00' })
   const [art, setArt] = useState<IllustrationName | null>(null)
+  // undefined = automático (sugestão pelo tipo de medida); null = sem repetição
+  const [repeatChoice, setRepeatChoice] = useState<Repeat | null | undefined>(undefined)
 
   const area = areas.find(item => item.id === areaId)
 
@@ -84,6 +89,9 @@ export default function NewGoalPage() {
   }
 
   const built = metric()
+  const startDate = today > `${year}-01-01` ? today : `${year}-01-01`
+  const suggested = built ? suggestRepeat({ metric: built, startDate, deadline }) : null
+  const repeat = repeatChoice === undefined ? suggested : repeatChoice
   const valid = [title.trim().length > 0 && !!area, !!built, true, true, deadline >= today, true][step]
 
   const metricText = () => {
@@ -97,7 +105,6 @@ export default function NewGoalPage() {
 
   const save = () => {
     if (!built || !area) return
-    const startDate = today > `${year}-01-01` ? today : `${year}-01-01`
     const id = addGoal({
       title: title.trim(),
       areaId: area.id,
@@ -112,7 +119,8 @@ export default function NewGoalPage() {
       reminder,
       art: art ?? undefined,
     })
-    toast('Meta criada')
+    if (repeat) addRule({ title: title.trim(), goalId: id, repeat: { ...repeat, start: startDate } })
+    toast(repeat ? 'Meta criada e tarefa na agenda' : 'Meta criada')
     router.replace(`/metas/${id}`)
   }
 
@@ -331,6 +339,15 @@ export default function NewGoalPage() {
               {reminder.on && <input type="time" aria-label="Horário do lembrete" className="field w-28" value={reminder.time} onChange={event => setReminder({ ...reminder, time: event.target.value })} />}
               <Switch checked={reminder.on} onChange={on => setReminder({ ...reminder, on })} label="Ativar lembrete" />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[13px] text-muted">Tarefa na agenda</span>
+              <p className="text-[12px] text-muted">
+                {suggested
+                  ? `Sugestão para ${METRIC_LABEL[type].name.toLocaleLowerCase('pt-BR')}: a tarefa “${title.trim() || 'da meta'}” entra sozinha nesses dias, até o prazo.`
+                  : 'Esta meta não precisa de tarefa fixa, mas você pode agendar uma.'}
+              </p>
+              <RepeatPicker value={repeat} onChange={setRepeatChoice} start={startDate} suggestedEnd={deadline} />
+            </div>
             {type === 'sum' && <p className="text-[12px] text-muted">Metas de soma não criam tarefas diárias. Você registra quando houver um valor, e há um lembrete por mês.</p>}
           </div>
         )}
@@ -354,6 +371,7 @@ export default function NewGoalPage() {
                   ['Alcançável', [startingPoint.trim(), achievableNote.trim()].filter(Boolean).join(' ')],
                   ['Relevante', why.trim()],
                   ['Prazo', cap(fmt(deadline, "d 'de' MMMM 'de' yyyy"))],
+                  ['Na agenda', repeat ? describe(repeat) : 'Sem tarefa fixa'],
                 ] as const
               ).map(([label, text]) => (
                 <div key={label}>

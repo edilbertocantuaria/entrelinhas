@@ -72,6 +72,8 @@ export interface LogEntry {
   value?: number
   note?: string
   workout?: WorkoutSet[]
+  /** metas de treino: tipo de atividade, duração e distância */
+  activity?: { kind: WorkoutKind; minutes?: number; distanceKm?: number }
   milestoneId?: string
   taskId?: string
 }
@@ -89,6 +91,33 @@ export interface Task {
   /** guardada em "Depois" */
   later: boolean
   dismissReason?: string
+  /** tarefa criada por uma repetição: id da regra e dia original da ocorrência */
+  ruleId?: string
+  occurrence?: string
+}
+
+// ---------- Repetição (estilo agenda) ----------
+
+export interface Repeat {
+  /** a cada `interval` dias, semanas ou meses */
+  freq: 'daily' | 'weekly' | 'monthly'
+  interval: number
+  /** semanal: dias da semana, 0 = domingo */
+  weekdays?: number[]
+  /** mensal: dia do mês (no mês sem esse dia, vale o último) */
+  monthDay?: number
+  /** primeiro dia possível */
+  start: string
+  end: { type: 'never' } | { type: 'date'; date: string } | { type: 'count'; count: number }
+}
+
+export interface RecurringTask {
+  id: string
+  title: string
+  goalId?: string
+  repeat: Repeat
+  /** dias pulados (excluir só aquela ocorrência) */
+  skipped: string[]
 }
 
 export interface JournalEntry {
@@ -137,6 +166,8 @@ export type IllustrationDensity = 'many' | 'few' | 'none'
 
 export interface Settings {
   maxTasks: number
+  /** tarefas só podem ser marcadas no próprio dia (nem antes, nem depois) */
+  onlyOnDay?: boolean
   hideStreaks: boolean
   hidePercent: boolean
   quietFrom: string
@@ -162,7 +193,7 @@ export interface DayState {
 
 // ---------- Módulo Fitness ----------
 
-export type WorkoutKind = 'musculacao' | 'calistenia' | 'caminhada' | 'corrida' | 'bicicleta' | 'danca' | 'outro'
+export type WorkoutKind = 'musculacao' | 'calistenia' | 'alongamento' | 'caminhada' | 'corrida' | 'bicicleta' | 'danca' | 'outro'
 
 export interface Workout {
   id: string
@@ -264,6 +295,8 @@ export interface AppData {
   goals: Goal[]
   logs: LogEntry[]
   tasks: Task[]
+  /** tarefas que se repetem; as ocorrências viram Task no dia em que acontecem */
+  rules: RecurringTask[]
   journal: JournalEntry[]
   summaries: Summary[]
   retros: Record<string, Retro>

@@ -99,7 +99,7 @@ function Editor({ module, templateKey }: { module?: AppModule; templateKey: stri
 
       <div className="flex flex-1 flex-col gap-5 px-5 pb-6">
         <div className="card flex items-center justify-between px-4 py-3">
-          <span className="text-[12px] text-muted">Prévia</span>
+          <span className="text-[12px] text-muted">Ficará assim:</span>
           <AreaChip area={{ name: name.trim() || 'Nome do módulo', icon, color }} />
         </div>
 

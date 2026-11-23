@@ -1,16 +1,56 @@
-import { Activity, Bike, Dumbbell, Footprints, Music, PersonStanding, Wind, type LucideIcon } from 'lucide-react'
+import { BicepsFlexed, Activity, Bike, Dumbbell, Footprints, Music, PersonStanding, Wind, type LucideIcon } from 'lucide-react'
+import { logsOf } from './goals'
 import { minutesLabel, mondayOf, num1, shift, shortDay } from './format'
-import type { BodyWeight, Workout, WorkoutKind, WorkoutSet } from './types'
+import type { Area, BodyWeight, Goal, LogEntry, Workout, WorkoutKind, WorkoutSet } from './types'
 
 export const WORKOUT_KINDS: { value: WorkoutKind; label: string; icon: LucideIcon; distance: boolean; exercises: boolean }[] = [
   { value: 'musculacao', label: 'Musculação', icon: Dumbbell, distance: false, exercises: true },
-  { value: 'calistenia', label: 'Calistenia', icon: PersonStanding, distance: false, exercises: true },
+  { value: 'calistenia', label: 'Calistenia', icon: BicepsFlexed, distance: false, exercises: true },
+  { value: 'alongamento', label: 'Alongamento', icon: PersonStanding, distance: false, exercises: false },
   { value: 'caminhada', label: 'Caminhada', icon: Footprints, distance: true, exercises: false },
   { value: 'corrida', label: 'Corrida', icon: Wind, distance: true, exercises: false },
   { value: 'bicicleta', label: 'Bicicleta', icon: Bike, distance: true, exercises: false },
   { value: 'danca', label: 'Dança', icon: Music, distance: false, exercises: false },
   { value: 'outro', label: 'Outro', icon: Activity, distance: false, exercises: false },
 ]
+
+/** Palavras que indicam o tipo de atividade pelo nome da meta. A ordem importa: o mais específico primeiro. */
+const KIND_HINTS: [RegExp, WorkoutKind][] = [
+  [/along|yoga|pilates|mobilidade|flexib/i, 'alongamento'],
+  [/calistenia|barra fixa|flex(ã|a)o/i, 'calistenia'],
+  [/corr(er|ida)|running|\bcooper\b/i, 'corrida'],
+  [/caminh/i, 'caminhada'],
+  [/bike|bicicleta|pedal|ciclismo|spinning/i, 'bicicleta'],
+  [/dan(ç|c)a|forr(ó|o)|zumba|ballet|bal(é|e)/i, 'danca'],
+  [/muscula|academia|muscula(ç|c)(ã|a)o|gym|peso livre|hipertrofia/i, 'musculacao'],
+]
+const FITNESS_WORDS = /trein|exerc|academia|muscula|fitness|esporte|atividade f(í|i)sica|nata(ç|c)|nadar|luta|crossfit|funcional/i
+const FITNESS_ICONS = new Set(['dumbbell', 'activity', 'bike', 'footprints'])
+
+/**
+ * A meta de frequência é de treino? Sim se já tem treinos registrados, se o nome fala de atividade física
+ * ou se a área usa um ícone de exercício. Metas como "ler 3x por semana" ficam de fora.
+ */
+export function isFitnessGoal(goal: Goal, logs: LogEntry[], areas: Area[]) {
+  if (goal.metric.type !== 'frequency') return false
+  if (logsOf(logs, goal.id).some(log => log.activity || log.workout?.length)) return true
+  const text = `${goal.title} ${goal.taskTitle} ${goal.description}`
+  if (FITNESS_WORDS.test(text) || KIND_HINTS.some(([pattern]) => pattern.test(text))) return true
+  return FITNESS_ICONS.has(areas.find(area => area.id === goal.areaId)?.icon ?? '')
+}
+
+/** Tipo sugerido no registro: o último usado nesta meta ou o que o nome indica. Sem pista, nenhum. */
+export function guessKind(goal: Goal, logs: LogEntry[]): WorkoutKind | undefined {
+  const last = [...logsOf(logs, goal.id)].reverse().find(log => log.activity || log.workout?.length)
+  if (last) return last.activity?.kind ?? 'musculacao'
+  const text = `${goal.title} ${goal.taskTitle} ${goal.description}`
+  return KIND_HINTS.find(([pattern]) => pattern.test(text))?.[1]
+}
+
+/** "Caminhada · 40 min · 3,2 km" */
+export function activityText(activity: NonNullable<LogEntry['activity']>) {
+  return [kindOf(activity.kind).label, activity.minutes ? minutesLabel(activity.minutes) : '', activity.distanceKm ? `${num1(activity.distanceKm)} km` : ''].filter(Boolean).join(' · ')
+}
 
 export const kindOf = (kind: WorkoutKind) => WORKOUT_KINDS.find(item => item.value === kind) ?? WORKOUT_KINDS[WORKOUT_KINDS.length - 1]
 

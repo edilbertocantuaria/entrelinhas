@@ -46,6 +46,7 @@ model User {
   studySessions StudySession[]
   modules       AppModule[]
   moduleEntries ModuleEntry[]
+  rules         RecurringTask[]
 }
 
 /// Sessão de login. Guarde só o hash do token, nunca o token.
@@ -65,6 +66,8 @@ model AuthSession {
 model UserSettings {
   userId        String              @id
   maxTasks      Int                 @default(5)
+  /** tarefas só podem ser marcadas no próprio dia */
+  onlyOnDay     Boolean             @default(false)
   hideStreaks   Boolean             @default(false)
   hidePercent   Boolean             @default(false)
   /** horários no formato HH:mm */
@@ -162,6 +165,7 @@ model Goal {
   journal  JournalEntry[]
   subjects Subject[]
   modules  AppModule[]
+  rules    RecurringTask[]
 
   @@index([userId])
   @@index([areaId])
@@ -195,15 +199,62 @@ model Task {
   /** guardada em "Depois" */
   later         Boolean    @default(false)
   dismissReason String?
+  /** tarefa criada por uma repetição, e o dia original da ocorrência */
+  ruleId        String?
+  occurrence    DateTime?  @db.Date
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  rule RecurringTask?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
   logs LogEntry[]
 
+  @@unique([ruleId, occurrence])
   @@index([userId, date])
   @@index([goalId, date])
+}
+
+enum RepeatFreq {
+  daily
+  weekly
+  monthly
+}
+
+enum RepeatEnd {
+  never
+  date
+  count
+}
+
+/// Tarefa que se repete (estilo agenda). As ocorrências viram Task no dia em que acontecem.
+model RecurringTask {
+  id        String     @id @default(cuid())
+  userId    String
+  goalId    String?
+  title     String
+  freq      RepeatFreq
+  /** a cada N dias, semanas ou meses */
+  interval  Int        @default(1)
+  /** semanal: dias da semana, 0 = domingo */
+  weekdays  Int[]
+  /** mensal: dia do mês */
+  monthDay  Int?
+  start     DateTime   @db.Date
+  endType   RepeatEnd  @default(never)
+  endDate   DateTime?  @db.Date
+  endCount  Int?
+  /** dias pulados (excluir só aquela ocorrência) */
+  skipped   DateTime[] @db.Date
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal  Goal?  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([userId])
+  @@index([goalId])
 }
 
 model LogEntry {
@@ -217,6 +268,8 @@ model LogEntry {
   note        String?
   /** lista de WorkoutSet: exercício, séries, repetições, carga */
   workout     Json?
+  /** metas de treino: { kind, minutes?, distanceKm? } */
+  activity    Json?
   milestoneId String?
   createdAt   DateTime @default(now())
 
@@ -256,6 +309,7 @@ model JournalEntry {
 enum WorkoutKind {
   musculacao
   calistenia
+  alongamento
   caminhada
   corrida
   bicicleta

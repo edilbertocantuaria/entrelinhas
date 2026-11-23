@@ -37,6 +37,12 @@ export function nextMilestone(goal: Goal, logs: LogEntry[]) {
 
 const uniqueDays = (logs: LogEntry[]) => new Set(logs.map(log => log.date)).size
 
+/**
+ * Metas de frequência contam dias, não registros: fitdance e calistenia no mesmo dia são 1 treino na semana.
+ * Os dois registros continuam guardados (e aparecem no módulo Fitness).
+ */
+const daysBetweenDates = (logs: LogEntry[], start: string, end: string) => uniqueDays(logs.filter(log => inRange(log.date, start, end)))
+
 export interface Progress {
   /** 0 a 1 */
   ratio: number
@@ -50,7 +56,7 @@ export function progressOf(goal: Goal, allLogs: LogEntry[], today: string): Prog
   switch (m.type) {
     case 'frequency': {
       const week = mondayOf(today)
-      const count = logs.filter(log => log.date >= week).length
+      const count = daysBetweenDates(logs, week, today)
       const range = m.min === m.max ? `${m.min}` : `${m.min} a ${m.max}`
       return { ratio: clamp(count / m.min), current: count, label: `${count} de ${range} nesta semana` }
     }
@@ -126,7 +132,7 @@ export function paceOf(goal: Goal, allLogs: LogEntry[], tasks: Task[], today: st
         if (start < firstWeek) break
         const end = shift(start, 6)
         weeks.push({
-          count: logs.filter(log => inRange(log.date, start, end)).length,
+          count: daysBetweenDates(logs, start, end),
           skipped: dismissed.filter(task => inRange(task.date, start, end)).length,
         })
       }
@@ -215,7 +221,7 @@ export function weeklyCounts(goal: Goal, allLogs: LogEntry[], today: string, wee
   return Array.from({ length: weeks }, (_, index) => {
     const start = shift(thisWeek, -7 * (weeks - 1 - index))
     const end = shift(start, 6)
-    return { week: fmt(start, 'd/M'), count: logs.filter(log => inRange(log.date, start, end)).length }
+    return { week: fmt(start, 'd/M'), count: goal.metric.type === 'frequency' ? daysBetweenDates(logs, start, end) : logs.filter(log => inRange(log.date, start, end)).length }
   })
 }
 
@@ -246,10 +252,12 @@ export interface Suggestion {
  * Tarefas que as metas recorrentes propõem para hoje.
  * Metas de soma não geram tarefa diária: só um lembrete mensal.
  */
-export function suggestTasks(goals: Goal[], logs: LogEntry[], tasks: Task[], today: string, archivedAreas: Set<string>): Suggestion[] {
+export function suggestTasks(goals: Goal[], logs: LogEntry[], tasks: Task[], today: string, archivedAreas: Set<string>, scheduledGoals: Set<string> = new Set()): Suggestion[] {
   const out: Suggestion[] = []
   for (const goal of goals) {
     if (archivedAreas.has(goal.areaId) || today > goal.deadline || today < goal.startDate) continue
+    // meta com tarefa que se repete: a agenda já cuida dela
+    if (scheduledGoals.has(goal.id)) continue
     const open = tasks.some(
       task => task.goalId === goal.id && ((task.date === today && !task.later) || (task.status === 'pending')),
     )
@@ -258,7 +266,9 @@ export function suggestTasks(goals: Goal[], logs: LogEntry[], tasks: Task[], tod
     const m = goal.metric
     const base = { key: goal.id, goalId: goal.id, title: goal.taskTitle || goal.title }
     if (m.type === 'frequency') {
-      const count = mine.filter(log => log.date >= mondayOf(today)).length
+      // já treinou hoje: não sugere de novo; e a semana conta dias
+      if (mine.some(log => log.date === today)) continue
+      const count = daysBetweenDates(mine, mondayOf(today), today)
       if (count < m.max) out.push({ ...base, hint: `${count} de ${m.min} a ${m.max} nesta semana` })
     } else if (m.type === 'days') {
       if (!mine.some(log => log.date === today)) out.push({ ...base, hint: `Sessão de ${m.sessionMinutes} min` })
@@ -318,8 +328,9 @@ export function periodStats(
     let ratio = progressOf(goal, data.logs, end).ratio
     if (m.type === 'frequency') {
       const weeks = Math.max(1, Math.round((daysBetween(start < goal.startDate ? goal.startDate : start, end) + 1) / 7))
-      text = `${logs.length} ${m.noun}`
-      ratio = clamp(logs.length / (m.min * weeks))
+      const days = uniqueDays(logs)
+      text = `${days} ${m.noun}`
+      ratio = clamp(days / (m.min * weeks))
     } else if (m.type === 'sum') {
       text = `+ ${amount(m, logs.reduce((sum, log) => sum + (log.value ?? 0), 0))}`
     } else if (m.type === 'value') {

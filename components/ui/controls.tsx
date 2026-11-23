@@ -11,9 +11,10 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
       checked={checked}
       onCheckedChange={value => onChange(value)}
       aria-label={label}
-      className="relative h-[26px] w-11 shrink-0 rounded-full bg-line transition-colors after:absolute after:-inset-y-[9px] after:inset-x-0 data-[checked]:bg-primary"
+      // trilho de 44 x 26 com a bolinha centralizada na vertical; a área de toque chega a 44px de altura
+      className="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full bg-line p-[3px] transition-colors after:absolute after:-inset-y-[9px] after:inset-x-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[checked]:bg-primary"
     >
-      <SwitchPrimitive.Thumb className="block size-5 translate-x-[3px] rounded-full bg-surface transition-transform data-[checked]:translate-x-[21px] data-[checked]:bg-on-primary" />
+      <SwitchPrimitive.Thumb className="pointer-events-none block size-5 rounded-full bg-surface shadow-[0_1px_2px_rgb(7_32_45/0.25)] transition-transform duration-200 data-[checked]:translate-x-[18px] data-[checked]:bg-on-primary" />
     </SwitchPrimitive.Root>
   )
 }

@@ -8,8 +8,9 @@ import { iso, uid } from './format'
 import { todayTasks, type Suggestion } from './goals'
 import { createSeed, DEFAULT_LETTER } from './seed'
 import { buildSummary, dueSummaries } from './summaries'
-import type { AppData, Area, ColorKey, Goal, JournalEntry, LogEntry, Retro, Session, Settings, StudySession, Summary, Task, Workout, AppModule, ModuleEntry } from './types'
+import type { AppData, Area, ColorKey, Goal, JournalEntry, LogEntry, Retro, Session, Settings, StudySession, Summary, Task, Workout, AppModule, ModuleEntry, RecurringTask } from './types'
 import { MAX_FIELDS, MAX_MODULE_NAME } from './modules'
+import { rulesOn } from './recurrence'
 import { kindOf, workoutMeta } from './fitness'
 
 type AreaDraft = { name: string; icon: string; color: ColorKey }
@@ -29,7 +30,19 @@ interface Actions {
   addLog: (log: Omit<LogEntry, 'id'>) => void
   removeLog: (id: string) => void
   // tarefas
-  addTask: (input: { title: string; goalId?: string; milestoneId?: string }, today: string) => 'today' | 'later'
+  /** cria a tarefa no dia; se o dia já estiver no limite (contando `reserved` ocorrências planejadas), vai para Depois */
+  addTask: (input: { title: string; goalId?: string; milestoneId?: string }, date: string, reserved?: number) => 'today' | 'later'
+  // repetições
+  addRule: (rule: Omit<RecurringTask, 'id' | 'skipped'>) => string
+  updateRule: (id: string, patch: Partial<Omit<RecurringTask, 'id'>>) => void
+  /** para de repetir: as tarefas já feitas ficam; as pendentes de hoje em diante saem */
+  removeRule: (id: string, today: string) => void
+  /** transforma uma ocorrência planejada em tarefa (para concluir antes do dia, por exemplo) e devolve a tarefa */
+  materializeOccurrence: (ruleId: string, occurrence: string, date: string) => Task | null
+  /** pula só uma ocorrência (e tira a tarefa daquele dia, se já existir e estiver pendente) */
+  skipOccurrence: (id: string, date: string) => void
+  /** põe em Hoje as ocorrências do dia; as de dias passados que ficaram pendentes viram "não feita" */
+  ensureOccurrences: (today: string) => void
   completeTask: (id: string, log: Partial<LogEntry> | null, today: string) => void
   uncompleteTask: (id: string) => void
   moveTask: (id: string, date: string) => void
@@ -103,8 +116,22 @@ type Modules = Pick<AppData, 'workouts' | 'weights' | 'studySessions'>
 function mirror(state: AppData, log: LogEntry): Partial<Modules> {
   const goal = state.goals.find(item => item.id === log.goalId)
   if (!goal) return {}
-  if (log.workout?.length)
-    return { workouts: [...state.workouts, { id: `treino-${uid()}`, date: log.date, kind: 'musculacao', exercises: log.workout, note: log.note, logId: log.id }] }
+  if (log.activity || log.workout?.length)
+    return {
+      workouts: [
+        ...state.workouts,
+        {
+          id: `treino-${uid()}`,
+          date: log.date,
+          kind: log.activity?.kind ?? 'musculacao',
+          minutes: log.activity?.minutes,
+          distanceKm: log.activity?.distanceKm,
+          exercises: log.workout,
+          note: log.note,
+          logId: log.id,
+        },
+      ],
+    }
   if (goal.metric.type === 'value' && goal.metric.unit.trim().toLowerCase() === 'kg' && log.value != null)
     return { weights: [...state.weights, { id: `peso-${uid()}`, date: log.date, kg: log.value, logId: log.id }] }
   if (goal.metric.type === 'days' && log.value) {
@@ -200,6 +227,7 @@ export const useStore = create<Store>()(
           journal: state.journal.map(entry => ({ ...entry, goalIds: entry.goalIds.filter(goalId => goalId !== id) })),
           subjects: state.subjects.map(subject => (subject.goalId === id ? { ...subject, goalId: undefined } : subject)),
           modules: state.modules.map(module => (module.goal?.goalId === id ? { ...module, goal: undefined } : module)),
+          rules: state.rules.filter(rule => rule.goalId !== id),
         })),
 
       addLog: log =>
@@ -219,9 +247,9 @@ export const useStore = create<Store>()(
           }
         }),
 
-      addTask: (input, today) => {
+      addTask: (input, today, reserved = 0) => {
         const state = get()
-        const later = todayTasks(state.tasks, today).length >= state.settings.maxTasks
+        const later = todayTasks(state.tasks, today).length + reserved >= state.settings.maxTasks
         const task: Task = {
           id: `tarefa-${uid()}`,
           title: input.title.trim(),
@@ -247,7 +275,8 @@ export const useStore = create<Store>()(
           return {
             logs: entry ? [...state.logs, entry] : state.logs,
             ...(entry ? mirror(state, entry) : {}),
-            tasks: state.tasks.map(item => (item.id === id ? { ...item, status: 'done' as const } : item)),
+            // feita antes do dia marcado: passa para o dia em que foi feita
+            tasks: state.tasks.map(item => (item.id === id ? { ...item, status: 'done' as const, later: false, date: item.date > today ? today : item.date } : item)),
           }
         }),
 
@@ -278,7 +307,78 @@ export const useStore = create<Store>()(
         return true
       },
 
-      deleteTask: id => set(state => ({ tasks: state.tasks.filter(task => task.id !== id) })),
+      // Excluir a tarefa de uma repetição pula só aquele dia, para ela não voltar sozinha.
+      deleteTask: id =>
+        set(state => {
+          const task = state.tasks.find(item => item.id === id)
+          const rules =
+            task?.ruleId && task.occurrence
+              ? state.rules.map(rule => (rule.id === task.ruleId && !rule.skipped.includes(task.occurrence!) ? { ...rule, skipped: [...rule.skipped, task.occurrence!] } : rule))
+              : state.rules
+          return { tasks: state.tasks.filter(item => item.id !== id), rules }
+        }),
+
+      addRule: rule => {
+        const id = `rep-${uid()}`
+        set(state => ({ rules: [...state.rules, { ...rule, title: rule.title.trim(), id, skipped: [] }] }))
+        return id
+      },
+
+      updateRule: (id, patch) => set(state => ({ rules: state.rules.map(rule => (rule.id === id ? { ...rule, ...patch } : rule)) })),
+
+      removeRule: (id, today) =>
+        set(state => ({
+          rules: state.rules.filter(rule => rule.id !== id),
+          tasks: state.tasks
+            .filter(task => !(task.ruleId === id && task.status === 'pending' && task.date >= today))
+            .map(task => (task.ruleId === id ? { ...task, ruleId: undefined, occurrence: undefined } : task)),
+        })),
+
+      materializeOccurrence: (ruleId, occurrence, date) => {
+        const state = get()
+        const rule = state.rules.find(item => item.id === ruleId)
+        if (!rule) return null
+        const existing = state.tasks.find(task => task.ruleId === ruleId && task.occurrence === occurrence)
+        if (existing) return existing
+        const task: Task = { id: `tarefa-${uid()}`, title: rule.title, goalId: rule.goalId, date, status: 'pending', origin: 'recurring', later: false, ruleId, occurrence }
+        set({ tasks: [...state.tasks, task] })
+        return task
+      },
+
+      skipOccurrence: (id, date) =>
+        set(state => ({
+          rules: state.rules.map(rule => (rule.id === id && !rule.skipped.includes(date) ? { ...rule, skipped: [...rule.skipped, date] } : rule)),
+          tasks: state.tasks.filter(task => !(task.ruleId === id && task.occurrence === date && task.status === 'pending')),
+        })),
+
+      ensureOccurrences: today =>
+        set(state => {
+          let changed = false
+          // ocorrências de dias passados que ficaram pendentes não se acumulam
+          let tasks = state.tasks.map(task => {
+            if (!task.ruleId || task.status !== 'pending' || task.later || task.date >= today) return task
+            changed = true
+            return { ...task, status: 'not_done' as const }
+          })
+          const archived = new Set(state.areas.filter(area => area.archived).map(area => area.id))
+          let count = todayTasks(tasks, today).length
+          for (const rule of rulesOn(state.rules, state.goals, today)) {
+            const goal = state.goals.find(item => item.id === rule.goalId)
+            if (goal && (archived.has(goal.areaId) || today > goal.deadline)) continue
+            if (tasks.some(task => task.ruleId === rule.id && task.occurrence === today)) continue
+            // uma tarefa da mesma meta já marcada para hoje vale como a ocorrência
+            const same = rule.goalId ? tasks.find(task => task.goalId === rule.goalId && task.date === today && !task.ruleId) : undefined
+            changed = true
+            if (same) {
+              tasks = tasks.map(task => (task === same ? { ...task, ruleId: rule.id, occurrence: today } : task))
+              continue
+            }
+            const later = count >= state.settings.maxTasks
+            if (!later) count++
+            tasks = [...tasks, { id: `tarefa-${uid()}`, title: rule.title, goalId: rule.goalId, date: today, status: 'pending', origin: 'recurring', later, ruleId: rule.id, occurrence: today }]
+          }
+          return changed ? { tasks } : state
+        }),
 
       openDay: (today, { taskIds, suggestions, candidateIds }) =>
         set(state => {
@@ -469,6 +569,7 @@ export const useStore = create<Store>()(
               goals: [],
               logs: [],
               tasks: [],
+              rules: [],
               journal: [],
               summaries: [],
               retros: {},
@@ -490,6 +591,8 @@ export const useStore = create<Store>()(
             tasks: state.tasks
               .filter(task => !(task.goalId && task.status === 'pending'))
               .map(task => (task.goalId ? { ...task, goalId: undefined, milestoneId: undefined } : task)),
+            // repetições das metas saem; as avulsas ficam
+            rules: state.rules.filter(rule => !rule.goalId),
             journal: state.journal.map(entry => ({ ...entry, goalIds: [] })),
             subjects: state.subjects.map(subject => ({ ...subject, goalId: undefined })),
             workouts: unlink(state.workouts),
@@ -512,7 +615,20 @@ export const useStore = create<Store>()(
           const note = workout.note || [kindOf(workout.kind).label, workoutMeta(entry)].filter(Boolean).join(' · ')
           return {
             workouts: [...state.workouts, entry],
-            logs: linked && logId ? [...state.logs, { id: logId, date: workout.date, goalId, note, workout: workout.exercises?.length ? workout.exercises : undefined }] : state.logs,
+            logs:
+              linked && logId
+                ? [
+                    ...state.logs,
+                    {
+                      id: logId,
+                      date: workout.date,
+                      goalId,
+                      note,
+                      workout: workout.exercises?.length ? workout.exercises : undefined,
+                      activity: { kind: workout.kind, minutes: workout.minutes, distanceKm: workout.distanceKm },
+                    },
+                  ]
+                : state.logs,
           }
         }),
 

@@ -1,6 +1,8 @@
 'use client'
 
-import { Check, Pencil, Trash2, X } from 'lucide-react'
+import { Check, Pencil, Repeat as RepeatIcon, Trash2, X } from 'lucide-react'
+import { RuleSheet } from '@/components/rule-sheet'
+import { defaultRepeat, describe, nextDates, suggestRepeat } from '@/lib/recurrence'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Missing, TopBar, useShell } from '@/components/app-shell'
@@ -12,7 +14,7 @@ import { LogSheet } from '@/components/log-sheet'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/controls'
 import { Sheet } from '@/components/ui/sheet'
-import { cap, fmt, shortDay } from '@/lib/format'
+import { cap, fmt, shift, shortDay } from '@/lib/format'
 import { logsOf, METRIC_LABEL, milestoneDates, paceOf, progressOf, streakOf } from '@/lib/goals'
 import { useStore } from '@/lib/store'
 import { useClock } from '@/lib/time'
@@ -40,6 +42,8 @@ export default function GoalDetailPage() {
   const [confirming, setConfirming] = useState(false)
   const [allLogs, setAllLogs] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
+  const rule = useStore(state => state.rules.find(item => item.goalId === id))
 
   if (!goal) return <Missing title="Meta não encontrada" description="Ela pode ter sido excluída." href="/metas" action="Ver metas" />
 
@@ -53,6 +57,8 @@ export default function GoalDetailPage() {
     .slice(0, 6)
   const done = milestoneDates(goal, logs)
   const streak = m.type === 'days' && !hideStreaks ? streakOf(goal, logs, today) : 0
+  const upcoming = rule ? nextDates(rule, shift(today, 1), 3) : []
+  const draftRepeat = suggestRepeat({ metric: m, startDate: today, deadline: goal.deadline }) ?? { ...defaultRepeat(today), end: { type: 'date' as const, date: goal.deadline } }
 
   const toggleMilestone = (milestoneId: string, title: string) => {
     const existing = logs.find(log => log.goalId === goal.id && log.milestoneId === milestoneId)
@@ -93,6 +99,30 @@ export default function GoalDetailPage() {
           <Button block className="mt-4" onClick={() => setLogging(true)} disabled={pace.status === 'done' && m.type === 'milestones'}>
             {m.type === 'milestones' ? 'Concluir próxima etapa' : 'Registrar'}
           </Button>
+        </section>
+
+        <section className="card flex items-start gap-3 p-4" aria-labelledby="agenda-meta">
+          <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
+            <RepeatIcon size={20} strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 id="agenda-meta" className="text-[15px] font-medium">
+              Na agenda
+            </h3>
+            {rule ? (
+              <>
+                <p className="text-[13px]">
+                  {rule.title}: {describe(rule.repeat).toLocaleLowerCase('pt-BR')}
+                </p>
+                {upcoming.length > 0 && <p className="mt-0.5 text-[12px] text-muted">Próximas: {upcoming.map(date => fmt(date, "EEE, d 'de' MMM")).join(' · ')}</p>}
+              </>
+            ) : (
+              <p className="text-[13px] text-muted">Sem tarefa fixa. As sugestões aparecem na abertura do dia.</p>
+            )}
+            <Button variant="ghost" size="sm" className="-ml-3 mt-1" onClick={() => setScheduling(true)}>
+              {rule ? 'Editar repetição' : 'Agendar tarefa'}
+            </Button>
+          </div>
         </section>
 
         <section className="card p-4" aria-labelledby="ritmo">
@@ -229,6 +259,14 @@ export default function GoalDetailPage() {
       </div>
 
       <LogSheet goalId={goal.id} open={logging} onClose={() => setLogging(false)} />
+
+      <RuleSheet
+        open={scheduling}
+        onClose={() => setScheduling(false)}
+        rule={rule}
+        draft={{ title: goal.taskTitle || goal.title, goalId: goal.id, repeat: { ...draftRepeat, start: today > goal.startDate ? today : goal.startDate } }}
+        suggestedEnd={goal.deadline}
+      />
 
       <Sheet open={picking} onClose={() => setPicking(false)} title="Ícone da meta">
         <ArtPicker

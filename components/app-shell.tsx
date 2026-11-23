@@ -75,6 +75,14 @@ export function AppShell({ children, overrides }: { children: ReactNode; overrid
   // Resumos que esperam o texto da IA
   useSummaryAI()
 
+  // Tarefas que se repetem: as ocorrências de hoje entram na lista
+  const rules = useStore(state => state.rules)
+  const goalsCount = useStore(state => state.goals.length)
+  const ensureOccurrences = useStore(state => state.ensureOccurrences)
+  useEffect(() => {
+    if (hydrated && signedIn && onboarded) ensureOccurrences(today)
+  }, [hydrated, signedIn, onboarded, today, rules, goalsCount, ensureOccurrences])
+
   useEffect(() => {
     const update = () => setOffline(!navigator.onLine)
     update()

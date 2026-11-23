@@ -2,11 +2,12 @@
 
 import { Minus, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { brl, minutesLabel, num, parseNum } from '@/lib/format'
+import { brl, fmt, minutesLabel, num, parseNum } from '@/lib/format'
 import { logsOf, nextMilestone, progressOf } from '@/lib/goals'
 import { useStore } from '@/lib/store'
 import { useClock } from '@/lib/time'
-import type { Goal, LogEntry, Task, WorkoutSet } from '@/lib/types'
+import { guessKind, isFitnessGoal, kindOf, WORKOUT_KINDS } from '@/lib/fitness'
+import type { Goal, LogEntry, Task, WorkoutKind, WorkoutSet } from '@/lib/types'
 import { useShell } from './app-shell'
 import { Button } from './ui/button'
 import { Chip, Field } from './ui/controls'
@@ -16,6 +17,8 @@ interface Props {
   goalId: string | undefined
   /** quando o registro vem de uma tarefa, ela é concluída junto */
   task?: Task
+  /** dia do registro (padrão: hoje). Num dia que passou, o registro fica naquele dia. */
+  date?: string
   open: boolean
   onClose: () => void
   onLogged?: () => void
@@ -31,7 +34,7 @@ const toRow = (set: WorkoutSet): Row => ({
 })
 
 const DESCRIPTION = {
-  frequency: 'Os detalhes são opcionais. Dá para registrar só a presença.',
+  frequency: 'Os detalhes são opcionais. Dá para registrar só que aconteceu.',
   sum: 'Quanto entrou desta vez?',
   value: 'Qual é a medição de hoje?',
   milestones: 'Marque a etapa como concluída.',
@@ -39,25 +42,41 @@ const DESCRIPTION = {
 }
 
 /** Folha de registro que se adapta à métrica da meta. Registro comum em 2 toques. */
-export function LogSheet({ goalId, task, open, onClose, onLogged }: Props) {
+export function LogSheet({ goalId, task, date, open, onClose, onLogged }: Props) {
   const goal = useStore(state => state.goals.find(item => item.id === goalId))
+  const { today } = useClock()
+  const past = date && date < today
   return (
-    <Sheet open={open && !!goal} onClose={onClose} title={task?.title ?? goal?.title ?? ''} description={goal ? DESCRIPTION[goal.metric.type] : undefined}>
-      {goal && <LogForm key={`${goal.id}-${task?.id ?? ''}`} goal={goal} task={task} onClose={onClose} onLogged={onLogged} />}
+    <Sheet
+      open={open && !!goal}
+      onClose={onClose}
+      title={task?.title ?? goal?.title ?? ''}
+      description={goal ? `${past ? `Registro de ${fmt(date, "EEEE, d 'de' MMM")}. ` : ''}${DESCRIPTION[goal.metric.type]}` : undefined}
+    >
+      {goal && <LogForm key={`${goal.id}-${task?.id ?? ''}-${date ?? ''}`} goal={goal} task={task} date={date} onClose={onClose} onLogged={onLogged} />}
     </Sheet>
   )
 }
 
-function LogForm({ goal, task, onClose, onLogged }: { goal: Goal; task?: Task; onClose: () => void; onLogged?: () => void }) {
+function LogForm({ goal, task, date, onClose, onLogged }: { goal: Goal; task?: Task; date?: string; onClose: () => void; onLogged?: () => void }) {
   const logs = useStore(state => state.logs)
+  const areas = useStore(state => state.areas)
   const completeTask = useStore(state => state.completeTask)
   const addLog = useStore(state => state.addLog)
-  const { today } = useClock()
+  const { today: now } = useClock()
+  // o dia do registro: hoje, ou o dia que passou de onde a tarefa foi marcada
+  const today = date && date < now ? date : now
   const { toast } = useShell()
   const m = goal.metric
   const mine = logsOf(logs, goal.id)
-  const lastWorkout = [...mine].reverse().find(log => log.workout?.length)
   const current = progressOf(goal, logs, today).current
+  const fitness = isFitnessGoal(goal, logs, areas)
+
+  const [kind, setKind] = useState<WorkoutKind | undefined>(() => (fitness ? guessKind(goal, logs) : undefined))
+  const kindDef = kind ? kindOf(kind) : undefined
+  const lastWorkout = [...mine].reverse().find(log => log.workout?.length && (log.activity?.kind ?? 'musculacao') === kind)
+  const [activityMinutes, setActivityMinutes] = useState('')
+  const [distance, setDistance] = useState('')
 
   const [rows, setRows] = useState<Row[]>([emptyRow()])
   const [amountText, setAmountText] = useState('')
@@ -74,16 +93,22 @@ function LogForm({ goal, task, onClose, onLogged }: { goal: Goal; task?: Task; o
   const submit = () => {
     if (invalid) return
     const data: Partial<LogEntry> = { note: note.trim() || undefined }
-    if (m.type === 'frequency') {
-      const workout = rows
-        .filter(row => row.exercise.trim())
-        .map(row => ({
-          exercise: row.exercise.trim(),
-          sets: parseNum(row.sets) || undefined,
-          reps: parseNum(row.reps) || undefined,
-          weight: parseNum(row.weight) || undefined,
-        }))
+    if (m.type === 'frequency' && fitness) {
+      const workout = kindDef?.exercises
+        ? rows
+            .filter(row => row.exercise.trim())
+            .map(row => ({
+              exercise: row.exercise.trim(),
+              sets: parseNum(row.sets) || undefined,
+              reps: parseNum(row.reps) || undefined,
+              weight: parseNum(row.weight) || undefined,
+            }))
+        : []
       if (workout.length) data.workout = workout
+      const mins = Math.round(parseNum(activityMinutes))
+      const km = parseNum(distance)
+      // sem tipo escolhido, vale como "outro": o treino ainda aparece no módulo Fitness
+      data.activity = { kind: kind ?? 'outro', minutes: mins > 0 ? mins : undefined, distanceKm: kindDef?.distance && km > 0 ? km : undefined }
     } else if (m.type === 'sum') data.value = amountValue
     else if (m.type === 'value') data.value = Math.round(measure * 10) / 10
     else if (m.type === 'days') data.value = minutes
@@ -109,7 +134,39 @@ function LogForm({ goal, task, onClose, onLogged }: { goal: Goal; task?: Task; o
         submit()
       }}
     >
-      {m.type === 'frequency' && (
+      {m.type === 'frequency' && mine.some(log => log.date === today) && (
+        <p className="rounded-ctl bg-primary-soft p-3 text-[12px] leading-relaxed">
+          {today === now ? 'Você já registrou hoje.' : 'Já tem registro neste dia.'} Este entra como mais uma atividade do dia: a meta conta 1 dia, não 2.
+        </p>
+      )}
+
+      {m.type === 'frequency' && fitness && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] text-muted">Tipo de atividade</span>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Tipo de atividade">
+              {WORKOUT_KINDS.map(item => (
+                <Chip key={item.value} selected={kind === item.value} onClick={() => setKind(kind === item.value ? undefined : item.value)} className="pl-3">
+                  <item.icon size={16} strokeWidth={1.75} aria-hidden />
+                  {item.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div className={kindDef?.distance ? 'grid grid-cols-2 gap-3' : ''}>
+            <Field label="Duração (min, opcional)" htmlFor="log-minutos">
+              <input id="log-minutos" className="field" inputMode="numeric" placeholder="45" value={activityMinutes} onChange={event => setActivityMinutes(event.target.value)} />
+            </Field>
+            {kindDef?.distance && (
+              <Field label="Distância (km)" htmlFor="log-km">
+                <input id="log-km" className="field" inputMode="decimal" placeholder="3,5" value={distance} onChange={event => setDistance(event.target.value)} />
+              </Field>
+            )}
+          </div>
+        </>
+      )}
+
+      {m.type === 'frequency' && fitness && kindDef?.exercises && (
         <>
           {lastWorkout?.workout && (
             <Button variant="outline" size="sm" className="self-start" onClick={() => setRows(lastWorkout.workout!.map(toRow))}>
